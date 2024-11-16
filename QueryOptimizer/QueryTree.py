@@ -1,16 +1,22 @@
 class QueryTree:
-    def __init__(self, type: str, val: str, parent: "QueryTree" = None):
-        self.type = type         # The type of the node (e.g., SELECT, WHERE, JOIN)
-        self.val = val           # The value associated with this node (e.g., column name, condition)
-        self.children = []       # List of child QueryTree nodes
+    def __init__(self, node_type: str, val: list, parent: "QueryTree" = None):
+        self.node_type = node_type         # The type of the node (e.g., SELECT, WHERE, JOIN)
+        self.val = val           # Array of values associated with this node
+        self.children = []         # List of child QueryTree nodes
         self.parent = parent     # Parent node in the tree (default is None for root node)
 
-    def add_child(self, child: "QueryTree"):
-        """Add a child node to the current QueryTree node."""
-        self.children.append(child)
-        child.parent = self      # Set the parent of the child to the current node
-
     def __repr__(self):
-        """String representation for debugging."""
-        return f"QueryTree(type={self.type}, val={self.val}, children={len(self.children)})"
+        return self.__str__()
 
+    def __str__(self, level: int = 0):
+        """
+        Creates a string representation of the entire tree structure.
+        """
+        # Current node representation
+        ret = "  " * level + f"QueryTree(node_type: {self.node_type}, values: {self.val})"
+        
+        # Add all children representations
+        for child in self.children:
+            ret += "\n" + child.__str__(level + 1)
+            
+        return ret

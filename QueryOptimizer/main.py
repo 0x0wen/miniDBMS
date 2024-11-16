@@ -3,21 +3,16 @@ from QueryTree import QueryTree
 from ParsedQuery import ParsedQuery
 
 
-def main():
-    # Input query
-    query = "SELECT name, age FROM employees WHERE age > 30 JOIN departments ON employees.dept_id = departments.id"
+# Example SQL query
+query_str = "SELECT name, age FROM users WHERE age > 18 ORDER BY name LIMIT 10"
 
-    # Initialize the query optimizer
-    optimizer = OptimizationEngine()
+# Initialize the optimization engine
+engine = OptimizationEngine()
 
-    # Parse the input query
-    parsed_query = optimizer.parseQuery(query)
+# Parse the query
+parsed_query = engine.parseQuery(query_str)
+print(f"Parsed Query Tree: {parsed_query.query_tree}")
 
-    # Optimize the parsed query
-    optimizer.optimizeQuery(parsed_query)
-    print('asyo')
-    # Display the optimized query
-    print(parsed_query)
-
-if __name__ == "__main__":
-    main()
+# Optimize the query
+optimized_query = engine.optimizeQuery(parsed_query)
+print(f"Optimized Query Estimated Cost: {optimized_query.estimated_cost}")
