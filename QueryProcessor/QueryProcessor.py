@@ -1,5 +1,7 @@
+from QueryOptimizer.OptimizationEngine import OptimizationEngine
+
 class QueryProcessor:
-    _instance = None  # Static variable to hold the single instance
+    _instance = None
 
     def __new__(cls, *args, **kwargs):
         if cls._instance is None:
@@ -7,8 +9,9 @@ class QueryProcessor:
         return cls._instance
 
     def execute_query(self, query):
-        # tinggal buat ngirim query ke query optimization
-        print(query)
+        optimization_engine = OptimizationEngine()
+        optimized_query =  optimization_engine.optimizeQuery(optimization_engine.parseQuery(query))
+        print(optimized_query)
 
     def accept_query(self):
         # penerimaan query dari user
