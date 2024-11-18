@@ -1,6 +1,12 @@
 from ParsedQuery import ParsedQuery
 from QueryTree import QueryTree
 
+VALID_SQL_KEYWORDS = [
+    "SELECT", "FROM", "WHERE", "ORDER BY", "LIMIT",
+    "INSERT INTO", "UPDATE", "DELETE", "CREATE", "DROP",
+    "ALTER", "JOIN", "GROUP BY", "HAVING"
+]
+
 class OptimizationEngine:
     def __init__(self):
         self.statistics = {}  # Example: Holds table statistics for cost estimation
@@ -29,7 +35,30 @@ class OptimizationEngine:
         query.estimated_cost = cost  # Example of adding optimization-specific attributes
 
         return query
+    
+    def validateParsedQuery(self, query_tree: QueryTree) -> bool:
+        """
+        Validates the QueryTree structure for SQL syntax correctness.
+        """
+        if query_tree.node_type not in ["SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "DROP"]:
+            print("Error: Query must start with a valid statement (SELECT, INSERT, UPDATE, DELETE, CREATE, DROP).")
+            return False
+        
+        if query_tree.node_type == "SELECT":
+            if not query_tree.children or query_tree.children[0].node_type != "FROM":
+                print("Error: SELECT query must contain a FROM clause.")
+                return False
+            
+        if query_tree.node_type == "UPDATE":
+            has_set= any(child.node_type == "SET" for child in query_tree.children)
+            if not has_set:
+                print("Error: Query must contain a SET clause.")
+                return False
 
+
+        print("QueryTree validation passed.")
+        return True
+    
     def __getCost(self, query: ParsedQuery) -> int:
         """
         Calculates the estimated cost of executing the parsed query.
@@ -59,12 +88,13 @@ class OptimizationEngine:
             
             # Get all columns until we hit FROM
             while tokens and tokens[0].upper() != "FROM":
-                col = tokens.pop(0).rstrip(',')  # Remove trailing comma
-                root.val.append(col)
+                token = tokens.pop(0)
+                if not token.endswith(',') and (tokens[0] != ','):
+                    root.val.append(token.rstrip(','))  # Remove trailing commas
+                    break
                 
-                # Skip any commas
-                if tokens and tokens[0] == ',':
-                    tokens.pop(0)
+                root.val.append(token.rstrip(','))  # Remove trailing commas
+
 
             # Process FROM clause if it exists
             if tokens and tokens[0].upper() == "FROM":
@@ -109,12 +139,26 @@ class OptimizationEngine:
                     col = tokens.pop(0).rstrip(',')
                     root.val.append(col)
                     
-                    # Skip any commas
-                    if tokens and tokens[0] == ',':
-                        tokens.pop(0)
 
         elif token == "LIMIT":
             root = QueryTree(node_type="LIMIT", val=[tokens.pop(0)] if tokens else [])
+            
+        elif token == "UPDATE":
+            root = QueryTree(node_type="UPDATE", val=[tokens.pop(0).rstrip(',')] if tokens else [])
+            
+            # if tokens and tokens[0].upper() == "JOIN":
+            
+            if tokens and tokens[0].upper() == "SET":
+                tokens.pop(0)
+                from_node = QueryTree(node_type="SET", val=[])
+                while tokens and tokens[0].upper() not in ["WHERE", "ORDER", "GROUP", "HAVING", "LIMIT"]:
+                    table = tokens.pop(0).rstrip(',')
+                    from_node.val.append(table)
+                    
+                    if tokens and tokens[0] == ',':
+                        tokens.pop(0)
+                root.children.append(from_node)
+                
 
         else:
             root = QueryTree(node_type="UNKNOWN", val=[token])
