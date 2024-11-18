@@ -1,5 +1,5 @@
 from datetime import datetime
-from FailureRecovery import FailureRecovery, ExecutionResult
+from failurerecovery import FailureRecovery, ExecutionResult
 import os
 
 # Create an instance of FailureRecovery
@@ -15,11 +15,11 @@ recovery.writeLog(result2)
 
 # Print the contents of the write-ahead log before saving the checkpoint
 print("Write-ahead log before checkpoint:")
-for entry in recovery._write_ahead_log:
-    print(entry.to_dict())
+for entry in recovery.getWriteAheadLog():
+    print(entry.toDict())
 
 # Save a checkpoint
-recovery._saveCheckpoint()
+recovery.saveCheckpoint()
 
 # Define the checkpoint file path
 checkpoint_file = os.path.join(os.path.dirname(__file__), 'checkpoints', 'checkpoint_log.txt')
@@ -36,8 +36,8 @@ recovery.writeLog(result3)
 
 # Print the contents of the write-ahead log after adding the new entry
 print("\nWrite-ahead log after adding a new entry (unsaved):")
-for entry in recovery._write_ahead_log:
-    print(entry.to_dict())
+for entry in recovery.getWriteAheadLog():
+    print(entry.toDict())
 
 # Print the last saved log entry from the checkpoint file
 print("\nLast saved log entry from checkpoint_log.txt:")

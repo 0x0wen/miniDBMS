@@ -2,7 +2,7 @@ import os
 from typing import Optional
 from datetime import datetime
 
-from .RecoverCriteria import RecoverCriteria
+from recovercriteria import RecoverCriteria
 # from QueryProcessor.ExecutionResult import ExecutionResult
 
 # Implementasi class ExecutionResult sementara
@@ -12,7 +12,7 @@ class ExecutionResult:
         self.success = success
         self.timestamp = timestamp
 
-    def to_dict(self):
+    def toDict(self):
         return {
             'query': self.query,
             'success': self.success,
@@ -21,17 +21,17 @@ class ExecutionResult:
 
 class FailureRecovery:
 
-    _instance: Optional['FailureRecovery'] = None
-    _write_ahead_log: list = []
+    __instance: Optional['FailureRecovery'] = None
+    __write_ahead_log: list['ExecutionResult'] = []
 
     def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super(FailureRecovery, cls).__new__(cls)
-        return cls._instance
+        if cls.__instance is None:
+            cls.__instance = super(FailureRecovery, cls).__new__(cls)
+        return cls.__instance
     
     def writeLog(self, info: ExecutionResult) -> None:
         """This method accepts execution result object as input and appends an entry in a write-ahead log based on execution info object."""
-        self._write_ahead_log.append(info)
+        self.__write_ahead_log.append(info)
         
     def recover(self, criteria: RecoverCriteria) -> None:
         """This method accepts a checkpoint object that contains the criteria for checkpoint. This criteria can be timestamp or transaction id.
@@ -40,7 +40,7 @@ class FailureRecovery:
         execution of that log entry."""
         # Implementasi di sini
 
-    def _saveCheckpoint(self) -> None:
+    def __saveCheckpoint(self) -> None:
         """This method is called to save a checkpoint in log. In this method, all entries in the write-ahead log from the last checkpoint are
         used to update data in physical storage in order to synchronize data. This method can be called after certain time periods (e.g. 5 minutes),
         and/or when the write-ahead log is almost full."""
@@ -52,14 +52,22 @@ class FailureRecovery:
         checkpoint_file = os.path.join(checkpoints_dir, 'checkpoint_log.txt')
        
         with open(checkpoint_file, 'w') as file:
-            for entry in self._write_ahead_log:
-                file.write(f"{entry.to_dict()}\n")
+            for entry in self.__write_ahead_log:
+                file.write(f"{entry.toDict()}\n")
        
-        self._write_ahead_log.clear()
+        self.__write_ahead_log.clear()
         
-        self._update_physical_storage(checkpoint_file)
+        self.__updatePhysicalStorage(checkpoint_file)
 
-    def _update_physical_storage(self, checkpoint_file: str) -> None:
+    def __updatePhysicalStorage(self, checkpoint_file: str) -> None:
         """Function sementara sebelum bagian lain jadi"""
         print(f"Updating physical storage with data from {checkpoint_file}")
-        
+    
+    def getWriteAheadLog(self) -> list['ExecutionResult']:
+        """Getter untuk write_ahead_log"""
+        return self.__write_ahead_log
+    
+    def saveCheckpoint(self) -> None:
+        """Method ini harusnya gada karena saveCheckpoint itu private method, 
+        ini versi publicnya sementara utk keperluan testing"""
+        self.__saveCheckpoint()
