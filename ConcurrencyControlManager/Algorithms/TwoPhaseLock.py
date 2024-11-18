@@ -1,6 +1,6 @@
-from ConcurrencyControlManager.Algorithms.AbstractLogObject import AbstractLogObject
+from ConcurrencyControlManager.Algorithms.AbstractAlgorithm import AbstractAlgorithm
 
-class TwoPhaseLock(AbstractLogObject):
+class TwoPhaseLock(AbstractAlgorithm):
     def __init__(self):
         # Lock format: [(t_id: int, data_item: str), ...], contoh: [(1, 'A'), (2, 'B'), ...]
         self.lock_s_table = []
@@ -57,4 +57,10 @@ class TwoPhaseLock(AbstractLogObject):
         return True
     
     def run(self):
+        pass
+
+    def validate(self):
+        pass
+
+    def end(self):
         pass
