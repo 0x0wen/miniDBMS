@@ -1,7 +1,8 @@
-from objects.DataRetrieval import DataRetrieval
+from objects.DataRetrieval import DataRetrieval,Condition
 from objects.DataWrite import DataWrite
 from objects.DataDeletion import DataDeletion
 from objects.Statistics import Statistics
+from Serializer import *
 from objects.Rows import Rows  
 
 class StorageManager:
@@ -18,7 +19,21 @@ class StorageManager:
             data_retrieval : objects contains data to help determine which data to be retrieved from hard disk
         
         """
-        pass
+        serializer = Serializer()
+        all_filtered_data = []
+        for table_name in data_retrieval.table: #harusnya bisa join tabel karena list[str] ????
+            data = serializer.readTable(table_name)
+            cond_filtered_data = serializer.applyConditions(data,data_retrieval.conditions)
+            column_filtered_data  = serializer.filterColumns(cond_filtered_data,data_retrieval.column)
+            all_filtered_data.extend(column_filtered_data)
+        
+        print(all_filtered_data) 
+        return Rows(all_filtered_data)
+
+
+
+    
+        
 
     def writeBlock(self ,data_write: DataWrite) -> int:
         """
@@ -57,3 +72,17 @@ class StorageManager:
         pass
 
     
+
+#SELECT umur,desk FROM user2 WHERE id <= 7 AND harga > 60.00
+cond1 = Condition("id", '<=', 7)
+cond2 = Condition("harga", '>', 60.00)
+
+retrieval = DataRetrieval(
+    table=["user2"],
+    column=["umur","desk"],
+    conditions=[cond1,cond2]
+)
+
+sm = StorageManager()
+sm.readBlock(retrieval)
+

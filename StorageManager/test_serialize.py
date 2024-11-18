@@ -1,27 +1,27 @@
-
 from Serializer import Serializer
 
 schema = [
-    ('col1', 'int', 4),
-    ('col2', 'varchar', 10),
-    ('col3', 'float', 4),
-    ('col4', 'char', 10),
+    ('id', 'int', 4),
+    ('umur', 'varchar', 10),
+    ('harga', 'float', 4),
+    ('desk', 'char', 10),
 ]
 
-
-
-
 data2 = [
-    [5, 'data1', 12.34, 'row1'],
+    [5, 'datadasdadd1', 12.34, 'row1'],
     [6, 'data2', 56.78, 'row2'],
     [7, 'data3', 90.12, 'row3'],
     [8, 'data4', 30000, 'row4'],
-
 ]
-serializer = Serializer(schema)
+
+serializer = Serializer()
 table_name = "user2"
-serializer.write_table(table_name, data2)
+serializer.writeTable(table_name, data2,schema)
+print(serializer._readSchema(table_name))
+data_with_schema = serializer.readTable(table_name)
+print(data_with_schema)
 
-read_data = serializer.read_table(table_name)
+# baris1 = data_with_schema[0]
+# idb1 = baris1['id']
+# print(idb1)
 
-print('Data:', read_data)
