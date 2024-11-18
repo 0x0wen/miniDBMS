@@ -2,7 +2,8 @@ from objects.DataRetrieval import DataRetrieval,Condition
 from objects.DataWrite import DataWrite
 from objects.DataDeletion import DataDeletion
 from objects.Statistics import Statistics
-from Serializer import *
+# from Serializer import *
+from SerializerBlock import Serializer
 from objects.Rows import Rows  
 
 class StorageManager:
@@ -19,6 +20,8 @@ class StorageManager:
             data_retrieval : objects contains data to help determine which data to be retrieved from hard disk
         
         """
+        #ini masih baca semua block
+        #ini masih baca semua block
         serializer = Serializer()
         all_filtered_data = []
         for table_name in data_retrieval.table: #harusnya bisa join tabel karena list[str] ????
@@ -74,13 +77,14 @@ class StorageManager:
     
 
 #SELECT umur,desk FROM user2 WHERE id <= 7 AND harga > 60.00
+#ini masih baca semua block
 cond1 = Condition("id", '<=', 7)
 cond2 = Condition("harga", '>', 60.00)
 
 retrieval = DataRetrieval(
     table=["user2"],
-    column=["umur","desk"],
-    conditions=[cond1,cond2]
+    column=[],
+    conditions=[cond1]
 )
 
 sm = StorageManager()
