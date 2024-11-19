@@ -1,12 +1,6 @@
 from ParsedQuery import ParsedQuery
 from QueryTree import QueryTree
 
-VALID_SQL_KEYWORDS = [
-    "SELECT", "FROM", "WHERE", "ORDER BY", "LIMIT",
-    "INSERT INTO", "UPDATE", "DELETE", "CREATE", "DROP",
-    "ALTER", "JOIN", "GROUP BY", "HAVING"
-]
-
 class OptimizationEngine:
     def __init__(self):
         self.statistics = {}  # Example: Holds table statistics for cost estimation
@@ -40,21 +34,25 @@ class OptimizationEngine:
         """
         Validates the QueryTree structure for SQL syntax correctness.
         """
-        if query_tree.node_type not in ["SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "DROP"]:
-            print("Error: Query must start with a valid statement (SELECT, INSERT, UPDATE, DELETE, CREATE, DROP).")
+        if query_tree.node_type not in ["SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "BEGIN_TRANSACTION", "COMMIT"]:
+            print("Error: Query must start with a valid statement (SELECT, INSERT, UPDATE, DELETE, CREATE, DROP, BEGIN_TRANSACTION, COMMIT).")
             return False
         
         if query_tree.node_type == "SELECT":
-            if not query_tree.children or query_tree.children[0].node_type != "FROM":
+            if not query_tree.children or query_tree.children[0].node_type != "FROM": # SELECT must have a FROM clause
                 print("Error: SELECT query must contain a FROM clause.")
                 return False
             
         if query_tree.node_type == "UPDATE":
             has_set= any(child.node_type == "SET" for child in query_tree.children)
-            if not has_set:
+            if not has_set: # UPDATE must have a SET clause
                 print("Error: Query must contain a SET clause.")
                 return False
 
+        has_unknown = any(child.node_type == "UNKNOWN" for child in query_tree.children)
+        if has_unknown:
+            print("Error: Unknown syntax found in query.")
+            return False
 
         print("QueryTree validation passed.")
         return True
@@ -109,6 +107,23 @@ class OptimizationEngine:
                 if where_node:
                     where_node.parent = root
                     root.children.append(where_node)
+                    
+            # Process ORDER BY clause if it exists
+            if tokens and tokens[0].upper() == "ORDER":
+                order_node = self.__createQueryTree(tokens)  # Recursive call for ORDER BY
+                if where_node:
+                    where_node.parent = root
+                    root.children.append(order_node)
+            
+            # Process LIMIT clause if it exists
+            if tokens and tokens[0].upper() == "LIMIT":
+                limit_node = self.__createQueryTree(tokens)  # Recursive call for LIMIT
+                if where_node:
+                    where_node.parent = root
+                    root.children.append(limit_node)
+                    
+            if tokens : # if there is any token, add it as unknown
+                root.children.append(QueryTree(node_type="UNKNOWN", val=[tokens]))
 
         elif token == "FROM":
             root = QueryTree(node_type="FROM", val=[])
@@ -151,7 +166,7 @@ class OptimizationEngine:
             if tokens and tokens[0].upper() == "SET":
                 tokens.pop(0)
                 from_node = QueryTree(node_type="SET", val=[])
-                while tokens and tokens[0].upper() not in ["WHERE", "ORDER", "GROUP", "HAVING", "LIMIT"]:
+                while tokens and tokens[0].upper() != "WHERE":
                     table = tokens.pop(0).rstrip(',')
                     from_node.val.append(table)
                     
@@ -159,7 +174,25 @@ class OptimizationEngine:
                         tokens.pop(0)
                 root.children.append(from_node)
                 
-
+                if tokens and tokens[0].upper() == "WHERE":
+                    where_node = self.__createQueryTree(tokens)  # Recursive call for WHERE
+                if where_node:
+                    where_node.parent = root
+                    root.children.append(where_node)  
+                
+        elif token == "BEGIN":
+            if tokens and tokens.pop(0).upper() == "TRANSACTION":
+                root = QueryTree(node_type="BEGIN_TRANSACTION", val=[])
+            
+            if tokens : # if there is any token, add it as unknown
+                root.children.append(QueryTree(node_type="UNKNOWN", val=[tokens]))
+                
+        elif token == "COMMIT":
+            root = QueryTree(node_type="COMMIT", val=[])
+            
+            if tokens : # if there is any token, add it as unknown
+                root.children.append(QueryTree(node_type="UNKNOWN", val=[tokens]))
+                
         else:
             root = QueryTree(node_type="UNKNOWN", val=[token])
 
