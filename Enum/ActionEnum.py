@@ -1,7 +1,7 @@
 from enum import Enum
 
 
-class ConcurrencyControlAlgorithm(Enum):
+class ActionEnum(Enum):
     LOCK = 1
     TIMESTAMP = 2
     MVCC = 3
