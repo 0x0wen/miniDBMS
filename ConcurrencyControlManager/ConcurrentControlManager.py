@@ -1,7 +1,7 @@
 from ConcurrencyControlManager.Algorithms.AbstractAlgorithm import AbstractAlgorithm
 from ConcurrencyControlManager.Algorithms.TwoPhaseLock import TwoPhaseLock
 from Interface import Response, Action
-import Enum.ConcurrencyControlAlgorithm as ConcurrencyControlAlgorithm
+import Enum.ConcurrencyControlAlgorithmEnum as ConcurrencyControlAlgorithm
 
 
 class ConcurrentControlManager:
@@ -17,7 +17,7 @@ class ConcurrentControlManager:
         self.concurrency_control: int = ConcurrencyControlAlgorithm.LOCK  # Algorithm to use
         self.abstract_algorithm: AbstractAlgorithm = TwoPhaseLock()
 
-    def begin_transaction(self) -> int:
+    def beginTransaction(self) -> int:
         """
         Begins a new transaction by incrementing the sequence number.
 
@@ -27,7 +27,7 @@ class ConcurrentControlManager:
         self.sequence_number += 1
         return self.sequence_number
 
-    def log_object(self, db_object: int, transaction_id: int):
+    def logObject(self, db_object: int, transaction_id: int) -> None:
         """
         Logs an object for a given transaction.
 
@@ -40,7 +40,7 @@ class ConcurrentControlManager:
         except Exception as e:
             print(f"Exception: {e}")
 
-    def validate_object(self, db_object: int, transaction_id: int, action: Action) -> Response:
+    def validateObject(self, db_object: int, transaction_id: int, action: Action) -> Response:
         """
         Validates an object for a given transaction and action.
 
@@ -58,7 +58,7 @@ class ConcurrentControlManager:
             print(f"Exception: {e}")
             return Response(False, -1)
 
-    def end_transaction(self, transaction_id: int) -> bool:
+    def endTransaction(self, transaction_id: int) -> bool:
         """
         Ends a transaction.
 
@@ -74,12 +74,12 @@ class ConcurrentControlManager:
             print(f"Exception: {e}")
             return False
 
-    def set_concurrency_control(self, algorithm: ConcurrencyControlAlgorithm) -> bool:
+    def setConcurrencyControl(self, algorithm: ConcurrencyControlAlgorithm) -> bool:
         """
         Sets the concurrency control algorithm.
 
         Args:
-            algorithm (ConcurrencyControlAlgorithm): The algorithm to set.
+            algorithm (ConcurrencyControlAlgorithmEnum): The algorithm to set.
 
         Returns:
             bool: True if the algorithm was set successfully, False otherwise.
