@@ -57,6 +57,12 @@ class OptimizationEngine:
         print("QueryTree validation passed.")
         return True
     
+    def validateDoubleComma(self, token, next_token) -> bool:
+        if token == "," and next_token == ",":
+            print("Error: Double comma found in query.")
+            return False
+        return True
+
     def __getCost(self, query: ParsedQuery) -> int:
         """
         Calculates the estimated cost of executing the parsed query.
@@ -87,13 +93,27 @@ class OptimizationEngine:
             """
             NI HUL YANG AS
             """            
-            # while len(tokens) > 0:
-            #     token = tokens.pop(0)
-            #     if token.upper() == "AS":
-            #         rename[tokens.pop(0)] = temp
-            #         temp = ""
-            #     else:
-            #         temp = token
+            while len(tokens) > 0:
+                token = tokens.pop(0)
+                if token.upper() == "AS":
+                    token = tokens.pop(0)
+                    if len(tokens) == 0 or token.upper() in [",", "LIMIT", "ORDER", "BY", "WHERE"]:
+                        return Exception("AS not followed by alias")
+                    
+                    rename[token] = temp
+                    temp = ""
+                elif token == ",":
+                    if len(tokens) > 0:
+                        if (not self.validateDoubleComma(token, tokens[0])):
+                            return Exception("Double Comma")
+                    else:
+                        return Exception("Trailing Comma")
+                    
+                    # TODO: Do What ',' does here
+                else:
+                    if temp != "":
+                        return Exception("double value separated by space")
+                    temp = token
 
 
             """
@@ -115,6 +135,9 @@ class OptimizationEngine:
                     token = tokens.pop(0)
 
                     if token == ",":
+                        if (not self.validateDoubleComma(token, tokens[0])):
+                            return Exception("Double Comma")
+                        
                         token = tokens.pop(0)
                         if token.upper() in ["LIMIT"]:
                             return Exception("Trailing Comma")
