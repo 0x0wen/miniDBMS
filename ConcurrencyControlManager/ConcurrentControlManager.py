@@ -1,7 +1,7 @@
 from ConcurrencyControlManager.Algorithms.AbstractAlgorithm import AbstractAlgorithm
 from ConcurrencyControlManager.Algorithms.TwoPhaseLock import TwoPhaseLock
 from Interface import Response, Action
-import Enum.ConcurrencyControlAlgorithmEnum as ConcurrencyControlAlgorithm
+from Enum.ConcurrencyControlAlgorithmEnum import ConcurrencyControlAlgorithmEnum
 
 
 class ConcurrentControlManager:
@@ -14,7 +14,7 @@ class ConcurrentControlManager:
         Initializes the ConcurrentControlManager with default settings.
         """
         self.sequence_number: int = 0  # last id assigned to a transaction
-        self.concurrency_control: int = ConcurrencyControlAlgorithm.LOCK  # Algorithm to use
+        self.concurrency_control: ConcurrencyControlAlgorithmEnum = ConcurrencyControlAlgorithmEnum.LOCK  # Algorithm to use
         self.abstract_algorithm: AbstractAlgorithm = TwoPhaseLock()
 
     def beginTransaction(self) -> int:
@@ -74,7 +74,7 @@ class ConcurrentControlManager:
             print(f"Exception: {e}")
             return False
 
-    def setConcurrencyControl(self, algorithm: ConcurrencyControlAlgorithm) -> bool:
+    def setConcurrencyControl(self, algorithm: ConcurrencyControlAlgorithmEnum) -> bool:
         """
         Sets the concurrency control algorithm.
 
@@ -86,11 +86,11 @@ class ConcurrentControlManager:
         """
         try:
             match algorithm:
-                case ConcurrencyControlAlgorithm.LOCK:
+                case ConcurrencyControlAlgorithmEnum.LOCK:
                     self.abstract_algorithm = TwoPhaseLock()
-                case ConcurrencyControlAlgorithm.TIMESTAMP:
+                case ConcurrencyControlAlgorithmEnum.TIMESTAMP:
                     pass
-                case ConcurrencyControlAlgorithm.MVCC:
+                case ConcurrencyControlAlgorithmEnum.MVCC:
                     pass
                 case _:
                     raise Exception("Invalid algorithm")
