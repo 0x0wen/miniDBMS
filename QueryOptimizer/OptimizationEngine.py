@@ -77,128 +77,142 @@ class OptimizationEngine:
         if not tokens:
             return None
 
-        token = tokens.pop(0).upper()
         root = None
 
-        if token == "SELECT":
-            # Create SELECT node
-            root = QueryTree(node_type="SELECT", val=[])
+
+        rename = {}
+        temp = ""
+
+        """
+        NI HUL YANG AS
+        """            
+        while len(tokens) > 0:
+            token = tokens.pop(0)
+            if token.upper() == "AS":
+                rename[tokens.pop(0)] = temp
+                temp = ""
+            else:
+                temp = token
+
+        # if token == "SELECT":
+        #     # Create SELECT node
+        #     root = QueryTree(node_type="SELECT", val=[])
             
-            # Get all columns until we hit FROM
-            while tokens and tokens[0].upper() != "FROM":
-                token = tokens.pop(0)
-                if not token.endswith(',') and (tokens[0] != ','):
-                    root.val.append(token.rstrip(','))  # Remove trailing commas
-                    break
+        #     # Get all columns until we hit FROM
+        #     while tokens and tokens[0].upper() != "FROM":
+        #         token = tokens.pop(0)
+        #         if not token.endswith(',') and (tokens[0] != ','):
+        #             root.val.append(token.rstrip(','))  # Remove trailing commas
+        #             break
                 
-                root.val.append(token.rstrip(','))  # Remove trailing commas
+        #         root.val.append(token.rstrip(','))  # Remove trailing commas
 
 
-            # Process FROM clause if it exists
-            if tokens and tokens[0].upper() == "FROM":
-                from_node = self.__createQueryTree(tokens)  # Recursive call for FROM
-                if from_node:
-                    from_node.parent = root
-                    root.children.append(from_node)
-                    root = from_node  # Update root to FROM node
+        #     # Process FROM clause if it exists
+        #     if tokens and tokens[0].upper() == "FROM":
+        #         from_node = self.__createQueryTree(tokens)  # Recursive call for FROM
+        #         if from_node:
+        #             from_node.parent = root
+        #             root.children.append(from_node)
+        #             root = from_node  # Update root to FROM node
 
-            # Process WHERE clause if it exists
-            if tokens and tokens[0].upper() == "WHERE":
-                where_node = self.__createQueryTree(tokens)  # Recursive call for WHERE
-                if where_node:
-                    where_node.parent = root
-                    root.children.append(where_node)
-                    root = where_node  # Update root to WHERE node
+        #     # Process WHERE clause if it exists
+        #     if tokens and tokens[0].upper() == "WHERE":
+        #         where_node = self.__createQueryTree(tokens)  # Recursive call for WHERE
+        #         if where_node:
+        #             where_node.parent = root
+        #             root.children.append(where_node)
+        #             root = where_node  # Update root to WHERE node
                     
-            # Process ORDER BY clause if it exists
-            if tokens and tokens[0].upper() == "ORDER":
-                order_node = self.__createQueryTree(tokens)  # Recursive call for ORDER BY
-                if where_node:
-                    where_node.parent = root
-                    root.children.append(order_node)
-                    root = order_node  # Update root to ORDER BY node
+        #     # Process ORDER BY clause if it exists
+        #     if tokens and tokens[0].upper() == "ORDER":
+        #         order_node = self.__createQueryTree(tokens)  # Recursive call for ORDER BY
+        #         if where_node:
+        #             where_node.parent = root
+        #             root.children.append(order_node)
+        #             root = order_node  # Update root to ORDER BY node
             
-            # Process LIMIT clause if it exists
-            if tokens and tokens[0].upper() == "LIMIT":
-                limit_node = self.__createQueryTree(tokens)  # Recursive call for LIMIT
-                if where_node:
-                    where_node.parent = root
-                    root.children.append(limit_node)
-                    root = limit_node  # Update root to LIMIT node
+        #     # Process LIMIT clause if it exists
+        #     if tokens and tokens[0].upper() == "LIMIT":
+        #         limit_node = self.__createQueryTree(tokens)  # Recursive call for LIMIT
+        #         if where_node:
+        #             where_node.parent = root
+        #             root.children.append(limit_node)
+        #             root = limit_node  # Update root to LIMIT node
                     
-            if tokens : # if there is any token, add it as unknown
-                root.children.append(QueryTree(node_type="UNKNOWN", val=[tokens]))
+        #     if tokens : # if there is any token, add it as unknown
+        #         root.children.append(QueryTree(node_type="UNKNOWN", val=[tokens]))
 
-        elif token == "FROM":
-            root = QueryTree(node_type="FROM", val=[])
+        # elif token == "FROM":
+        #     root = QueryTree(node_type="FROM", val=[])
             
-            # Get all tables until we hit WHERE or end of tokens
-            while tokens and tokens[0].upper() not in ["WHERE", "ORDER", "GROUP", "HAVING", "LIMIT"]:
-                table = tokens.pop(0).rstrip(',')
-                root.val.append(table)
+        #     # Get all tables until we hit WHERE or end of tokens
+        #     while tokens and tokens[0].upper() not in ["WHERE", "ORDER", "GROUP", "HAVING", "LIMIT"]:
+        #         table = tokens.pop(0).rstrip(',')
+        #         root.val.append(table)
                 
-                # Skip any commas
-                if tokens and tokens[0] == ',':
-                    tokens.pop(0)
+        #         # Skip any commas
+        #         if tokens and tokens[0] == ',':
+        #             tokens.pop(0)
 
-        elif token == "WHERE":
-            root = QueryTree(node_type="WHERE", val=[])
+        # elif token == "WHERE":
+        #     root = QueryTree(node_type="WHERE", val=[])
             
-            # Get the condition
-            condition = []
-            while tokens and tokens[0].upper() not in ["ORDER", "GROUP", "HAVING", "LIMIT"]:
-                condition.append(tokens.pop(0))
-            root.val = condition
+        #     # Get the condition
+        #     condition = []
+        #     while tokens and tokens[0].upper() not in ["ORDER", "GROUP", "HAVING", "LIMIT"]:
+        #         condition.append(tokens.pop(0))
+        #     root.val = condition
 
-        elif token == "ORDER":
-            if tokens and tokens.pop(0).upper() == "BY":
-                root = QueryTree(node_type="ORDER_BY", val=[])
+        # elif token == "ORDER":
+        #     if tokens and tokens.pop(0).upper() == "BY":
+        #         root = QueryTree(node_type="ORDER_BY", val=[])
                 
-                while tokens and tokens[0].upper() not in ["LIMIT"]:
-                    col = tokens.pop(0).rstrip(',')
-                    root.val.append(col)
+        #         while tokens and tokens[0].upper() not in ["LIMIT"]:
+        #             col = tokens.pop(0).rstrip(',')
+        #             root.val.append(col)
                     
 
-        elif token == "LIMIT":
-            root = QueryTree(node_type="LIMIT", val=[tokens.pop(0)] if tokens else [])
+        # elif token == "LIMIT":
+        #     root = QueryTree(node_type="LIMIT", val=[tokens.pop(0)] if tokens else [])
             
-        elif token == "UPDATE":
-            root = QueryTree(node_type="UPDATE", val=[tokens.pop(0).rstrip(',')] if tokens else [])
+        # elif token == "UPDATE":
+        #     root = QueryTree(node_type="UPDATE", val=[tokens.pop(0).rstrip(',')] if tokens else [])
             
-            # if tokens and tokens[0].upper() == "JOIN":
+        #     # if tokens and tokens[0].upper() == "JOIN":
             
-            if tokens and tokens[0].upper() == "SET":
-                tokens.pop(0)
-                from_node = QueryTree(node_type="SET", val=[])
-                while tokens and tokens[0].upper() != "WHERE":
-                    table = tokens.pop(0).rstrip(',')
-                    from_node.val.append(table)
+        #     if tokens and tokens[0].upper() == "SET":
+        #         tokens.pop(0)
+        #         from_node = QueryTree(node_type="SET", val=[])
+        #         while tokens and tokens[0].upper() != "WHERE":
+        #             table = tokens.pop(0).rstrip(',')
+        #             from_node.val.append(table)
                     
-                    if tokens and tokens[0] == ',':
-                        tokens.pop(0)
-                root.children.append(from_node)
+        #             if tokens and tokens[0] == ',':
+        #                 tokens.pop(0)
+        #         root.children.append(from_node)
                 
-                if tokens and tokens[0].upper() == "WHERE":
-                    where_node = self.__createQueryTree(tokens)  # Recursive call for WHERE
-                if where_node:
-                    where_node.parent = root
-                    root.children.append(where_node)  
+        #         if tokens and tokens[0].upper() == "WHERE":
+        #             where_node = self.__createQueryTree(tokens)  # Recursive call for WHERE
+        #         if where_node:
+        #             where_node.parent = root
+        #             root.children.append(where_node)  
                 
-        elif token == "BEGIN":
-            if tokens and tokens.pop(0).upper() == "TRANSACTION":
-                root = QueryTree(node_type="BEGIN_TRANSACTION", val=[])
+        # elif token == "BEGIN":
+        #     if tokens and tokens.pop(0).upper() == "TRANSACTION":
+        #         root = QueryTree(node_type="BEGIN_TRANSACTION", val=[])
             
-            if tokens : # if there is any token, add it as unknown
-                root.children.append(QueryTree(node_type="UNKNOWN", val=[tokens]))
+        #     if tokens : # if there is any token, add it as unknown
+        #         root.children.append(QueryTree(node_type="UNKNOWN", val=[tokens]))
                 
-        elif token == "COMMIT":
-            root = QueryTree(node_type="COMMIT", val=[])
+        # elif token == "COMMIT":
+        #     root = QueryTree(node_type="COMMIT", val=[])
             
-            if tokens : # if there is any token, add it as unknown
-                root.children.append(QueryTree(node_type="UNKNOWN", val=[tokens]))
+        #     if tokens : # if there is any token, add it as unknown
+        #         root.children.append(QueryTree(node_type="UNKNOWN", val=[tokens]))
                 
-        else:
-            root = QueryTree(node_type="UNKNOWN", val=[token])
+        # else:
+        #     root = QueryTree(node_type="UNKNOWN", val=[token])
 
         return root
 
