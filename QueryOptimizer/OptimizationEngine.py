@@ -77,22 +77,53 @@ class OptimizationEngine:
         if not tokens:
             return None
 
-        root = None
+        try:
+            root = None
+
+            rename = {}
+            temp = ""
+
+            """
+            NI HUL YANG AS
+            """            
+            # while len(tokens) > 0:
+            #     token = tokens.pop(0)
+            #     if token.upper() == "AS":
+            #         rename[tokens.pop(0)] = temp
+            #         temp = ""
+            #     else:
+            #         temp = token
 
 
-        rename = {}
-        temp = ""
-
-        """
-        NI HUL YANG AS
-        """            
-        while len(tokens) > 0:
+            """
+            NI HUL YANG ORDER BY
+            """
             token = tokens.pop(0)
-            if token.upper() == "AS":
-                rename[tokens.pop(0)] = temp
-                temp = ""
-            else:
-                temp = token
+            if token.upper() == "ORDER":
+                token = tokens.pop(0)
+                if token != "BY":
+                    return Exception("ORDER not followed by ID")
+                root = QueryTree(node_type="ORDER_BY", val=[]) # Create ORDER BY node
+
+                token = tokens.pop(0) # Value of ORDER BY
+                if token.upper() in ["LIMIT"]:
+                    return Exception("ORDER BY not followed by value")
+                    
+                while len(tokens) > 0:
+                    root.val.append(token)
+                    token = tokens.pop(0)
+
+                    if token == ",":
+                        token = tokens.pop(0)
+                        if token.upper() in ["LIMIT"]:
+                            return Exception("Trailing Comma")
+                    elif token == "LIMIT":
+                        break
+                    else:
+                        return Exception("each value must be separated by comma")
+                        
+                if token not in ["LIMIT"]: 
+                    root.val.append(token)
 
         # if token == "SELECT":
         #     # Create SELECT node
@@ -214,7 +245,9 @@ class OptimizationEngine:
         # else:
         #     root = QueryTree(node_type="UNKNOWN", val=[token])
 
-        return root
+            return root
+        except:
+            return Exception("ORDER BY not followed by value")
 
     def __applyHeuristicRules(self, query: ParsedQuery):
         """
