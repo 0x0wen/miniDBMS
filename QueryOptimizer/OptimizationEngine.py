@@ -87,33 +87,47 @@ class OptimizationEngine:
             root = None
             current_node = None
 
-            rename = {}
-            temp = ""
+
+            """
+            General one token only
+            """
+            # If there is not one-token-only constraint, add it here 
+            # If one-token-only read and it already exists, return error
+            one_node_constraint = [] 
+
+            """
+            General first appear token
+            """
+            if tokens[0] not in ["SELECT", "UPDATE", "DELETE", "INSERT", "BEGIN", "COMMIT", "CREATE", "DROP"]:
+                return Exception("First token must be either SELECT, UPDATE, DELETE, INSERT, BEGIN, COMMIT, CREATE, or DROP")
+
 
             """
             NI HUL YANG AS
             """            
-            while len(tokens) > 0:
-                token = tokens.pop(0)
-                if token.upper() == "AS":
-                    token = tokens.pop(0)
-                    if len(tokens) == 0 or token.upper() in [",", "LIMIT", "ORDER", "BY", "WHERE"]:
-                        return Exception("AS not followed by alias")
+            # rename = {}
+            # temp = ""
+            # while len(tokens) > 0:
+            #     token = tokens.pop(0)
+            #     if token.upper() == "AS":
+            #         token = tokens.pop(0)
+            #         if len(tokens) == 0 or token.upper() in [",", "LIMIT", "ORDER", "BY", "WHERE"]:
+            #             return Exception("AS not followed by alias")
                     
-                    rename[token] = temp
-                    temp = ""
-                elif token == ",":
-                    if len(tokens) > 0:
-                        if (not self.validateDoubleComma(token, tokens[0])):
-                            return Exception("Double Comma")
-                    else:
-                        return Exception("Trailing Comma")
+            #         rename[token] = temp
+            #         temp = ""
+            #     elif token == ",":
+            #         if len(tokens) > 0:
+            #             if (not self.validateDoubleComma(token, tokens[0])):
+            #                 return Exception("Double Comma")
+            #         else:
+            #             return Exception("Trailing Comma")
                     
-                    # TODO: Do What ',' does here
-                else:
-                    if temp != "":
-                        return Exception("double value separated by space")
-                    temp = token
+            #         # TODO: Do What ',' does here
+            #     else:
+            #         if temp != "":
+            #             return Exception("double value separated by space")
+            #         temp = token
 
 
             """
@@ -149,8 +163,9 @@ class OptimizationEngine:
                 if token not in ["LIMIT"]: 
                     current_node.val.append(token)
 
-            root = current_node
+                root = current_node
             
+
             """
             NI HUL YANG LIMIT
             """
@@ -167,8 +182,50 @@ class OptimizationEngine:
                     return Exception("LIMIT must be a number")
                 
                 current_node.val.append(token)
+                root.children.append(current_node)  
 
-            root.children.append(current_node)
+
+            """
+            NI HUL YANG DELETE
+            """
+            if token.upper() == "DELETE":
+                
+                # Next token must be FROM
+                if len(tokens) == 0:
+                    return Exception("DELETE not followed by FROM")
+                
+                token = tokens.pop(0)
+                if token.upper() != "FROM":
+                    return Exception("DELETE not followed by FROM")
+                current_node = QueryTree(node_type="DELETE", val=[]) # Create DELETE node
+
+                # Get Table
+                if len(tokens) == 0:
+                    return Exception("Table not specified")
+                
+                token = tokens.pop(0)
+                if token.upper() in ["WHERE"]:
+                    return Exception("Table not specified")
+                current_node.val.append(token)
+
+                # Check for WHERE clause
+                if len(tokens) > 0:
+                    token = tokens.pop(0)
+                    if token.upper() != "WHERE":
+                        return Exception("WHERE clause not found")
+                    if len(tokens) == 0:
+                        return Exception("WHERE clause not followed by condition")
+                    if len(tokens) < 3:
+                        return Exception("WHERE clause not followed by valid condition")
+                    while len(tokens) > 0:
+                        current_node.val.append(tokens.pop(0))
+
+                        # TODO: VALIDATE CONDITION
+                else:
+                    return Exception("WHERE clause not found")
+                
+                root = current_node
+
 
         # if token == "SELECT":
         #     # Create SELECT node
