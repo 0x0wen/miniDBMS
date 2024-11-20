@@ -9,12 +9,16 @@ class QueryProcessor:
         return cls._instance
 
     def execute_query(self, query):
-        optimization_engine = OptimizationEngine()
-        optimized_query =  optimization_engine.optimizeQuery(optimization_engine.parseQuery(query))
-        print(optimized_query)
+        optimized_query = []
+        for i in range (len(query)):
+            optimization_engine = OptimizationEngine()
+            optimized_query.append(optimization_engine.optimizeQuery(optimization_engine.parseQuery(query[i])))
+            if (optimized_query[0].query_tree.node_type == "BEGIN_TRANSACTION"):
+                return optimized_query
+            
+        return optimized_query
 
     def accept_query(self):
-        # penerimaan query dari user
         query_input = ""
         print("> ", end="")
         while True:
@@ -25,5 +29,21 @@ class QueryProcessor:
             query_input += (data + " ")
         query_input = query_input.strip()
 
-        # eksekusi query
-        self.execute_query(query_input)
+        return query_input
+
+    def main_driver(self):
+        query = []
+        query.append(self.accept_query())
+        optimized_query = self.execute_query(query)
+        while (optimized_query[0].query_tree.node_type == "BEGIN_TRANSACTION"):
+            query_temp = self.accept_query()
+            if (query_temp.upper() == "COMMIT"):
+                query.pop(0)
+                optimized_query.pop(0)
+                optimized_query = self.execute_query(query)
+                break
+
+            query.append(query_temp)
+
+        for q in optimized_query:
+            print(q)
