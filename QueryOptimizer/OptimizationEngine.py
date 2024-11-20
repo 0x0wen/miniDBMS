@@ -1,6 +1,6 @@
 from ParsedQuery import ParsedQuery
 from QueryTree import QueryTree
-
+import re
 class OptimizationEngine:
     def __init__(self):
         self.statistics = {}  # Example: Holds table statistics for cost estimation
@@ -10,7 +10,7 @@ class OptimizationEngine:
         Parses the given SQL query string into a ParsedQuery object.
         """
         # Tokenize and construct a basic QueryTree for demonstration purposes
-        tokens = query.split()
+        tokens = re.findall(r'[^\s,]+|,', query)
         print('token:',tokens)
         root = self.__createQueryTree(tokens)
 
@@ -100,6 +100,7 @@ class OptimizationEngine:
                 if from_node:
                     from_node.parent = root
                     root.children.append(from_node)
+                    root = from_node  # Update root to FROM node
 
             # Process WHERE clause if it exists
             if tokens and tokens[0].upper() == "WHERE":
@@ -107,6 +108,7 @@ class OptimizationEngine:
                 if where_node:
                     where_node.parent = root
                     root.children.append(where_node)
+                    root = where_node  # Update root to WHERE node
                     
             # Process ORDER BY clause if it exists
             if tokens and tokens[0].upper() == "ORDER":
@@ -114,6 +116,7 @@ class OptimizationEngine:
                 if where_node:
                     where_node.parent = root
                     root.children.append(order_node)
+                    root = order_node  # Update root to ORDER BY node
             
             # Process LIMIT clause if it exists
             if tokens and tokens[0].upper() == "LIMIT":
@@ -121,6 +124,7 @@ class OptimizationEngine:
                 if where_node:
                     where_node.parent = root
                     root.children.append(limit_node)
+                    root = limit_node  # Update root to LIMIT node
                     
             if tokens : # if there is any token, add it as unknown
                 root.children.append(QueryTree(node_type="UNKNOWN", val=[tokens]))
