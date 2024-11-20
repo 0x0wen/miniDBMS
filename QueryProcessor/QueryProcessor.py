@@ -34,16 +34,34 @@ class QueryProcessor:
     def main_driver(self):
         query = []
         query.append(self.accept_query())
-        optimized_query = self.execute_query(query)
-        while (optimized_query[0].query_tree.node_type == "BEGIN_TRANSACTION"):
-            query_temp = self.accept_query()
-            if (query_temp.upper() == "COMMIT"):
-                query.pop(0)
-                optimized_query.pop(0)
-                optimized_query = self.execute_query(query)
-                break
-
-            query.append(query_temp)
+        check_begin = query[0].upper().split()
+        if (check_begin[0] == "BEGIN" and check_begin[1] == "TRANSACTION"):
+            while (query[-1].upper() != "COMMIT"):
+                query.append(self.accept_query())
+        
+        # nunggu valen
+        optimized_query = []
+        optimization_engine = OptimizationEngine()
+        for q in query:
+            optimized_query.append(optimization_engine.optimizeQuery(optimization_engine.parseQuery(q)))
 
         for q in optimized_query:
-            print(q)
+            print(q.query_tree)
+
+
+
+
+        # ini jangan apus dulu
+        # optimized_query = self.execute_query(query)
+        # while (optimized_query[0].query_tree.node_type == "BEGIN_TRANSACTION"):
+        #     query_temp = self.accept_query()
+        #     if (query_temp.upper() == "COMMIT"):
+        #         query.pop(0)
+        #         optimized_query.pop(0)
+        #         optimized_query = self.execute_query(query)
+        #         break
+
+        #     query.append(query_temp)
+
+        # for q in optimized_query:
+        #     print(q)
