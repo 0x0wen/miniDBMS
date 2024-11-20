@@ -79,6 +79,7 @@ class OptimizationEngine:
 
         try:
             root = None
+            current_node = None
 
             rename = {}
             temp = ""
@@ -103,14 +104,14 @@ class OptimizationEngine:
                 token = tokens.pop(0)
                 if token != "BY":
                     return Exception("ORDER not followed by ID")
-                root = QueryTree(node_type="ORDER_BY", val=[]) # Create ORDER BY node
+                current_node = QueryTree(node_type="SORT", val=[]) # Create ORDER BY node
 
                 token = tokens.pop(0) # Value of ORDER BY
                 if token.upper() in ["LIMIT"]:
                     return Exception("ORDER BY not followed by value")
                     
                 while len(tokens) > 0:
-                    root.val.append(token)
+                    current_node.val.append(token)
                     token = tokens.pop(0)
 
                     if token == ",":
@@ -123,7 +124,28 @@ class OptimizationEngine:
                         return Exception("each value must be separated by comma")
                         
                 if token not in ["LIMIT"]: 
-                    root.val.append(token)
+                    current_node.val.append(token)
+
+            root = current_node
+            
+            """
+            NI HUL YANG LIMIT
+            """
+            if token.upper() == "LIMIT":
+                current_node = QueryTree(node_type="LIMIT", val=[])
+
+                if len(tokens) == 0:
+                    return Exception("LIMIT not followed by value")
+                
+                token = tokens.pop(0) # Value of LIMIT
+                try:
+                    int(token)
+                except:
+                    return Exception("LIMIT must be a number")
+                
+                current_node.val.append(token)
+
+            root.children.append(current_node)
 
         # if token == "SELECT":
         #     # Create SELECT node
@@ -247,7 +269,7 @@ class OptimizationEngine:
 
             return root
         except:
-            return Exception("ORDER BY not followed by value")
+            return Exception("Oops! Something went wrong.")
 
     def __applyHeuristicRules(self, query: ParsedQuery):
         """
