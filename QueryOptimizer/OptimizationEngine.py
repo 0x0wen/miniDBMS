@@ -1,7 +1,7 @@
 from ParsedQuery import ParsedQuery
 from QueryTree import QueryTree
 import re
-from constants import LEGAL_COMMANDS_AFTER_WHERE,LEGAL_COMPARATORS
+from constants import LEGAL_COMMANDS_AFTER_WHERE,LEGAL_COMPARATORS, LEGAL_COMMANDS_AFTER_UPDATE, LEGAL_COMMANDS_AFTER_SET
 from helpers import isAlphanumericWithQuotes
 from CustomException import CustomException
 class OptimizationEngine:
@@ -110,6 +110,7 @@ class OptimizationEngine:
                 # Skip any commas
                 if tokens and tokens[0] == ',':
                     tokens.pop(0)
+            
             child = self.__createQueryTree(tokens)
             if child is not None:  # Only append if the child is not None
                 root.children.append(child)  
@@ -135,6 +136,8 @@ class OptimizationEngine:
                 else:
                     condition.append(tokens.pop(0))
             root.val = condition
+            if(tokens and tokens[0] not in LEGAL_COMMANDS_AFTER_WHERE):
+                raise CustomException("Invalid command after WHERE clause", code=400)
             child = self.__createQueryTree(tokens)
             if child is not None:  # Only append if the child is not None
                 root.children.append(child)  
@@ -161,6 +164,8 @@ class OptimizationEngine:
                 else:
                     condition.append(tokens.pop(0))
             root.val = condition
+            if(tokens and tokens[0] not in LEGAL_COMMANDS_AFTER_WHERE):
+                raise CustomException("Invalid command after WHERE clause", code=400)
             child = self.__createQueryTree(tokens)
             if child is not None:  # Only append if the child is not None
                 root.children.append(child)  
@@ -176,29 +181,46 @@ class OptimizationEngine:
 
         elif token == "LIMIT":
             root = QueryTree(node_type="LIMIT", val=[tokens.pop(0)] if tokens else [])
+        
+        elif token == "SET":
+            root = QueryTree(node_type="SET", val=[])
+
+            if(not isAlphanumericWithQuotes(tokens[0].strip("'")) or not isAlphanumericWithQuotes(tokens[2].strip("'"))):
+                raise CustomException("Invalid syntax for SET clause", code=400)
             
+            if(not tokens[1] in LEGAL_COMPARATORS):
+                raise CustomException("Invalid comparator in SET clause", code=400)
+            values = []
+            while True:
+                values.append(tokens.pop(0))
+                values.append(tokens.pop(0))
+                values.append(tokens.pop(0))
+                if(not tokens or tokens[0] != ","):
+                    break
+                else:
+                    values.append(tokens.pop(0))
+
+            root.val = values
+            
+            if(tokens[0] not in LEGAL_COMMANDS_AFTER_SET):
+                raise CustomException("Invalid command after SET clause", code=400)
+            child = self.__createQueryTree(tokens)
+            if child is not None:  # Only append if the child is not None
+                root.children.append(child)  
+
         elif token == "UPDATE":
-            root = QueryTree(node_type="UPDATE", val=[tokens.pop(0).rstrip(',')] if tokens else [])
+            if(not tokens):
+                raise CustomException("Incomplete syntax for UPDATE clause", code=400)
             
-            # if tokens and tokens[0].upper() == "JOIN":
+            root = QueryTree(node_type="UPDATE", val=[tokens.pop(0)])
             
-            if tokens and tokens[0].upper() == "SET":
-                tokens.pop(0)
-                from_node = QueryTree(node_type="SET", val=[])
-                while tokens and tokens[0].upper() != "WHERE":
-                    table = tokens.pop(0).rstrip(',')
-                    from_node.val.append(table)
-                    
-                    if tokens and tokens[0] == ',':
-                        tokens.pop(0)
-                root.children.append(from_node)
-                
-                if tokens and tokens[0].upper() == "WHERE":
-                    where_node = self.__createQueryTree(tokens)  # Recursive call for WHERE
-                if where_node:
-                    where_node.parent = root
-                    root.children.append(where_node)  
-                
+            if(tokens[0] not in LEGAL_COMMANDS_AFTER_UPDATE):
+                raise CustomException("Invalid command after UPDATE clause", code=400)    
+            
+            child = self.__createQueryTree(tokens)
+            if child is not None:  # Only append if the child is not None
+                root.children.append(child)  
+
         elif token == "BEGIN":
             if tokens and tokens.pop(0).upper() == "TRANSACTION":
                 root = QueryTree(node_type="BEGIN_TRANSACTION", val=[])
