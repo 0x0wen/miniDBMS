@@ -1,0 +1,2 @@
+LEGAL_COMMANDS_AFTER_WHERE=['ORDER', 'LIMIT']
+LEGAL_COMPARATORS=['=', '>', '<', '>=', '<=', '!=']

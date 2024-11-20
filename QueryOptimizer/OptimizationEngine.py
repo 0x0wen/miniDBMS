@@ -1,6 +1,9 @@
 from ParsedQuery import ParsedQuery
 from QueryTree import QueryTree
 import re
+from constants import LEGAL_COMMANDS_AFTER_WHERE,LEGAL_COMPARATORS
+from helpers import isAlphanumericWithQuotes
+from CustomException import CustomException
 class OptimizationEngine:
     def __init__(self):
         self.statistics = {}  # Example: Holds table statistics for cost estimation
@@ -11,7 +14,7 @@ class OptimizationEngine:
         """
         # Tokenize and construct a basic QueryTree for demonstration purposes
         tokens = re.findall(r'[^\s,]+|,', query)
-        print('token:',tokens)
+        print('tokens:',tokens)
         root = self.__createQueryTree(tokens)
 
         # Return a ParsedQuery object
@@ -92,42 +95,9 @@ class OptimizationEngine:
                     break
                 
                 root.val.append(token.rstrip(','))  # Remove trailing commas
-
-
-            # Process FROM clause if it exists
-            if tokens and tokens[0].upper() == "FROM":
-                from_node = self.__createQueryTree(tokens)  # Recursive call for FROM
-                if from_node:
-                    from_node.parent = root
-                    root.children.append(from_node)
-                    root = from_node  # Update root to FROM node
-
-            # Process WHERE clause if it exists
-            if tokens and tokens[0].upper() == "WHERE":
-                where_node = self.__createQueryTree(tokens)  # Recursive call for WHERE
-                if where_node:
-                    where_node.parent = root
-                    root.children.append(where_node)
-                    root = where_node  # Update root to WHERE node
-                    
-            # Process ORDER BY clause if it exists
-            if tokens and tokens[0].upper() == "ORDER":
-                order_node = self.__createQueryTree(tokens)  # Recursive call for ORDER BY
-                if where_node:
-                    where_node.parent = root
-                    root.children.append(order_node)
-                    root = order_node  # Update root to ORDER BY node
-            
-            # Process LIMIT clause if it exists
-            if tokens and tokens[0].upper() == "LIMIT":
-                limit_node = self.__createQueryTree(tokens)  # Recursive call for LIMIT
-                if where_node:
-                    where_node.parent = root
-                    root.children.append(limit_node)
-                    root = limit_node  # Update root to LIMIT node
-                    
-            if tokens : # if there is any token, add it as unknown
-                root.children.append(QueryTree(node_type="UNKNOWN", val=[tokens]))
+            child = self.__createQueryTree(tokens)
+            if child is not None:  # Only append if the child is not None
+                root.children.append(child)  
 
         elif token == "FROM":
             root = QueryTree(node_type="FROM", val=[])
@@ -140,15 +110,60 @@ class OptimizationEngine:
                 # Skip any commas
                 if tokens and tokens[0] == ',':
                     tokens.pop(0)
+            child = self.__createQueryTree(tokens)
+            if child is not None:  # Only append if the child is not None
+                root.children.append(child)  
 
+        elif token == "AND":
+            root = QueryTree(node_type="WHERE", val=[])
+            condition = []
+            if(not tokens):
+                raise CustomException("Incomplete syntax for WHERE clause", code=400)
+            
+            if(not isAlphanumericWithQuotes(tokens[0].strip("'")) or not isAlphanumericWithQuotes(tokens[2].strip("'"))):
+                raise CustomException("Invalid syntax for WHERE clause", code=400)
+            
+            if(not tokens[1] in LEGAL_COMPARATORS):
+                raise CustomException("Invalid comparator in WHERE clause", code=400)
+            
+            while True:
+                condition.append(tokens.pop(0))
+                condition.append(tokens.pop(0))
+                condition.append(tokens.pop(0))
+                if(not tokens or tokens[0] != "OR"):
+                    break
+                else:
+                    condition.append(tokens.pop(0))
+            root.val = condition
+            child = self.__createQueryTree(tokens)
+            if child is not None:  # Only append if the child is not None
+                root.children.append(child)  
+            
         elif token == "WHERE":
             root = QueryTree(node_type="WHERE", val=[])
-            
-            # Get the condition
             condition = []
-            while tokens and tokens[0].upper() not in ["ORDER", "GROUP", "HAVING", "LIMIT"]:
+
+            if(not tokens):
+                raise CustomException("Incomplete syntax for WHERE clause", code=400)
+            
+            if(not isAlphanumericWithQuotes(tokens[0].strip("'")) or not isAlphanumericWithQuotes(tokens[2].strip("'"))):
+                raise CustomException("Invalid syntax for WHERE clause", code=400)
+            
+            if(not tokens[1] in LEGAL_COMPARATORS):
+                raise CustomException("Invalid comparator in WHERE clause", code=400)
+            
+            while True:
                 condition.append(tokens.pop(0))
+                condition.append(tokens.pop(0))
+                condition.append(tokens.pop(0))
+                if(not tokens or tokens[0] != "OR"):
+                    break
+                else:
+                    condition.append(tokens.pop(0))
             root.val = condition
+            child = self.__createQueryTree(tokens)
+            if child is not None:  # Only append if the child is not None
+                root.children.append(child)  
 
         elif token == "ORDER":
             if tokens and tokens.pop(0).upper() == "BY":
