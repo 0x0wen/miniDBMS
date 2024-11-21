@@ -1,5 +1,4 @@
-
-from objects.Condition import Condition
+from StorageManager.objects.Condition import Condition
 import struct
 
 """
