@@ -7,6 +7,7 @@ from typing import Optional
 from datetime import datetime
 from recovercriteria import RecoverCriteria
 from QueryProcessor.ExecutionResult import ExecutionResult
+from QueryProcessor.QueryProcessor import QueryProcessor
 
 
 # Todo : Penamaan dan integrasi sama QueryProcessor
@@ -115,4 +116,37 @@ class FailureRecovery:
         The recovery process started backward from the latest log in write-ahead log until the criteria is no longer met. For each log entry,
         this method will interact with the query processor to execute a recovery query, restoring the database to its state prior to the
         execution of that log entry."""
-        # Implementasi di sini
+        
+        # Cek dulu apakah log file ada
+        if not os.path.exists(self._log_file):
+            raise FileNotFoundError("No log file found")
+        
+        # Cek apakah criteria valid
+        elif not criteria.timestamp and not criteria.transaction_id:
+            raise ValueError("Recovery criteria must contain either timestamp or transaction id")
+        
+        # Membaca log file
+        with open(self._log_file) as log_file:
+            log_entries = log_file.readlines()
+        
+        # Proses recovery
+        for log_entry in reversed(log_entries):
+            entry = json.loads(log_entry)
+            
+            # Cek apakah entry memenuhi criteria
+            if criteria.timestamp and entry['timestamp'] < criteria.timestamp:
+                print(f"Recovery completed at timestamp {criteria.timestamp}")
+                break
+            if criteria.transaction_id and entry['transaction_id'] == criteria.transaction_id:
+                print(f"Recovery completed at transaction id {criteria.transaction_id}")
+                break
+            
+            # Eksekusi query untuk recovery
+            try:
+                QueryProcessor().execute_query(f"ROLLBACK {entry['transaction_id']}")
+            except Exception as e:
+                print(f"Error during recovery: {str(e)}")
+                break
+                           
+
+        
