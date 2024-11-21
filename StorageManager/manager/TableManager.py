@@ -48,11 +48,38 @@ class TableManager(DataManager):
             for offset, num_rows in blocks:
                 blocks_file.write(struct.pack('ii', offset, num_rows))
 
-    #pake 'Condition' kalo gk eror, python aneh
-    def applyConditions(self,rows: list[dict], conditions: list[Condition]) -> Rows:
+    
+
+    def group_conditions(self,conditions: list[Condition]) -> list[list[Condition]]:
         """
-        Return the D
+        Group conditions based on their connectors, by shifting connectors logic.
         """
+        connectors = [condition.connector for condition in conditions]
+        print(" Sebelum Connector: ",connectors)
+
+        connectors = connectors[1:] + [None]  # shift kiri 1
+        grouped_conditions = []
+        current_group = []
+        print(" Sesudah Connector: ",connectors)
+
+        for i, condition in enumerate(conditions):
+            current_group.append(condition)
+
+            if connectors[i] == "OR" or i == len(conditions) - 1:
+                grouped_conditions.append(current_group)
+                current_group = []
+
+        for group in grouped_conditions:
+            print("Group: " , group)
+        return grouped_conditions
+
+    def applyConditions(self, rows: list[dict], conditions: list[Condition]) -> Rows:
+        """
+        Apply conditions with grouped AND/OR logic using shifted connectors.
+        """
+        grouped_conditions = self.group_conditions(conditions)
+        
+
         def satisfies(row: dict, condition: Condition) -> bool:
             value = row.get(condition.column)
             if value is None:
@@ -70,12 +97,14 @@ class TableManager(DataManager):
             elif condition.operation == "<=":
                 return value <= condition.operand
             return False
-        
+
         filtered_rows = []
         for row in rows:
-            if all(satisfies(row, cond) for cond in conditions):
+            if any(all(satisfies(row, cond) for cond in group) for group in grouped_conditions):
                 filtered_rows.append(row)
+
         return Rows(filtered_rows)
+
 
     def filterColumns(self,rows: list[dict], columns: list[str]) -> list[dict]:
         
