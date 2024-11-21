@@ -30,7 +30,7 @@ class StorageManager:
             column_filtered_data  = serializer.filterColumns(cond_filtered_data,data_retrieval.column)
             all_filtered_data.extend(column_filtered_data)
         
-        print(all_filtered_data) 
+        # print(all_filtered_data) 
         return Rows(all_filtered_data)
 
 
@@ -46,8 +46,15 @@ class StorageManager:
             data_write : objects contains data to help determine which data to be retrieved from hard disk, contain modified data for modification operation, and new data for adddition operation
         
         """
-        pass
+        serializer = Serializer()
+        table_name = data_write.selected_table
+        new_data = data_write.new_value
 
+        if (data_write.overwrite):
+            print('overwrite')
+        else:
+            return serializer.appendData(table_name, new_data)
+        
     def deleteBlock(self, data_deletion : DataDeletion) -> int:
         """
         Returns the number of removed rows
@@ -73,20 +80,3 @@ class StorageManager:
         Returns Statistics object that has number of tuples, number of blocks, size of tuple, blocking factor, and number of distinct values appear in r
         """
         pass
-
-    
-
-#SELECT umur,desk FROM user2 WHERE id <= 7 AND harga > 60.00
-#ini masih baca semua block
-cond1 = Condition("id", '<=', 7)
-cond2 = Condition("harga", '>', 60.00)
-
-retrieval = DataRetrieval(
-    table=["user2"],
-    column=[],
-    conditions=[cond1]
-)
-
-sm = StorageManager()
-sm.readBlock(retrieval)
-
