@@ -113,7 +113,7 @@ class TableManager(DataManager):
         return rows
     
     def readTable(self, file_name) -> Rows:
-        """ Read both schema and data from files using block allocation. """
+        """ Read both schema and data from files """
         schema = self.readSchema(file_name) 
         data = self.readData(file_name, schema)  
         column_names = [column_name for column_name, _, _ in schema]

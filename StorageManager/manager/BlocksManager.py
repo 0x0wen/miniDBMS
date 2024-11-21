@@ -7,7 +7,7 @@ class BlocksManager(SchemaManager):
         super().__init__(path_name)
         self.block_size = block_size
 
-    def readBlock(self, table_name: str, block_index : int):
+    def readBlockIndex(self, table_name: str, block_index : int):
         """
         Read data from a specific block based on the block index and schema.
         Args : 
@@ -85,7 +85,7 @@ class BlocksManager(SchemaManager):
         except Exception as e:
             raise IOError(f"Unexpected error reading blocks file : {e}")
         
-    def _parseRowData(row: bytes, schema: list, row_size: int) -> list:
+    def _parseRowData(self,row: bytes, schema: list, row_size: int) -> list:
         """
         Parse a single row of binary data based on the given schema.
         """
