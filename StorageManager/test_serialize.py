@@ -29,6 +29,7 @@ append_data_course = [[111, 11, '11', '11']]
 
 
 serializer = TableManager()
+serializer = TableManager()#blok size default 720 byte, 
 student_table = "student"
 course_table = "course"
 
