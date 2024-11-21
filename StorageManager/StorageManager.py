@@ -49,8 +49,15 @@ class StorageManager:
             data_write : objects contains data to help determine which data to be retrieved from hard disk, contain modified data for modification operation, and new data for adddition operation
         
         """
-        pass
+        serializer = Serializer()
+        table_name = data_write.selected_table
+        new_data = data_write.new_value
 
+        if (data_write.overwrite):
+            print('overwrite')
+        else:
+            return serializer.appendData(table_name, new_data)
+        
     def deleteBlock(self, data_deletion : DataDeletion) -> int:
         """
         Returns the number of removed rows

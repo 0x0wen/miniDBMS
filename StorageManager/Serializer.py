@@ -1,4 +1,5 @@
 import struct
+from objects.Condition import Condition
 import os
 from objects.Condition import Condition
 

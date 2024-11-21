@@ -1,4 +1,5 @@
 import struct
+from objects.Condition import Condition
 import os
 from typing import Union
 from StorageManager.objects.Condition import Condition
@@ -11,11 +12,12 @@ Format file yang dibuat
 
 """
 class Serializer:
-    def __init__(self, path_name='Storage/', block_size=256):
+    def __init__(self, path_name='Storage/', block_size=720):
         self.path_name = path_name
         self.block_size = block_size 
 
     def serializeRow(self, row, schema):
+        print(row)
         """ Serialize a single row based on the schema. """
         row_binary = b''
         for value, (_, data_type, size) in zip(row, schema):
@@ -78,7 +80,86 @@ class Serializer:
                 data.append(row_data)
         
         return data
+    
 
+    def overwriteData(self, file_name, data) -> int:
+        
+        return 0
+
+    def appendData(self, file_name, data) -> int:
+        schema = self.readSchema(file_name)
+        data_file_name = file_name + '_data.dat'
+        blocks_file_name = file_name + '_blocks.dat'  
+        blocks = []
+        with open(self.path_name + data_file_name, 'rb+') as data_file, open(self.path_name + blocks_file_name, 'rb+') as blocks_file:
+            blocks_file.seek(0)
+            num_existing_blocks = struct.unpack('i', blocks_file.read(4))[0]
+
+            existing_blocks = []
+            for _ in range(num_existing_blocks):
+                offset, num_rows = struct.unpack('ii', blocks_file.read(8))
+                existing_blocks.append((offset, num_rows))
+
+            if existing_blocks:
+                last_block_offset, rows_in_last_block = existing_blocks[-1]
+                data_file.seek(last_block_offset)
+                last_block_data = data_file.read(self.block_size)
+                used_space_in_last_block = len(last_block_data)
+            else:
+                last_block_offset = 0
+                rows_in_last_block = 0
+                used_space_in_last_block = 0
+
+            remaining_space = self.block_size - used_space_in_last_block
+            current_offset = last_block_offset + used_space_in_last_block
+
+            block_data = []
+            num_rows = 0
+            new_blocks = []
+
+            for i, row in enumerate(data):
+                serialized_row = self.serializeRow(row, schema)
+                row_size = len(serialized_row)
+
+                print(row_size)
+                print(remaining_space)
+                if row_size <= remaining_space:
+                    data_file.seek(last_block_offset + used_space_in_last_block)
+                    data_file.write(serialized_row)
+                    rows_in_last_block += 1
+                    used_space_in_last_block += row_size
+                    remaining_space -= row_size
+                else:
+                    if block_data:
+                        for block in block_data:
+                            data_file.seek(current_offset)
+                            data_file.write(block)
+                            current_offset += len(block)
+                        new_blocks.append((current_offset - len(block_data[0]), num_rows))
+                        block_data = []
+                        num_rows = 0
+
+                    block_data.append(serialized_row)
+                    num_rows += 1
+
+                    if sum(len(block) for block in block_data) >= self.block_size or i == len(data) - 1:
+                        for block in block_data:
+                            data_file.seek(current_offset)
+                            data_file.write(block)
+                            current_offset += len(block)
+                        new_blocks.append((current_offset - len(block_data[0]), num_rows))
+                        block_data = []
+                        num_rows = 0
+                        remaining_space = self.block_size
+
+            updated_blocks = existing_blocks[:-1] + [(last_block_offset, rows_in_last_block)] + new_blocks
+            blocks_file.seek(0)
+            blocks_file.write(struct.pack('i', len(updated_blocks)))
+            for offset, num_rows in updated_blocks:
+                blocks_file.write(struct.pack('ii', offset, num_rows))
+
+        return rows_in_last_block + num_rows
+    
     def writeTable(self, file_name, data, schema):
         """ Write data and schema to files with metadata blocks. """
         schema_file_name = file_name + '_scheme.dat'
@@ -91,25 +172,28 @@ class Serializer:
                 schema_file.write(struct.pack('i', len(data_type)))
                 schema_file.write(data_type.encode('utf-8'))
                 schema_file.write(struct.pack('i', size))
-
+        
         data_file_name = file_name + '_data.dat'
         blocks_file_name = file_name + '_blocks.dat'  
         blocks = []  # (offset, jumlah row)
         with open(self.path_name + data_file_name, 'wb') as data_file, open(self.path_name + blocks_file_name, 'wb') as blocks_file:
             current_offset = 0
             row_size = sum(size for _, _, size in schema)
+            remaining_space = self.block_size
             block_data = []
             num_rows = 0
 
             for i, row in enumerate(data):
                 block_data.append(self.serializeRow(row, schema))
+                remaining_space-=row_size
                 num_rows += 1
 
-                if sum(len(block) for block in block_data) >= self.block_size or i == len(data) - 1:
+                if row_size > remaining_space  or i == len(data) - 1:
                     for block in block_data:
                         data_file.write(block)
                     blocks.append((current_offset, num_rows))
                     current_offset += sum(len(block) for block in block_data)
+                    remaining_space = self.block_size
                     block_data = []  # Reset blok
                     num_rows = 0
 
