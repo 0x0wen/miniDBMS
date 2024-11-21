@@ -10,7 +10,7 @@ Developed by Amazing RDS, a team of 25.
 5. Constant names           : UPPERCASE with underscores (ex: TIME_LIMIT)
 
 ## Query Tree Description
-1. SELECT --> node_type : "SELECT", value : list of table name (ex: ["name, "age", "salary"]).
+1. SELECT --> node_type : "SELECT", value : list of attribute name (ex: ["name, "age", "salary"]).
 2. FROM --> node_type : "FROM", value : only one table name (ex: ["employee"]). *if FROM more than one table (ex: (FROM a, b) or (FROM a JOIN b)) the node type will be "JOIN" or "TJOIN".
 3. JOIN --> has 3 case, cross product, natural join, and join with condition (JOIN ON). Example query tree:
    ![image](https://github.com/user-attachments/assets/fe099fb0-6d91-466e-ad28-abe40cbe8af8)
