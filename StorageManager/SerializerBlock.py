@@ -1,5 +1,6 @@
 import struct
 import os
+from objects.Condition import Condition
 
 """
 Format file yang dibuat 
