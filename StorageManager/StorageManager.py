@@ -5,6 +5,11 @@ from StorageManager.objects.Statistics import Statistics
 # from Serializer import *
 from SerializerBlock import Serializer
 from objects.Rows import Rows  
+import sys
+import os
+current_file_dir = os.path.dirname(os.path.abspath(__file__))
+folder_saya_path = os.path.join(current_file_dir, "../QueryOptimizer")
+sys.path.append(folder_saya_path)
 
 class StorageManager:
     
