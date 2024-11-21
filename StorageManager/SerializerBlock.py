@@ -1,6 +1,8 @@
 import struct
 import os
-
+from typing import Union
+from StorageManager.objects.Condition import Condition
+from StorageManager.objects.Rows import Rows
 """
 Format file yang dibuat 
 {tabel}_blocks.dat --metadata block
@@ -18,6 +20,7 @@ class Serializer:
         row_binary = b''
         for value, (_, data_type, size) in zip(row, schema):
             if data_type == 'int':
+                
                 row_binary += struct.pack('i', value)
             elif data_type == 'float':
                 row_binary += struct.pack('f', value)
@@ -26,8 +29,6 @@ class Serializer:
             elif data_type == 'varchar':
                 row_binary += struct.pack(f'{size}s', value.encode().ljust(size, b'\x00')[:size])
         return row_binary
-
-
     
     def readBlocks(self, file_name):
         """Read block metadata from the separate blocks file."""
@@ -39,7 +40,6 @@ class Serializer:
                 offset, num_rows = struct.unpack('ii', blocks_file.read(8))
                 blocks.append((offset, num_rows))
         return blocks
-
 
     def readBlock(self, file_name, block_index):
         """ Read data from a specific block based on the block index and schema. """
@@ -79,7 +79,6 @@ class Serializer:
         
         return data
 
-
     def writeTable(self, file_name, data, schema):
         """ Write data and schema to files with metadata blocks. """
         schema_file_name = file_name + '_scheme.dat'
@@ -118,12 +117,31 @@ class Serializer:
             for offset, num_rows in blocks:
                 blocks_file.write(struct.pack('ii', offset, num_rows))
 
+    def readSchema(self, file_name : str) -> list[tuple]:
+        """
+        Reads the schema from binary file named file_name.dat and returns a list of tuples representing the column schema
 
+        Args : 
+            file_name (str) : the table name (without .dat suffix) to read the schema
 
-
-    def readSchema(self, file_name):
-        """ Read schema from the file. """
-        schema = []
+        Returns:
+            list[tuple] : A list of tuples, each representing a column in the schema
+            Each tuple contains:
+            - column_name (str) : The column name
+            - data_type (str) : the data type of column (e.g., 'int', 'char', 'float')
+            - size (int) : the size (or byte length) of the value
+        Example : 
+            schema = readSchema('my_table')
+            #### schema will be a list of tuples like:
+            #### [
+            ####     ('id', 'int', 4),
+            ####     ('umur', 'char', 32),
+            ####     ('harga', 'float', 4),
+            ####     ('desk', 'char', 32),
+            ####     ...
+            #### ]
+        """
+        schema_list = []
         schema_file_name = file_name + '_scheme.dat'
         with open(self.path_name + schema_file_name, 'rb') as schema_file:
             num_columns = struct.unpack('i', schema_file.read(4))[0]
@@ -133,11 +151,62 @@ class Serializer:
                 data_type_len = struct.unpack('i', schema_file.read(4))[0]
                 data_type = schema_file.read(data_type_len).decode('utf-8')
                 size = struct.unpack('i', schema_file.read(4))[0]
-                schema.append((column_name, data_type, size))
-        return schema
+                schema_list.append((column_name, data_type, size))
+        return schema_list
 
-    def readData(self, file_name, schema):
-        """ Read data based on the schema, using block allocation from a separate blocks file. """
+    def readData(self, file_name : str, schema : list[tuple]) -> list[list]:
+        """
+        Reads data from a binary file based on the provided schema (which can be obtained from the readSchema function),
+        and returns a list of tuples representing all of the values of the columns in the table.
+
+        Args: 
+            file_name (str): The base name of the table file (without the '_data.dat' suffix) to read the data from.
+            schema (list[tuple]): A list of tuples, each representing a column in the schema. 
+                                Each tuple contains the column name, its data type (e.g., 'int', 'char', 'float'), 
+                                and the size (in bytes) of the column value. 
+                                Example schema:
+                                [
+                                    ('id', 'int', 4),
+                                    ('umur', 'char', 32),
+                                    ('harga', 'float', 4),
+                                    ('desk', 'char', 32),
+                                    ...
+                                ]
+
+        Returns:
+            Rows : a List of dictionary containing the value of each data
+            
+            For example, given a schema:
+            [
+                ('id', 'int', 4),
+                ('name', 'char', 32),
+                ('salary', 'float', 4),
+                ('description', 'char', 64)
+            ]
+            
+            The returned data might look like:
+            [
+                {1, 'John', 1200.50, 'Some description'},
+                {2, 'Jane', 1500.75, 'Another description'},
+                ...
+            ]
+            
+            Where:
+                - The first element in each row is an `int` (e.g., `1`).
+                - The second element is a `str` (e.g., `'John'`).
+                - The third element is a `float` (e.g., `1200.50`).
+                - The fourth element is a `str` (e.g., `'Some description'`).
+
+        Example:
+            schema = readSchema('my_table')
+            data = readData('my_table', schema)
+            # data will be a list of rows, with each row being a list of column values:
+            # [
+            #     [1, 'John', 1200.50, 'Some description'],
+            #     [2, 'Jane', 1500.75, 'Another description'],
+            #     ...
+            # ]
+        """
         data = []
         row_size = sum(size for _, _, size in schema)
         data_file_name = file_name + '_data.dat'
@@ -170,27 +239,23 @@ class Serializer:
         
         return data
 
-
-
-
-
-    def readTable(self, file_name):
+    def readTable(self, file_name) -> Rows:
         """ Read both schema and data from files using block allocation. """
         schema = self.readSchema(file_name) 
         data = self.readData(file_name, schema)  
         column_names = [column_name for column_name, _, _ in schema]
-        data_with_schema = [
+        data_with_schema: Rows = Rows([
             {column_name: value for column_name, value in zip(column_names, row)}
             for row in data
-        ]
+        ])
         return data_with_schema
 
-
-   
-
     #pake 'Condition' kalo gk eror, python aneh
-    def applyConditions(self,rows: list[dict], conditions: list['Condition']) -> list[dict]:
-        def satisfies(row: dict, condition: 'Condition') -> bool:
+    def applyConditions(self,rows: list[dict], conditions: list[Condition]) -> Rows:
+        """
+        Return the D
+        """
+        def satisfies(row: dict, condition: Condition) -> bool:
             value = row.get(condition.column)
             if value is None:
                 return False
@@ -212,8 +277,7 @@ class Serializer:
         for row in rows:
             if all(satisfies(row, cond) for cond in conditions):
                 filtered_rows.append(row)
-        return filtered_rows
-
+        return Rows(filtered_rows)
 
     def filterColumns(self,rows: list[dict], columns: list[str]) -> list[dict]:
         if columns:
