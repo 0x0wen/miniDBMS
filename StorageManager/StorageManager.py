@@ -75,11 +75,60 @@ class StorageManager:
         """
         pass
 
-    def getStats() -> Statistics:
+    def getStats(self) -> dict:
+        """
+        Return dictionary of statistics for all tables in the database
+        """
+        
+        current_dir = os.path.dirname(os.path.abspath(__file__)) 
+        storage_dir = os.path.join(current_dir, "../Storage") 
+        storage_dir = os.path.abspath(storage_dir)  
+
+        all_stats = {}
+
+        # Check all tables in the directory
+        for file_name in os.listdir(storage_dir):
+            if file_name.endswith("_scheme.dat"):
+                table_name = file_name.replace("_scheme.dat", "")
+                try:
+                    stats = self.getStatsOneTable(table_name)
+                    all_stats[table_name] = stats
+                except Exception as e:
+                    print(f"Error saat membaca statistik untuk tabel {table_name}: {e}")
+        
+        return all_stats
+
+    
+    def getStatsOneTable(self,table_name) -> Statistics:
         """
         Returns Statistics object that has number of tuples, number of blocks, size of tuple, blocking factor, and number of distinct values appear in r
         """
-        pass
+        serializer = Serializer()
+        
+        schema = serializer.readSchema(table_name)
+        
+        l_r = sum(size for _, _, size in schema)  
+        
+        # Ambil metadata blok
+        blocks = serializer.readBlocks(table_name)
+        n_r = sum(num_rows for _, num_rows in blocks)  
+        b_r = len(blocks)  
+        
+        # Hitung faktor blocking (f_r)
+        block_size = serializer.block_size
+        f_r = block_size // l_r  
+        
+        # Hitung jumlah nilai unik (V) untuk setiap kolom
+        data = serializer.readData(table_name, schema)
+        column_names = [col[0] for col in schema]
+        col_indices = {col_name: idx for idx, col_name in enumerate(column_names)}  # Mapping nama kolom ke indeks
+        V_a_r = {
+            col: len(set(row[col_indices[col]] for row in data)) 
+            for col in column_names
+        }
+        
+        # Buat dan return objek Statistik
+        return Statistics(n_r=n_r, b_r=b_r, l_r=l_r, f_r=f_r, V_a_r=V_a_r)
     
     def __query_tree_to_data_retrieval(self,query_tree):
         tables = []
@@ -156,6 +205,11 @@ root.children = [from_node, where_node]
 # data_retrieval = query_tree_to_data_retrieval(root)
 # print(data_retrieval)
 
-
 sm = StorageManager()
-sm.readBlock(root)
+# sm.readBlock(root)
+
+stats = sm.getStats()
+
+for table_name, stats in stats.items():
+    print(f"Table: {table_name}")
+    print(stats)
