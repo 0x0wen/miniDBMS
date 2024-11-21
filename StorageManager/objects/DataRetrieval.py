@@ -1,6 +1,6 @@
 from .Condition import Condition
 class DataRetrieval:
-    def __init__(self, table: list[str], column: list[str], conditions: list[Condition]) -> None:
+    def __init__(self, table: list[str], column: list[str] = [], conditions: list[Condition] = []) -> None:
         self.table = table
         self.column = column
         self.conditions = conditions
