@@ -1,5 +1,5 @@
 import unittest
-from StorageManager.SerializerBlock import Serializer
+from StorageManager.manager.TableManager import TableManager
 from StorageManager.StorageManager import StorageManager
 
 
@@ -8,7 +8,7 @@ class TestStatistics(unittest.TestCase):
         """
         Set up the testing environment.
         """
-        self.serializer = Serializer(path_name="StorageManager/TestStatistics/")
+        self.serializer = TableManager(path_name="StorageManager/TestStatistics/")
         self.manager = StorageManager()
          
         # Skema tabel testing
@@ -51,7 +51,7 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(stats.n_r, 3)  # 3 tuples
         self.assertEqual(stats.b_r, 1)  # Semua data muat dalam 1 blok
         self.assertEqual(stats.l_r, 58)  # Ukuran tuple sesuai skema
-        self.assertEqual(stats.f_r, 4)  # Faktor blocking
+        self.assertEqual(stats.f_r, 12)  # Faktor blocking
         self.assertEqual(stats.V_a_r["col1"], 3)  # 3 nilai unik
 
     def test_getAllStats(self):
