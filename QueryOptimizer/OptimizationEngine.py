@@ -7,6 +7,7 @@ from CustomException import CustomException
 class OptimizationEngine:
     def __init__(self):
         self.statistics = {}  # Example: Holds table statistics for cost estimation
+        self.one_node_constraint = [] # If there is one-token-only constraint used, add it here
 
     def parseQuery(self, query: str) -> ParsedQuery:
         """
@@ -15,6 +16,15 @@ class OptimizationEngine:
         # Tokenize and construct a basic QueryTree for demonstration purposes
         tokens = re.findall(r'[^\s,]+|,', query)
         print('tokens:',tokens)
+
+        # Validate the first token of the query
+        if (not self.validateFirstToken(tokens)):
+            raise CustomException("Invalid first token", code=400)
+        
+        # Reset the one-node constraint list
+        self.one_node_constraint = []
+        
+        # Create a QueryTree from the tokens
         root = self.__createQueryTree(tokens)
 
         # Return a ParsedQuery object
@@ -60,6 +70,14 @@ class OptimizationEngine:
         print("QueryTree validation passed.")
         return True
     
+    def validateFirstToken(self, tokens: list) -> bool:
+        """
+        Validates the first token of the query.
+        """
+        if tokens[0].upper() not in ["SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "BEGIN", "COMMIT"]:
+            return False
+        return True
+
     def __getCost(self, query: ParsedQuery) -> int:
         """
         Calculates the estimated cost of executing the parsed query.
@@ -81,9 +99,16 @@ class OptimizationEngine:
             return None
 
         token = tokens.pop(0).upper()
+
+        # Check One-Node-Only constraint
+        if token in self.one_node_constraint:
+            raise CustomException(f"Syntax Error: Only one '{token}' allowed", code=400)
+
         root = QueryTree(node_type=token, val=[])
         
         if token == "SELECT":
+            self.one_node_constraint.append("SELECT")
+
             # Create SELECT node
             root = QueryTree(node_type="SELECT", val=[])
             
@@ -267,7 +292,6 @@ class OptimizationEngine:
                 if child is not None:  # Only append if the child is not None
                     root.children.append(child)  
 
-
         elif token == "AND":
             root = QueryTree(node_type="WHERE", val=[])
             condition = []
@@ -296,6 +320,8 @@ class OptimizationEngine:
                 root.children.append(child)  
             
         elif token == "WHERE":
+            self.one_node_constraint.append("WHERE")
+
             root = QueryTree(node_type="WHERE", val=[])
             condition = []
 
@@ -323,17 +349,54 @@ class OptimizationEngine:
             if child is not None:  # Only append if the child is not None
                 root.children.append(child)  
 
-        # elif token == "ORDER":
-        #     if tokens and tokens.pop(0).upper() == "BY":
-        #         root = QueryTree(node_type="ORDER_BY", val=[])
+        elif token == "ORDER":
+            self.one_node_constraint.append("ORDER")
+
+            if not tokens:
+                raise CustomException("Incomplete syntax for ORDER BY clause", code=400)
+            
+            if tokens and tokens.pop(0).upper() != "BY":
+                raise CustomException("Invalid syntax for ORDER BY clause", code=400)
+
+            root = QueryTree(node_type="SORT", val=[])
+            
+            while tokens and tokens[0].upper() not in ["LIMIT"]:
+                col = tokens.pop(0)
+                root.val.append(col)
+                if tokens[0] == ",":
+                    tokens.pop(0)
+                    if tokens and tokens[0].upper() in ["LIMIT", ","]:
+                        raise CustomException("Invalid syntax for ORDER BY clause", code=400)
+                    elif not tokens:
+                        raise CustomException("Incomplete syntax for ORDER BY clause", code=400)
                 
-        #         while tokens and tokens[0].upper() not in ["LIMIT"]:
-        #             col = tokens.pop(0).rstrip(',')
-        #             root.val.append(col)
-                    
+            if not root.val:
+                raise CustomException("Invalid syntax for ORDER BY clause", code=400)
+            
+            if tokens and tokens[0].upper() not in ["LIMIT"]:
+                raise CustomException("Invalid command after ORDER BY clause", code=400)
+                
+            if tokens:
+                child = self.__createQueryTree(tokens)
+                if child is not None:
+                    root.children.append(child)
 
         elif token == "LIMIT":
-            root = QueryTree(node_type="LIMIT", val=[tokens.pop(0)] if tokens else [])
+            self.one_node_constraint.append("LIMIT")
+
+            if not tokens:
+                raise CustomException("Incomplete syntax for LIMIT clause", code=400)
+
+            if tokens and not tokens[0].isdigit():
+                raise CustomException("Invalid syntax for LIMIT clause", code=400)
+            
+            if tokens and int(tokens[0]) < 0:
+                raise CustomException("LIMIT value must be greater than or equal to 0", code=400)
+            
+            root = QueryTree(node_type="LIMIT", val=[tokens.pop(0)])
+
+            if tokens:
+                raise CustomException("Invalid command after LIMIT clause", code=400)
         
         elif token == "SET":
             root = QueryTree(node_type="SET", val=[])
@@ -362,6 +425,8 @@ class OptimizationEngine:
                 root.children.append(child)  
 
         elif token == "UPDATE":
+            self.one_node_constraint.append("UPDATE")
+
             if(not tokens):
                 raise CustomException("Incomplete syntax for UPDATE clause", code=400)
             
@@ -375,18 +440,41 @@ class OptimizationEngine:
                 root.children.append(child)  
 
         elif token == "BEGIN":
+            self.one_node_constraint.append("BEGIN")
+
             if tokens and tokens.pop(0).upper() == "TRANSACTION":
                 root = QueryTree(node_type="BEGIN_TRANSACTION", val=[])
             
-        #     if tokens : # if there is any token, add it as unknown
-        #         root.children.append(QueryTree(node_type="UNKNOWN", val=[tokens]))
+            # TODO: Implement BEGIN TRANSACTION clause parsing here
                 
-        # elif token == "COMMIT":
-        #     root = QueryTree(node_type="COMMIT", val=[])
+        elif token == "COMMIT":
+            self.one_node_constraint.append("COMMIT")
+
+            root = QueryTree(node_type="COMMIT", val=[])
             
-        #     if tokens : # if there is any token, add it as unknown
-        #         root.children.append(QueryTree(node_type="UNKNOWN", val=[tokens]))
-                
+            # TODO: Implement COMMIT clause parsing here
+
+        elif token == "DELETE":
+            self.one_node_constraint.append("DELETE")
+
+            root = QueryTree(node_type="DELETE", val=[])
+            
+            if tokens and tokens[0].upper() != "FROM":
+                raise CustomException("Invalid command after DELETE clause", code=400)
+            tokens.pop(0)
+
+            if not tokens:
+                raise CustomException("Incomplete syntax for DELETE clause", code=400)
+            
+            root.val.append(tokens.pop(0))
+            
+            if tokens and tokens[0].upper() != "WHERE":
+                raise CustomException("Invalid command after DELETE clause", code=400)
+            
+            child = self.__createQueryTree(tokens)
+            if child is not None:
+                root.children.append(child)
+
         else:
             root = QueryTree(node_type="UNKNOWN", val=[token])
             
