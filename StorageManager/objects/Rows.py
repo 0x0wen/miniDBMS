@@ -17,8 +17,26 @@ class Rows(list):
             super().append(item)
         else:
             raise ValueError("Item must be a dictionary.")
+
+    def getRowsNotMatching(self, conditional_rows : 'Rows') -> 'Rows':
+        """
+        Return data that is not matching the conditional_rows
+
+        Args: 
+            conditional_rows : rows that is filtered based on conditions
+
+        Returns:
+            Rows : data that doesn't match the conditional_rows
+        """
+        newData : Rows = []
+        conditional_rows = conditional_rows._toSet()
+        for row in self:
+            if frozenset(row.items()) not in conditional_rows:
+                newData.append(list(row.values()))
+        return newData
+
     
-    def to_set(self) -> set:
+    def _toSet(self) -> set:
         """ Converts the rows (list of dicts) into a set of frozensets for efficient lookup. """
         return {frozenset(row.items()) for row in self}
-        
+    

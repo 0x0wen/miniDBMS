@@ -3,8 +3,8 @@ from StorageManager.objects.DataWrite import DataWrite
 from StorageManager.objects.DataDeletion import DataDeletion
 from StorageManager.objects.Statistics import Statistics
 # from Serializer import *
-from SerializerBlock import Serializer
-from objects.Rows import Rows  
+from StorageManager.SerializerBlock import Serializer
+from StorageManager.objects.Rows import Rows  
 import sys
 import os
 current_file_dir = os.path.dirname(os.path.abspath(__file__))
@@ -68,13 +68,7 @@ class StorageManager:
         schema = serializer.readSchema(data_deletion.table)
 
         # Create new data that doesn't contain filtered table
-        newData = []
-        rows_set = filtered_Table.to_set()
-        for row in data:
-            if frozenset(row.items()) not in rows_set:
-                newData.append(list(row.values()))
-        
-        print(newData)
+        newData = data.getRowsNotMatching(filtered_Table)
         serializer.writeTable(data_deletion.table, newData ,schema)
         return newData.__len__()
 
