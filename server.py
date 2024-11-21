@@ -38,8 +38,10 @@ class Server:
                 print("Transaction has been logged.")
 
                 # kriim hasil ke klien
+                send_to_client = ""
                 for q in optimized_query:
-                    client_socket.send(f"Optimized Query Tree: {q.query_tree}\n".encode("utf-8"))
+                    send_to_client += (f"Optimized Query Tree: {q.query_tree}\n")
+                client_socket.send(send_to_client.encode("utf-8"))
         except Exception as e:
             print(f"Error handling client: {e}")
         finally:
