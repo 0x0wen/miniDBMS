@@ -1,6 +1,6 @@
 from ConcurrencyControlManager.Algorithms.AbstractAlgorithm import AbstractAlgorithm
 from ConcurrencyControlManager.Algorithms.TwoPhaseLock import TwoPhaseLock
-from Interface import Response, Action
+from Interface import Response, Action, Rows
 from Enum.ConcurrencyControlAlgorithmEnum import ConcurrencyControlAlgorithmEnum
 
 
@@ -8,12 +8,6 @@ class ConcurrentControlManager:
     """
     Manages concurrency control for database transactions using various algorithms.
     """
-    instance = None
-
-    def __new__(cls):
-        if not hasattr(cls, 'instance'):
-            cls.instance = super(ConcurrentControlManager, cls).__new__(cls)
-        return cls.instance
 
     def __init__(self):
         """
@@ -33,12 +27,12 @@ class ConcurrentControlManager:
         self.sequence_number += 1
         return self.sequence_number
 
-    def logObject(self, db_object: int, transaction_id: int) -> None:
+    def logObject(self, db_object: Rows, transaction_id: int) -> None:
         """
         Logs an object for a given transaction.
 
         Args:
-            db_object (int): The database object to log.
+            db_object (Rows): The database object to log.
             transaction_id (int): The ID of the transaction.
         """
         try:
@@ -46,12 +40,12 @@ class ConcurrentControlManager:
         except Exception as e:
             print(f"Exception: {e}")
 
-    def validateObject(self, db_object: int, transaction_id: int, action: Action) -> Response:
+    def validateObject(self, db_object: Rows, transaction_id: int, action: Action) -> Response:
         """
         Validates an object for a given transaction and action.
 
         Args:
-            db_object (int): The database object to validate.
+            db_object (Rows): The database object to validate.
             transaction_id (int): The ID of the transaction.
             action (Action): The action to validate.
 

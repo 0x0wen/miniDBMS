@@ -19,30 +19,16 @@ class QueryProcessor:
         """
         if not hasattr(self, "initialized"):  # Ensure __init__ is called only once
             self.concurrent_manager = ConcurrentControlManager()
+            self.optimization_engine = OptimizationEngine()
             self.initialized = True
 
     
     def execute_query(self, query):
         optimized_query = []
         for i in range (len(query)):
-            optimization_engine = OptimizationEngine()
-            optimized_query.append(optimization_engine.optimizeQuery(optimization_engine.parseQuery(query[i])))
+            optimized_query.append(self.optimization_engine.optimizeQuery(self.optimization_engine.parseQuery(query[i])))
             
         return optimized_query
-
-    def accept_query(self):
-        query_input = ""
-        print("> ", end="")
-        while True:
-            data = input()
-            if ';' in data:
-                query_input += data[:data.index(';')]
-                break
-            query_input += (data + " ")
-        query_input = query_input.strip()
-
-        return query_input
-    
 
     def generate_rows_from_query_tree(self, optimized_query: List, transaction_id: int) -> Rows:
         """
@@ -76,7 +62,7 @@ class QueryProcessor:
         # Create and return Rows object
         return Rows(operations)
 
-
+    # ini ga kepake lagi harusnya
     def main_driver(self):
         query = []
         query.append(self.accept_query())
@@ -100,7 +86,7 @@ class QueryProcessor:
 
         # Konversi QueryTree ke dalam format Transaction
         rows = self.generate_rows_from_query_tree(optimized_query, transaction_id)
-        # print(rows.data)
+        print(rows.data)
         # print(rows.rows_count)
 
         # Method Concurrency Control Manager (Log Object) dengan Tipe Data Rows
