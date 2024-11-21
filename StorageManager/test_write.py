@@ -1,7 +1,7 @@
-from StorageManager import StorageManager
-from objects.Condition import Condition
-from objects.DataWrite import DataWrite
-from objects.DataRetrieval import DataRetrieval
+from StorageManager.StorageManager import StorageManager
+from StorageManager.objects.Condition import Condition
+from StorageManager.objects.DataWrite import DataWrite
+from StorageManager.objects.DataRetrieval import DataRetrieval
 
 cond1 = Condition("id", '<=', 7)
 cond2 = Condition("harga", '>', 60.00)

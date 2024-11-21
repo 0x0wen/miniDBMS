@@ -1,4 +1,4 @@
-from SerializerBlock import Serializer
+from StorageManager.SerializerBlock import Serializer
 
 schema = [
     ('id', 'int', 4),

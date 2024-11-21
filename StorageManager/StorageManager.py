@@ -1,10 +1,10 @@
-from objects.DataRetrieval import DataRetrieval,Condition
-from objects.DataWrite import DataWrite
-from objects.DataDeletion import DataDeletion
-from objects.Statistics import Statistics
+from StorageManager.objects.DataRetrieval import DataRetrieval,Condition
+from StorageManager.objects.DataWrite import DataWrite
+from StorageManager.objects.DataDeletion import DataDeletion
+from StorageManager.objects.Statistics import Statistics
 # from Serializer import *
-from SerializerBlock import Serializer
-from objects.Rows import Rows  
+from StorageManager.SerializerBlock import Serializer
+from StorageManager.objects.Rows import Rows  
 import os
 
 class StorageManager:
