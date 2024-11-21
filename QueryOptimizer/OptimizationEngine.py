@@ -87,17 +87,25 @@ class OptimizationEngine:
             # Create SELECT node
             root = QueryTree(node_type="SELECT", val=[])
             
-            # Get all columns until we hit FROM
-            while tokens and tokens[0].upper() != "FROM":
-                token = tokens.pop(0)
-                if not token.endswith(',') and (tokens[0] != ','):
-                    root.val.append(token.rstrip(','))  # Remove trailing commas
-                    break
-                
-                root.val.append(token.rstrip(','))  # Remove trailing commas
-            child = self.__createQueryTree(tokens)
-            if child is not None:  # Only append if the child is not None
-                root.children.append(child)  
+            if (tokens and tokens[0].upper() in [",", "NATURAL", "JOIN"]) or not tokens:
+                raise SyntaxError("Syntax Error: Missing attribute name")
+            
+            root.val.append(tokens.pop(0))
+            
+            while tokens and tokens[0].upper() == ",":
+                tokens.pop(0)
+                if tokens and (tokens[0].upper()) not in ["FROM", "NATURAL", "JOIN",",", "WHERE", "LIMIT", "ORDER"]:
+                    root.val.append(tokens.pop(0))
+                else:
+                    raise SyntaxError("Syntax Error: Missing attribute name")
+            
+            if tokens and (tokens[0].upper()) == "FROM":
+                child = self.__createQueryTree(tokens)
+                if child is not None: 
+                    root.children.append(child)
+            else:
+                raise CustomException("Invalid command after SELECT clause", code=400)
+            
                 
         elif token == "FROM":
             # Check if table name doesn't exist
@@ -255,6 +263,9 @@ class OptimizationEngine:
             else:
                 if tokens[0].upper() not in ["WHERE", "LIMIT", "ORDER"]:
                     raise SyntaxError("Syntax Error: Invalid syntax")
+                child = self.__createQueryTree(tokens)
+                if child is not None:  # Only append if the child is not None
+                    root.children.append(child)  
 
 
         elif token == "AND":
@@ -378,6 +389,8 @@ class OptimizationEngine:
                 
         else:
             root = QueryTree(node_type="UNKNOWN", val=[token])
+            
+        return root
 
     def __applyHeuristicRules(self, query: ParsedQuery):
         """
