@@ -5,7 +5,12 @@ from objects.Statistics import Statistics
 # from Serializer import *
 from SerializerBlock import Serializer
 from objects.Rows import Rows  
-from objects.QueryTree import QueryTree
+import sys
+import os
+current_file_dir = os.path.dirname(os.path.abspath(__file__))
+folder_saya_path = os.path.join(current_file_dir, "../QueryOptimizer")
+sys.path.append(folder_saya_path)
+import QueryTree
 
 class StorageManager:
     
@@ -136,10 +141,10 @@ class StorageManager:
 # sm.readBlock(retrieval)
 
 # QueryTree 
-root =  QueryTree("SELECT", ["*"])  # Node root untuk FROM
-from_node = QueryTree("FROM", ["user2"], parent=root)  # Node untuk SELECT
+root =  QueryTree.QueryTree("SELECT", ["*"])  # Node root untuk FROM
+from_node = QueryTree.QueryTree("FROM", ["user2"], parent=root)  # Node untuk SELECT
 
-where_node = QueryTree("WHERE", ["id", "<=", 7], parent=root)  # 1 kondisi
+where_node = QueryTree.QueryTree("WHERE", ["id", "<=", 7], parent=root)  # 1 kondisi
 
 # ini format and sama or kel owen jadi kalo mau coba coba formatnya gini ya
 # where_node = QueryTree("WHERE", ['id', '<=', 7, 'OR', 'harga', '>', 60.0], parent=root) # or
