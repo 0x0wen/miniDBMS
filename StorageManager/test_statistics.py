@@ -1,13 +1,14 @@
 import unittest
-from SerializerBlock import Serializer
-from StorageManager import StorageManager
+from StorageManager.SerializerBlock import Serializer
+from StorageManager.StorageManager import StorageManager
+
 
 class TestStatistics(unittest.TestCase):
     def setUp(self):
         """
         Set up the testing environment.
         """
-        self.serializer = Serializer()
+        self.serializer = Serializer(path_name="StorageManager/TestStatistics/")
         self.manager = StorageManager()
          
         # Skema tabel testing
@@ -45,7 +46,7 @@ class TestStatistics(unittest.TestCase):
             schema=self.mock_schema_test1
         )
 
-        stats = self.manager.getStatsOneTable(table_name)
+        stats = self.manager.getStatsOneTable(table_name,path_folder="StorageManager/TestStatistics/")
 
         self.assertEqual(stats.n_r, 3)  # 3 tuples
         self.assertEqual(stats.b_r, 1)  # Semua data muat dalam 1 blok
@@ -72,7 +73,7 @@ class TestStatistics(unittest.TestCase):
         )
 
         # Hitung statistik semua tabel
-        all_stats = self.manager.getStats()
+        all_stats = self.manager.getStats(test=True)
 
         # Cek statistik "test1"
         self.assertIn("test1", all_stats)

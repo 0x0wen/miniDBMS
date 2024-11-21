@@ -5,11 +5,7 @@ from StorageManager.objects.Statistics import Statistics
 from StorageManager.manager.TableManager import TableManager
 # from Serializer import *
 from StorageManager.objects.Rows import Rows  
-import sys
 import os
-current_file_dir = os.path.dirname(os.path.abspath(__file__))
-folder_saya_path = os.path.join(current_file_dir, "../QueryOptimizer")
-sys.path.append(folder_saya_path)
 
 class StorageManager:
 
@@ -89,15 +85,16 @@ class StorageManager:
         """
 
 
-    def getStats(self) -> dict:
+    def getStats(self, test = False) -> dict:
         """
         Return dictionary of statistics for all tables in the database
         """
+        path_name = "../Storage" if not test else "TestStatistics/"
         
         current_dir = os.path.dirname(os.path.abspath(__file__)) 
-        storage_dir = os.path.join(current_dir, "../Storage") 
+        storage_dir = os.path.join(current_dir, path_name) 
         storage_dir = os.path.abspath(storage_dir)  
-
+        print(storage_dir)
         all_stats = {}
 
         # Check all tables in the directory
@@ -105,7 +102,7 @@ class StorageManager:
             if file_name.endswith("_scheme.dat"):
                 table_name = file_name.replace("_scheme.dat", "")
                 try:
-                    stats = self.getStatsOneTable(table_name)
+                    stats = self.getStatsOneTable(table_name) if not test else self.getStatsOneTable(table_name, storage_dir + "/")
                     all_stats[table_name] = stats
                 except Exception as e:
                     print(f"Error saat membaca statistik untuk tabel {table_name}: {e}")
@@ -113,13 +110,13 @@ class StorageManager:
         return all_stats
 
     
-    def getStatsOneTable(self,table_name) -> Statistics:
+    def getStatsOneTable(self,table_name,path_folder = None) -> Statistics:
         """
         Returns Statistics object that has number of tuples, number of blocks, size of tuple, blocking factor, and number of distinct values appear in r
         """
-        serializer = TableManager()
+        serializer = TableManager() if path_folder is None else TableManager(path_name=path_folder)
         
-        schema = serializer.readSchema(table_name)
+        schema = serializer.readSchema(table_name) if path_folder is None else serializer.readSchema(table_name)
         
         l_r = sum(size for _, _, size in schema)  
         
