@@ -444,8 +444,6 @@ class OptimizationEngine:
                 root = QueryTree(node_type="BEGIN_TRANSACTION", val=[])
             else:
                 raise CustomException("Invalid syntax: 'BEGIN' must be followed by 'TRANSACTION'", code=400)
-
-            tokens.pop(0) 
             
             if "BEGIN_TRANSACTION" in self.one_node_constraint:
                 raise CustomException("Syntax Error: Only one 'BEGIN TRANSACTION' allowed", code=400)
