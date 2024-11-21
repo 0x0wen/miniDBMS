@@ -27,8 +27,6 @@ class QueryProcessor:
         for i in range (len(query)):
             optimization_engine = OptimizationEngine()
             optimized_query.append(optimization_engine.optimizeQuery(optimization_engine.parseQuery(query[i])))
-            if (optimized_query[0].query_tree.node_type == "BEGIN_TRANSACTION"):
-                return optimized_query
             
         return optimized_query
 
