@@ -1,6 +1,6 @@
 import unittest
-from StorageManager.SerializerBlock import Serializer
-from StorageManager.StorageManager import StorageManager
+from SerializerBlock import Serializer
+from StorageManager import StorageManager
 
 class TestStatistics(unittest.TestCase):
     def setUp(self):

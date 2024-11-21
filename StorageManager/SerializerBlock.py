@@ -2,8 +2,8 @@ import struct
 from objects.Condition import Condition
 import os
 from typing import Union
-from StorageManager.objects.Condition import Condition
-from StorageManager.objects.Rows import Rows
+from objects.Condition import Condition
+from objects.Rows import Rows
 """
 Format file yang dibuat 
 {tabel}_blocks.dat --metadata block

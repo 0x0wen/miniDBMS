@@ -1,4 +1,4 @@
-from StorageManager.objects.Condition import Condition
+from .Condition import Condition
 class DataDeletion:
     def __init__(self, table : str, conditions : list[Condition] = []) -> None:
         self.table = table
