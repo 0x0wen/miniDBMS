@@ -440,19 +440,31 @@ class OptimizationEngine:
                 root.children.append(child)  
 
         elif token == "BEGIN":
-            self.one_node_constraint.append("BEGIN")
-
             if tokens and tokens.pop(0).upper() == "TRANSACTION":
                 root = QueryTree(node_type="BEGIN_TRANSACTION", val=[])
+            else:
+                raise CustomException("Invalid syntax: 'BEGIN' must be followed by 'TRANSACTION'", code=400)
+
+            tokens.pop(0) 
             
-            # TODO: Implement BEGIN TRANSACTION clause parsing here
+            if "BEGIN_TRANSACTION" in self.one_node_constraint:
+                raise CustomException("Syntax Error: Only one 'BEGIN TRANSACTION' allowed", code=400)
+            
+            if tokens:
+                raise CustomException("Invalid syntax: 'BEGIN TRANSACTION' must not be followed by any tokens", code=400)
+
+            self.one_node_constraint.append("BEGIN_TRANSACTION")
+            root = QueryTree(node_type="BEGIN_TRANSACTION", val=[])
                 
         elif token == "COMMIT":
-            self.one_node_constraint.append("COMMIT")
-
-            root = QueryTree(node_type="COMMIT", val=[])
+            if "COMMIT" in self.one_node_constraint:
+                raise CustomException("Syntax Error: Only one 'COMMIT' allowed", code=400)
             
-            # TODO: Implement COMMIT clause parsing here
+            if tokens: 
+                raise CustomException("Invalid syntax: 'COMMIT' must not be followed by any tokens", code=400)
+
+            self.one_node_constraint.append("COMMIT")
+            root = QueryTree(node_type="COMMIT", val=[])
 
         elif token == "DELETE":
             self.one_node_constraint.append("DELETE")
