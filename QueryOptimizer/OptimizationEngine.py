@@ -1,9 +1,9 @@
-from ParsedQuery import ParsedQuery
-from QueryTree import QueryTree
+from QueryOptimizer.ParsedQuery import ParsedQuery
+from QueryOptimizer.QueryTree import QueryTree
 import re
-from constants import LEGAL_COMMANDS_AFTER_WHERE,LEGAL_COMPARATORS, LEGAL_COMMANDS_AFTER_UPDATE, LEGAL_COMMANDS_AFTER_SET
-from helpers import isAlphanumericWithQuotes
-from CustomException import CustomException
+from QueryOptimizer.constants import LEGAL_COMMANDS_AFTER_WHERE,LEGAL_COMPARATORS, LEGAL_COMMANDS_AFTER_UPDATE, LEGAL_COMMANDS_AFTER_SET
+from QueryOptimizer.helpers import isAlphanumericWithQuotes
+from QueryOptimizer.CustomException import CustomException
 class OptimizationEngine:
     def __init__(self):
         self.statistics = {}  # Example: Holds table statistics for cost estimation
