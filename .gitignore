@@ -1,0 +1,5 @@
+
+/ConcurrencyControlManager/__pycache__
+/ConcurrencyControlManager/Algorithms/__pycache__
+*.pyc
+/.idea
