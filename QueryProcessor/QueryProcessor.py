@@ -102,11 +102,12 @@ class QueryProcessor:
 
         # Konversi QueryTree ke dalam format Transaction
         rows = self.generate_rows_from_query_tree(optimized_query, transaction_id)
-        print(rows.data)
-        print(rows.rows_count)
+        # print(rows.data)
+        # print(rows.rows_count)
 
-        # TODO: Penyesuaian Method Concurrency Control Manager dengan Tipe Data Rows
-
+        # Method Concurrency Control Manager (Log Object) dengan Tipe Data Rows
+        self.concurrent_manager.logObject(rows, transaction_id)
+        print("Transaction has been logged.")
 
         # ini jangan apus dulu
         # optimized_query = self.execute_query(query)
