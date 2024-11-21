@@ -2,8 +2,8 @@ from StorageManager.objects.DataRetrieval import DataRetrieval,Condition
 from StorageManager.objects.DataWrite import DataWrite
 from StorageManager.objects.DataDeletion import DataDeletion
 from StorageManager.objects.Statistics import Statistics
+from StorageManager.manager.TableManager import TableManager
 # from Serializer import *
-from StorageManager.SerializerBlock import Serializer
 from StorageManager.objects.Rows import Rows  
 import sys
 import os
@@ -12,10 +12,9 @@ folder_saya_path = os.path.join(current_file_dir, "../QueryOptimizer")
 sys.path.append(folder_saya_path)
 
 class StorageManager:
-    
+
     def __init__(self) -> None:
         pass
-
     
     def readBlock(self, data_retrieval : DataRetrieval) -> Rows:
         """
@@ -27,7 +26,7 @@ class StorageManager:
         """
         #ini masih baca semua block
         #ini masih baca semua block
-        serializer = Serializer()
+        serializer = TableManager()
         all_filtered_data : Rows = []
         # TODO: Put this change query_tree outside of fucntion
         # data_retrieval = self.__query_tree_to_data_retrieval(query_tree)
@@ -49,7 +48,7 @@ class StorageManager:
             data_write : objects contains data to help determine which data to be retrieved from hard disk, contain modified data for modification operation, and new data for adddition operation
         
         """
-        serializer = Serializer()
+        serializer = TableManager()
         table_name = data_write.selected_table
         new_data = data_write.new_value
 
@@ -66,7 +65,7 @@ class StorageManager:
             data_deletion : objects contains data to help storage manager determince which data to be deleted.
         """
 
-        serializer = Serializer()
+        serializer = TableManager()
 
         # Filtereed table based on condition
         data : Rows = serializer.readTable(data_deletion.table)
@@ -88,8 +87,7 @@ class StorageManager:
             column : certain column to be given index
             index_type: type of index (B+ Tree or Hash)
         """
-        
-        
+
 
     def getStats(self) -> dict:
         """
@@ -119,7 +117,7 @@ class StorageManager:
         """
         Returns Statistics object that has number of tuples, number of blocks, size of tuple, blocking factor, and number of distinct values appear in r
         """
-        serializer = Serializer()
+        serializer = TableManager()
         
         schema = serializer.readSchema(table_name)
         
