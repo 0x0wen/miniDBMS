@@ -1,4 +1,4 @@
-from StorageManager.SerializerBlock import Serializer
+from StorageManager.manager.TableManager import TableManager
 
 schema = [
     ('id', 'int', 4),
@@ -28,7 +28,7 @@ data_course = [[i,2000 + i,f'Course Name{i}',f'Course Deskripsion aaaaa{i}' ]for
 append_data_course = [[111, 11, '11', '11']]
 
 
-serializer = Serializer()#blok size default 720 byte, 
+serializer = TableManager()#blok size default 720 byte, 
 student_table = "student"
 course_table = "course"
 
