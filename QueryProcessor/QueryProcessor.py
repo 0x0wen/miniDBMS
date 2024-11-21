@@ -12,7 +12,6 @@ class QueryProcessor:
             cls._instance = super(QueryProcessor, cls).__new__(cls)
         return cls._instance
 
-
     def __init__(self):
         """
         Initializes QueryProcessor with a ConcurrentControlManager instance.
@@ -22,12 +21,33 @@ class QueryProcessor:
             self.optimization_engine = OptimizationEngine()
             self.initialized = True
 
-    
-    def execute_query(self, query):
+    def remove_aliases(self, query: str) -> str:
+        tokens = query.split()
+        alias_map = {}
+        i = 0
+
+        while i < len(tokens):
+            if tokens[i].upper() == 'AS':
+                alias = tokens[i + 1]
+                original = tokens[i - 1]
+                alias_map[alias] = original
+                tokens.pop(i)  # remove 'AS'
+                tokens.pop(i)  # remove alias
+                i -= 1
+            i += 1
+
+        # replace aliases
+        for j in range(len(tokens)):
+            if tokens[j] in alias_map:
+                tokens[j] = alias_map[tokens[j]]
+
+        return ' '.join(tokens)
+
+    def execute_query(self, query: List[str]) -> List:
         optimized_query = []
-        for i in range (len(query)):
-            optimized_query.append(self.optimization_engine.optimizeQuery(self.optimization_engine.parseQuery(query[i])))
-            
+        for q in query:
+            query_without_aliases = self.remove_aliases(q)
+            optimized_query.append(self.optimization_engine.optimizeQuery(self.optimization_engine.parseQuery(query_without_aliases)))
         return optimized_query
 
     def generate_rows_from_query_tree(self, optimized_query: List, transaction_id: int) -> Rows:
