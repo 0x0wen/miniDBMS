@@ -81,8 +81,8 @@ class OptimizationEngine:
             return None
 
         token = tokens.pop(0).upper()
-        root = None
-
+        root = QueryTree(node_type=token, val=[])
+        
         if token == "SELECT":
             # Create SELECT node
             root = QueryTree(node_type="SELECT", val=[])
@@ -98,22 +98,164 @@ class OptimizationEngine:
             child = self.__createQueryTree(tokens)
             if child is not None:  # Only append if the child is not None
                 root.children.append(child)  
-
-        elif token == "FROM":
-            root = QueryTree(node_type="FROM", val=[])
-            
-            # Get all tables until we hit WHERE or end of tokens
-            while tokens and tokens[0].upper() not in ["WHERE", "ORDER", "GROUP", "HAVING", "LIMIT"]:
-                table = tokens.pop(0).rstrip(',')
-                root.val.append(table)
                 
-                # Skip any commas
-                if tokens and tokens[0] == ',':
-                    tokens.pop(0)
+        elif token == "FROM":
+            # Check if table name doesn't exist
+            if (tokens and tokens[0].upper() in [",", "NATURAL", "JOIN"]) or not tokens:
+                raise SyntaxError("Syntax Error: Missing table name")
             
-            child = self.__createQueryTree(tokens)
-            if child is not None:  # Only append if the child is not None
-                root.children.append(child)  
+            root.val.append(tokens.pop(0))
+               
+            # Check if any join operation is present
+            if (tokens and tokens[0].upper() in [",", "JOIN", "NATURAL"]):
+            
+                parent = root
+                child = root
+                grand = root
+                
+                while True:
+                    parent = child
+                    child = QueryTree(node_type="", val=[])
+                    
+                    # Change root because of join operation
+                    if parent.node_type == "FROM":
+                            root = child
+                    
+                    # Check if join operation with syntax ','
+                    if tokens and tokens[0].upper() == ',':
+                        tokens.pop(0)
+                        child.node_type = "JOIN"
+                        
+                        if not tokens:
+                            raise SyntaxError("Syntax Error: Missing table name")
+
+                        if tokens and tokens[0].upper() in ["NATURAL", "JOIN",",", "WHERE", "LIMIT", "ORDER"]:
+                            raise SyntaxError("Syntax Error: Missing table name")
+                        
+                        if parent.node_type == "FROM":
+                            childOne = QueryTree(node_type="Value1", val=[parent.val[0]])
+                        else:
+                            childOne = QueryTree(node_type="Value1", val=[parent.children[1].val[0]])
+                            
+                        # Change root if TJOIN is parent
+                        if parent.node_type == "TJOIN":
+                            childTwo = QueryTree(node_type="Value2", val=[tokens.pop(0)])
+                            child.children.append(parent)
+                            child.children.append(childTwo)
+                            
+                            if grand.node_type == "FROM":
+                                root = child
+                            else:
+                                grand.children.pop()
+                                grand.children.append(child)
+                            
+                        else:
+                            childTwo = QueryTree(node_type="Value2", val=[tokens.pop(0)])
+                            child.children.append(childOne)
+                            child.children.append(childTwo)
+                            
+                            if parent.children != []:
+                                parent.children.pop()
+                                
+                            parent.children.append(child)
+                            
+                    # Check if join operation with syntax 'JOIN'
+                    elif tokens and tokens[0].upper() == 'JOIN':
+                        tokens.pop(0)
+                        child.node_type = "TJOIN"
+                        
+                        if not tokens or (tokens[0].upper() in [",", "NATURAL", "JOIN", "WHERE", "LIMIT", "ORDER"]):
+                            raise SyntaxError("Syntax Error: Missing table name")
+                        
+                        if parent.node_type == "FROM":
+                            childOne = QueryTree(node_type="Value1", val=[parent.val[0]])
+                        else:
+                            childOne = QueryTree(node_type="Value1", val=[parent.children[1].val[0]])
+                            
+                        childTwo = QueryTree(node_type="Value2", val=[tokens.pop(0)])
+                        
+                        if tokens and tokens[0].upper() != "ON":
+                            raise SyntaxError("Syntax Error: Missing ON")
+                        
+                        tokens.pop(0)
+                        
+                        isCheckCondition = True
+                        newRoot = child
+                        
+                        # Check condition for join operation
+                        while isCheckCondition:
+                            if (tokens and tokens[0].upper() in ['=', '!=', '>', '<', '>=', '<=', 'OR', 'AND', ","]) or not tokens:
+                                raise SyntaxError("Syntax Error: Missing condition")
+                            
+                            newRoot.val.append(tokens.pop(0))
+                            
+                            if (tokens and tokens[0].upper() not in ['=', '!=']) or not tokens:
+                                raise SyntaxError("Syntax Error: Missing condition")
+                            
+                            newRoot.val.append(tokens.pop(0))
+                            
+                            if (tokens and tokens[0].upper() in ['=', '!=', '>', '<', '>=', '<=', 'OR', 'AND', ","]) or not tokens:
+                                raise SyntaxError("Syntax Error: Missing condition")
+                            
+                            newRoot.val.append(tokens.pop(0))
+                            
+                            if (tokens and tokens[0].upper() not in ['AND', 'OR']) or not tokens:
+                                isCheckCondition = False
+                                
+                            elif (tokens[0].upper() ==  'AND'):
+                                oldRoot = newRoot
+                                newRoot = QueryTree(node_type="TJOIN", val=[])
+                                oldRoot.children.append(newRoot)
+                                tokens.pop(0)
+                                
+                            elif (tokens[0].upper() ==  'OR'):
+                                newRoot.val.append(tokens.pop(0))
+                        
+                        child.children.append(childOne)
+                        child.children.append(childTwo)
+                        
+                        
+                        if parent.children != []:
+                            parent.children.pop()
+                        
+                        parent.children.append(child)
+                        
+                    # Check if join operation with syntax 'NATURAL JOIN'
+                    elif tokens and (tokens[0].upper() == 'NATURAL' and tokens[1].upper() == "JOIN"):
+                        tokens.pop(0)
+                        tokens.pop(0)
+                        child.node_type = "TJOIN"
+                        
+                        if not tokens or (tokens[0].upper() in [",", "NATURAL", "JOIN", "WHERE", "LIMIT", "ORDER"]):
+                            raise SyntaxError("Syntax Error: Missing table name")
+                        
+                        if parent.node_type == "FROM":
+                            childOne = QueryTree(node_type="Value1", val=[parent.val[0]])
+                        else:
+                            childOne = QueryTree(node_type="Value1", val=[parent.children[1].val[0]])
+                            
+                        childTwo = QueryTree(node_type="Value2", val=[tokens.pop(0)])
+                        child.children.append(childOne)
+                        child.children.append(childTwo)
+                        
+                        
+                        if parent.children != []:
+                            parent.children.pop()
+                        
+                        parent.children.append(child)
+                        
+                    # Check token is not a join operation
+                    else:
+                        break
+                    
+                    grand = parent
+                                  
+            if not tokens:
+                return root
+            else:
+                if tokens[0].upper() not in ["WHERE", "LIMIT", "ORDER"]:
+                    raise SyntaxError("Syntax Error: Invalid syntax")
+
 
         elif token == "AND":
             root = QueryTree(node_type="WHERE", val=[])
@@ -236,8 +378,6 @@ class OptimizationEngine:
                 
         else:
             root = QueryTree(node_type="UNKNOWN", val=[token])
-
-        return root
 
     def __applyHeuristicRules(self, query: ParsedQuery):
         """
