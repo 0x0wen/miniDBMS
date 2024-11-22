@@ -20,6 +20,11 @@ ret2 = DataRetrieval(table=["course"], column=["year"], conditions=[
 Amount :  38
 """
 
+retrieval = DataRetrieval(
+    table=["user2"],
+    column=[],
+    conditions=[]
+)
 
 sm = StorageManager()
 sm.readBlock(ret2)

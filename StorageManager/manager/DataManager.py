@@ -1,5 +1,6 @@
 from StorageManager.manager.BlocksManager import BlocksManager
 import struct
+import os
 class DataManager(BlocksManager):
     def __init__(self, path_name: str, block_size : int) -> None:
         super().__init__(path_name, block_size)
@@ -81,87 +82,123 @@ class DataManager(BlocksManager):
     def overwriteData(self, file_name, data) -> int:        
         return 0
 
-    def readData(self, file_name : str, schema : list[tuple]) -> list[list]:
+    def readBlockByOffset(self, table_name : str , block_id : int, schema : list[tuple], offset : int, num_rows) -> tuple[list, int]:
+        """
+        Reads data from a specific block
+
+        Args: 
+            file_name (str): The base name of the table file.
+
+            schema (list[tuple]): A list of tuples representing the schema
+
+            block_index (int): The index of the block to read
+
+            offset (int): The offset in the file where the block starts
+
+            num_rows (int): The number of rows in the block
+
+        Returns: 
+            List of rows for the specific block and its block id
+        """
+        row_size = sum(size for _, _ , size in schema)
+        block_data = []
+
+        data_file_name = table_name + "_data.dat"
+        fullpath = self.path_name + data_file_name
+
+        if not os.path.exists(fullpath):
+            raise ValueError(f"Table name doesn't exist {table_name}")
+        
+        with open(fullpath, 'rb') as data_file:
+            data_file.seek(offset)
+            for _ in range(num_rows):
+                row = data_file.read(row_size)
+                if len(row) < row_size:
+                    print(f"Warning: Data row yang dibaca lebih pendek dari {row_size} bytes!")
+                row_data = []
+                offset = 0
+                for _, data_type, size in schema:
+                    if data_type == 'int':
+
+                        value = struct.unpack_from('i', row, offset)[0]
+
+                        offset += 4
+
+                    elif data_type == 'float':
+                        value = struct.unpack_from('f', row, offset)[0]
+                        offset += 4
+
+                    elif data_type in ['char', 'varchar']:
+                        raw_value = struct.unpack_from(f'{size}s', row, offset)[0]
+                        value = raw_value.split(b'\x00', 1)[0].decode('utf-8')
+                        offset += size
+                    row_data.append(value)
+                block_data.append(row_data)
+        return block_data, block_id
+
+    def readData(self, table_name : str, schema : list[tuple]) -> list[list]:
         """
         Reads data from a binary file based on the provided schema (which can be obtained from the readSchema function),
         and returns a list of tuples representing all of the values of the columns in the table.
 
         Args: 
-            file_name (str): The base name of the table file (without the '_data.dat' suffix) to read the data from.
+            file_name (str): The base name of the 
+            
+            table_name (str) : The name of the table that will be read
+
             schema (list[tuple]): A list of tuples, each representing a column in the schema. 
-                                Each tuple contains the column name, its data type (e.g., 'int', 'char', 'float'), 
-                                and the size (in bytes) of the column value. 
-                                Example schema:
-                                [
-                                    ('id', 'int', 4),
-                                    ('umur', 'char', 32),
-                                    ('harga', 'float', 4),
-                                    ('desk', 'char', 32),
-                                    ...
-                                ]
+            Each tuple contains the column name, its data type (e.g., 'int', 'char', 'float'), 
+            and the size (in bytes) of the column value. 
 
         Returns:
             Rows : a List of dictionary containing the value of each data
-            
-            For example, given a schema:
-            [
-                ('id', 'int', 4),
-                ('name', 'char', 32),
-                ('salary', 'float', 4),
-                ('description', 'char', 64)
-            ]
-            
-            The returned data might look like:
-            [
-                {1, 'John', 1200.50, 'Some description'},
-                {2, 'Jane', 1500.75, 'Another description'},
-                ...
-            ]
-            
-            Where:
-                - The first element in each row is an `int` (e.g., `1`).
-                - The second element is a `str` (e.g., `'John'`).
-                - The third element is a `float` (e.g., `1200.50`).
-                - The fourth element is a `str` (e.g., `'Some description'`).
-
-        Example:
-            schema = readSchema('my_table')
-            data = readData('my_table', schema)
-            # data will be a list of rows, with each row being a list of column values:
-            # [
-            #     [1, 'John', 1200.50, 'Some description'],
-            #     [2, 'Jane', 1500.75, 'Another description'],
-            #     ...
-            # ]
+        
         """
         data = []
-        row_size = sum(size for _, _, size in schema)
-        data_file_name = file_name + '_data.dat'
-        blocks = self.readBlocks(file_name) 
+        blocks = self.readBlocks(table_name) 
         print("Blocks metadata read:", blocks)  
         
-        with open(self.path_name + data_file_name, 'rb') as data_file:
+        try:
             for block_index, (offset, num_rows) in enumerate(blocks):
                 print(f"Membaca blok ke-{block_index + 1}, Offset: {offset}, Jumlah baris: {num_rows}")
-                data_file.seek(offset)  
-                for _ in range(num_rows):
-                    row = data_file.read(row_size)
-                    if len(row) < row_size:
-                        print(f"Warning: Data row yang dibaca lebih pendek dari {row_size} bytes!")
-                    row_data = []
-                    offset = 0
-                    for _, data_type, size in schema:
-                        if data_type == 'int':
-                            value = struct.unpack_from('i', row, offset)[0]
-                            offset += 4
-                        elif data_type == 'float':
-                            value = struct.unpack_from('f', row, offset)[0]
-                            offset += 4
-                        elif data_type == 'char' or data_type == 'varchar':
-                            raw_value = struct.unpack_from(f'{size}s', row, offset)[0]
-                            value = raw_value.split(b'\x00', 1)[0].decode('utf-8')  # Hanya bagian sebelum padding
-                            offset += size
-                        row_data.append(value)
-                    data.append(row_data)
-        
+
+                block_data, _ = self.readBlockByOffset(table_name, block_index, schema, offset, num_rows)
+
+                data.extend(block_data)
+        except ValueError as e:
+            print("Error : ", e)
+
         return data
+    
+    def readBlockList(self, table_name: str) -> list[tuple[int, list]]:
+        """
+        Retrieves a list of blocks for the specified table.
+
+        Args:
+            table_name (str): The name of the table to retrieve blocks from.
+
+        Returns:
+            list[tuple[int, list]]: A list of tuples where each tuple contains:
+                - An integer representing the block ID.
+                - A list of keys (or rows) associated with that block.
+        """
+        schema = self.readSchema(table_name)
+
+        blocks = self.readBlocks(table_name) 
+
+        blocks_file_name = table_name + '_blocks.dat'
+
+        blocks_fullpath = self.path_name + blocks_file_name
+
+        if not os.path.exists(blocks_fullpath):
+            raise ValueError(f"Blocks file does not exist for table: {table_name}")
+        
+        final_data : list[tuple[int, list]]= []
+        # Read the block data
+        for block_index, (offset, num_rows) in enumerate(blocks):
+            print(f"Membaca blok ke-{block_index + 1}, Offset: {offset}, Jumlah baris: {num_rows}")
+            block_data, amount = self.readBlockByOffset(table_name, block_index, schema, offset, num_rows)
+            final_data.append((amount, block_data))
+
+        return final_data
+

@@ -28,6 +28,7 @@ class SchemaManager(Serializer):
             ####     ...
             #### ]
         """
+        
         schema_list = []
         if(not table_name):
             raise ValueError("Table name aren't set yet")
@@ -43,3 +44,10 @@ class SchemaManager(Serializer):
                 size = struct.unpack('i', schema_file.read(4))[0]
                 schema_list.append((column_name, data_type, size))
         return schema_list
+
+    def getColumnIndexByTable(self, column : str, table_name : str = "") -> int:
+        """
+        Returning the index of column on spesific table
+        """
+        schema = self.readSchema(table_name)
+        return schema[0].index(column)

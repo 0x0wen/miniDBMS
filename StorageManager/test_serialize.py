@@ -17,7 +17,6 @@ course =[
     ('year', 'int', 4),
     ('coursename', 'varchar', 50),
     ('coursedesc', 'varchar', 50),
-
 ]
 
 n_data = 100
