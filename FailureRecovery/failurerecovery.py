@@ -1,63 +1,16 @@
 import os
 import json
 import shutil
-import sqlite3
-import time
 
 from os import path
 from typing import Optional
 from datetime import datetime
-from typing import Generic, TypeVar, List
-
-T = TypeVar('T')
-
-class Rows(Generic[T]):
-    def __init__(self, data: List[T]):
-        self.data = data
-        self.rows_count = len(data)
-
-class ExecutionResult:
-    def __init__(self, transaction_id: int, timestamp: datetime, message: str, data: Rows, query: str):
-        self.transaction_id = transaction_id
-        self.timestamp = timestamp
-        self.message = message
-        self.data = data
-        self.query = query
-
-class QueryProcessor:
-    _instance = None  # Static variable to hold the single instance
-
-    def __new__(cls, *args, **kwargs):
-        if cls._instance is None:
-            cls._instance = super(QueryProcessor, cls).__new__(cls)
-        return cls._instance
-
-    def execute_query(self, query):
-        # tinggal buat ngirim query ke query optimization
-        print(query)
-
-    def accept_query(self):
-        # penerimaan query dari user
-        query_input = ""
-        print("> ", end="")
-        while True:
-            data = input()
-            if ';' in data:
-                query_input += data[:data.index(';')]
-                break
-            query_input += (data + " ")
-        query_input = query_input.strip()
-
-        # eksekusi query
-        self.execute_query(query_input)
+from recovercriteria import RecoverCriteria
+from QueryProcessor.ExecutionResult import ExecutionResult
+from QueryProcessor.QueryProcessor import QueryProcessor
 
 
-class RecoverCriteria:
-    def __init__(self, timestamp: Optional[datetime] = None, transaction_id: Optional[int] = None) -> None:
-        self.timestamp = timestamp
-        self.transaction_id = transaction_id
-
-
+# Todo : Penamaan dan integrasi sama QueryProcessor
 class FailureRecovery:
     __instance: Optional['FailureRecovery'] = None
 
@@ -163,104 +116,37 @@ class FailureRecovery:
         The recovery process started backward from the latest log in write-ahead log until the criteria is no longer met. For each log entry,
         this method will interact with the query processor to execute a recovery query, restoring the database to its state prior to the
         execution of that log entry."""
-        # Implementasi di sini
+        
+        # Cek dulu apakah log file ada
+        if not os.path.exists(self._log_file):
+            raise FileNotFoundError("No log file found")
+        
+        # Cek apakah criteria valid
+        elif not criteria.timestamp and not criteria.transaction_id:
+            raise ValueError("Recovery criteria must contain either timestamp or transaction id")
+        
+        # Membaca log file
+        with open(self._log_file) as log_file:
+            log_entries = log_file.readlines()
+        
+        # Proses recovery
+        for log_entry in reversed(log_entries):
+            entry = json.loads(log_entry)
+            
+            # Cek apakah entry memenuhi criteria
+            if criteria.timestamp and entry['timestamp'] < criteria.timestamp:
+                print(f"Recovery completed at timestamp {criteria.timestamp}")
+                break
+            if criteria.transaction_id and entry['transaction_id'] == criteria.transaction_id:
+                print(f"Recovery completed at transaction id {criteria.transaction_id}")
+                break
+            
+            # Eksekusi query untuk recovery
+            try:
+                QueryProcessor().execute_query(f"ROLLBACK {entry['transaction_id']}")
+            except Exception as e:
+                print(f"Error during recovery: {str(e)}")
+                break
+                           
 
-def setup_database():
-    """Create initial database with users table"""
-    conn = sqlite3.connect('database.db')
-    cursor = conn.cursor()
-    cursor.execute('''
-        CREATE TABLE IF NOT EXISTS users (
-            id INTEGER PRIMARY KEY,
-            name TEXT NOT NULL
-        )
-    ''')
-    conn.commit()
-    conn.close()
-
-def show_db_contents():
-    """Display current database contents"""
-    conn = sqlite3.connect('database.db')
-    cursor = conn.cursor()
-    cursor.execute('SELECT * FROM users')
-    rows = cursor.fetchall()
-    conn.close()
-    return rows
-
-def execute_query(query):
-    """Execute SQL query on database"""
-    conn = sqlite3.connect('database.db')
-    cursor = conn.cursor()
-    cursor.execute(query)
-    conn.commit()
-    conn.close()
-
-def test_failure_recovery():
-    # Clean backup directory
-    if os.path.exists("backups"):
-        for f in os.listdir("backups"):
-            os.remove(os.path.join("backups", f))
-    else:
-        os.makedirs("backups")
-
-    # Setup fresh database
-    if os.path.exists("database.db"):
-        os.remove("database.db")
-    setup_database()
-
-    # Initialize systems
-    qp = QueryProcessor()
-    fr = FailureRecovery()
-
-    # Step 1: First checkpoint
-    print("\n---- First Checkpoint ----")
-    result1 = ExecutionResult(
-        transaction_id=1,
-        timestamp=datetime.now(),
-        message="Inserted Alice into users",
-        data=None,
-        query="INSERT INTO users (id, name) VALUES (1, 'Alice')"
-    )
-    execute_query(result1.query)
-    fr.writeLog(result1)
-    fr.saveCheckpoint()
-    print("Current DB state:", show_db_contents())
-    
-    time.sleep(2)
-
-    # Step 2: Second checkpoint
-    print("\n---- Second Checkpoint ----")
-    result2 = ExecutionResult(
-        transaction_id=2,
-        timestamp=datetime.now(),
-        message="Inserted Bob into users",
-        data=None,
-        query="INSERT INTO users (id, name) VALUES (2, 'Bob')"
-    )
-    execute_query(result2.query)
-    fr.writeLog(result2)
-    fr.saveCheckpoint()
-    print("Current DB state:", show_db_contents())
-    
-    time.sleep(2)
-
-    # Step 3: Third checkpoint
-    print("\n---- Third Checkpoint ----")
-    result3 = ExecutionResult(
-        transaction_id=3,
-        timestamp=datetime.now(),
-        message="Updated Alice to Charlie",
-        data=None,
-        query="UPDATE users SET name = 'Charlie' WHERE id = 1"
-    )
-    execute_query(result3.query)
-    fr.writeLog(result3)
-    fr.saveCheckpoint()
-    print("Current DB state:", show_db_contents())
-
-    print("\nBackups created:")
-    for f in os.listdir(fr.BACKUP_DIR):
-        print(f"- {f}")
-
-if __name__ == "__main__":
-    test_failure_recovery()
+        
