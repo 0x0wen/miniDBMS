@@ -1,5 +1,5 @@
 from datetime import datetime
-from Rows import Rows  # Import Rows dari file rows.py
+from Interface.Rows import Rows  # Import Rows dari file rows.py
 
 class ExecutionResult:
     def __init__(self, transaction_id: int, timestamp: datetime, message: str, data: Rows, query: str):

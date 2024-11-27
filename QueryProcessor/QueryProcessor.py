@@ -1,8 +1,11 @@
 from QueryOptimizer.OptimizationEngine import OptimizationEngine
 from ConcurrencyControlManager.ConcurrentControlManager import ConcurrentControlManager
+from FailureRecovery.FailureRecovery import FailureRecovery
+from FailureRecovery.RecoverCriteria import RecoverCriteria
 from Interface.Rows import Rows  
 from QueryOptimizer import QueryTree
 from typing import List
+from datetime import datetime
 
 class QueryProcessor:
     _instance = None
@@ -19,6 +22,7 @@ class QueryProcessor:
         if not hasattr(self, "initialized"):  # Ensure __init__ is called only once
             self.concurrent_manager = ConcurrentControlManager()
             self.optimization_engine = OptimizationEngine()
+            self.failure_recovery = FailureRecovery()
             self.initialized = True
 
     def remove_aliases(self, query: str) -> str:
@@ -57,6 +61,9 @@ class QueryProcessor:
         print(rows.data)
         self.concurrent_manager.logObject(rows, transaction_id)
         print("Transaction has been logged.")
+
+        # failure control
+        self.failure_recovery.recover(RecoverCriteria(datetime.now(), transaction_id))
         
         return optimized_query
 
