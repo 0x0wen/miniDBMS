@@ -44,10 +44,20 @@ class QueryProcessor:
         return ' '.join(tokens)
 
     def execute_query(self, query: List[str]) -> List:
+        # optimizing
         optimized_query = []
         for q in query:
             query_without_aliases = self.remove_aliases(q)
             optimized_query.append(self.optimization_engine.optimizeQuery(self.optimization_engine.parseQuery(query_without_aliases)))
+
+        # concurrency control
+        transaction_id = self.concurrent_manager.beginTransaction()
+        print(f"Transaction ID: {transaction_id}")
+        rows = self.generate_rows_from_query_tree(optimized_query, transaction_id)
+        print(rows.data)
+        self.concurrent_manager.logObject(rows, transaction_id)
+        print("Transaction has been logged.")
+        
         return optimized_query
 
     def generate_rows_from_query_tree(self, optimized_query: List, transaction_id: int) -> Rows:

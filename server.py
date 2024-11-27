@@ -33,13 +33,6 @@ class Server:
 
                     optimized_query = self.query_processor.execute_query(queries)
 
-                    transaction_id = self.query_processor.concurrent_manager.beginTransaction()
-                    print(f"Transaction ID: {transaction_id}")
-                    rows = self.query_processor.generate_rows_from_query_tree(optimized_query, transaction_id)
-                    print(rows.data)
-                    self.query_processor.concurrent_manager.logObject(rows, transaction_id)
-                    print("Transaction has been logged.")
-
                     # Kirim hasil ke klien
                     send_to_client = ""
                     for q in optimized_query:
