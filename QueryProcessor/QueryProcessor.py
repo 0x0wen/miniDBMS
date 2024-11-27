@@ -6,6 +6,8 @@ from Interface.Rows import Rows
 from QueryOptimizer import QueryTree
 from typing import List
 from datetime import datetime
+from StorageManager.StorageManager import StorageManager
+from Interface.ExecutionResult import ExecutionResult
 
 class QueryProcessor:
     _instance = None
@@ -23,6 +25,7 @@ class QueryProcessor:
             self.concurrent_manager = ConcurrentControlManager()
             self.optimization_engine = OptimizationEngine()
             self.failure_recovery = FailureRecovery()
+            self.storage_manager = StorageManager()
             self.initialized = True
 
     def remove_aliases(self, query: str) -> str:
@@ -48,6 +51,8 @@ class QueryProcessor:
         return ' '.join(tokens)
 
     def execute_query(self, query: List[str]) -> List:
+        results = []
+
         # optimizing
         optimized_query = []
         for q in query:
@@ -57,15 +62,42 @@ class QueryProcessor:
         # concurrency control
         transaction_id = self.concurrent_manager.beginTransaction()
         print(f"Transaction ID: {transaction_id}")
-        rows = self.generate_rows_from_query_tree(optimized_query, transaction_id)
-        print(rows.data)
-        self.concurrent_manager.logObject(rows, transaction_id)
-        print("Transaction has been logged.")
 
-        # failure control
-        self.failure_recovery.recover(RecoverCriteria(datetime.now(), transaction_id))
+        try:
+            for query in optimized_query:
+                query_tree = query.query_tree
+
+                if query_tree.node_type == "SELECT":
+                    data_read = self.storage_manager.__query_tree_to_data_retrieval(query_tree)
+                    rows = self.storage_manager.readBlock(data_read)
+
+                # TODO: katanya masih belom selesai yang write ama block
+                # elif query_tree.node_type == "UPDATE":
+                #     data_write = self.storage_manager.__query_tree_to_data_retrieval(query_tree)
+                #     rows = self.storage_manager.writeBlock(data_write)
+                # elif query_tree.node_type == "DELETE":
+                #     data_deletion = self.storage_manager.__query_tree_to_data_retrieval(query_tree)
+                #     rows = self.storage_manager.deleteBlock(data_deletion)
+
+                self.concurrent_manager.logObject(rows, transaction_id)
+                print("Transaction has been logged.")
+
+                result = ExecutionResult(
+                    transaction_id,
+                    timestamp=datetime.now(),
+                    message="Query executed successfully",
+                    data=rows,
+                    query=query.query # udah string kan harusnya
+                )
+                results.append(result)
         
-        return optimized_query
+            self.concurrent_manager.endTransaction(transaction_id)
+
+            return results
+
+        except Exception as e:
+            # TODO: ini harusnya ada abort ato rollback
+            return results
 
     def generate_rows_from_query_tree(self, optimized_query: List, transaction_id: int) -> Rows:
         """
