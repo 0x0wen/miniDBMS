@@ -7,7 +7,7 @@ class BlocksManager(SchemaManager):
         super().__init__(path_name)
         self.block_size = block_size
 
-    def readBlock(self, table_name: str, block_index : int):
+    def readBlockIndex(self, table_name: str, block_index : int):
         """
         Read data from a specific block based on the block index and schema.
         Args : 
@@ -17,7 +17,7 @@ class BlocksManager(SchemaManager):
         """
         if not table_name:
             raise ValueError("File name cannot be empty")
-        
+        print(table_name)
         schema = self.readSchema(table_name)
         row_size = sum(size for _, _, size in schema)
         data_path = table_name + "_data.dat"
@@ -84,8 +84,8 @@ class BlocksManager(SchemaManager):
             return blocks
         except Exception as e:
             raise IOError(f"Unexpected error reading blocks file : {e}")
-        
-    def _parseRowData(row: bytes, schema: list, row_size: int) -> list:
+
+    def _parseRowData(self,row: bytes, schema: list, row_size: int) -> list:
         """
         Parse a single row of binary data based on the given schema.
         """
@@ -112,3 +112,4 @@ class BlocksManager(SchemaManager):
             row_data.append(value)
     
         return row_data 
+    

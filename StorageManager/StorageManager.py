@@ -3,6 +3,7 @@ from StorageManager.objects.DataWrite import DataWrite
 from StorageManager.objects.DataDeletion import DataDeletion
 from StorageManager.objects.Statistics import Statistics
 from StorageManager.manager.TableManager import TableManager
+from StorageManager.manager.IndexManager import IndexManager
 # from Serializer import *
 from StorageManager.objects.Rows import Rows  
 import os
@@ -83,6 +84,10 @@ class StorageManager:
             column : certain column to be given index
             index_type: type of index (B+ Tree or Hash)
         """
+        serializer = TableManager()
+        indexManager = IndexManager()
+
+        
 
 
     def getStats(self, test = False) -> dict:

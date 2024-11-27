@@ -17,7 +17,6 @@ course =[
     ('year', 'int', 4),
     ('coursename', 'varchar', 50),
     ('coursedesc', 'varchar', 50),
-
 ]
 
 n_data = 100
@@ -29,7 +28,6 @@ append_data_course = [[111, 11, '11', '11']]
 
 
 serializer = TableManager()
-serializer = TableManager()#blok size default 720 byte, 
 student_table = "student"
 course_table = "course"
 
@@ -50,8 +48,8 @@ for row in data_with_schema:
     
 
 #baca block index ke-2 dari tabel student
-#print(serializer.readBlock(student_table,2))
+print(serializer.readBlockIndex(student_table,2))
 #baca block index ke-10 dari tabel course
-#print(serializer.readBlock(course_table,10))
+print(serializer.readBlockIndex(course_table,10))
 
 
