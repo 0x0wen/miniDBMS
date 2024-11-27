@@ -1,6 +1,11 @@
+from StorageManager.objects.DataRetrieval import DataRetrieval
+from StorageManager.objects.DataDeletion import DataDeletion
+from StorageManager.objects.DataWrite import DataWrite
 from StorageManager.objects.Condition import Condition
+
 from StorageManager.objects.Rows import Rows
 from StorageManager.manager.DataManager import DataManager
+from StorageManager.manager.IndexManager import IndexManager
 import struct
 
 class TableManager(DataManager):
@@ -73,37 +78,87 @@ class TableManager(DataManager):
             print("Group: " , group)
         return grouped_conditions
 
-    def applyConditions(self, rows: list[dict], conditions: list[Condition]) -> Rows:
+    def applyConditions(self, rows: list[dict], action_object) -> Rows:
         """
-        Apply conditions with grouped AND/OR logic using shifted connectors.
+        Apply conditions to filter rows based on DataRetrieval, DataDeletion, or DataWrite.
+        Utilizes indexing if relevant conditions are found.
         """
+        # Ambil kondisi berdasarkan tipe objek yang diberikan
+        if isinstance(action_object, DataRetrieval):
+            conditions = action_object.conditions
+        elif isinstance(action_object, DataWrite):
+            conditions = action_object.conditions
+        elif isinstance(action_object, DataDeletion):
+            conditions = action_object.conditions
+        else:
+            raise ValueError("Unsupported action object type")
+
+        # Kelompokkan kondisi (misalnya, untuk menangani AND/OR)
         grouped_conditions = self.group_conditions(conditions)
-        
 
         def satisfies(row: dict, condition: Condition) -> bool:
             value = row.get(condition.column)
             if value is None:
                 return False
+            
+            # Normalisasi tipe data
+            try:
+                operand = type(value)(condition.operand) 
+            except (ValueError, TypeError):
+                return False  # Jika tidak bisa dikonversi, kondisi tidak terpenuhi
+            
+            # Mengecek kondisi operasi
             if condition.operation == "=":
-                return value == condition.operand
+                return value == operand
             elif condition.operation == "<>":
-                return value != condition.operand
+                return value != operand
             elif condition.operation == ">":
-                return value > condition.operand
+                return value > operand
             elif condition.operation == "<":
-                return value < condition.operand
+                return value < operand
             elif condition.operation == ">=":
-                return value >= condition.operand
+                return value >= operand
             elif condition.operation == "<=":
-                return value <= condition.operand
+                return value <= operand
             return False
 
+        # Fungsi untuk mencari dengan menggunakan indeks jika kondisi sesuai
+        def searchWithIndex(action_object) -> list[dict]:
+            indexed_conditions = [cond for cond in action_object.conditions if cond.operation == "="]
+            filtered_rows = []
+
+            for condition in indexed_conditions:
+                index_manager = IndexManager()
+                try:
+                    hashedbucket = index_manager.readIndex(action_object.table[0], condition.column)
+                    if hashedbucket:
+                        # Mencari blok yang sesuai dengan nilai operand dalam kondisi
+                        block_id = hashedbucket.search(condition.operand)
+                        if block_id is not None:
+                            # Mengambil data dari blok yang ditemukan
+                            block_data = self.readBlockIndex(action_object.table[0], block_id)
+                            filtered_rows.extend(block_data)
+                except ValueError:
+                    # Tidak ada indeks untuk kolom tertentu
+                    continue
+
+            return filtered_rows
+
+        # Mencari dengan menggunakan indeks terlebih dahulu jika memungkinkan
+        indexed_rows = searchWithIndex(action_object)
+
+        # Cek semua kondisi pada hasil dari indexed_rows jika tersedia
         filtered_rows = []
-        for row in rows:
+        rows_to_filter = indexed_rows if indexed_rows else rows
+
+        for row in rows_to_filter:
             if any(all(satisfies(row, cond) for cond in group) for group in grouped_conditions):
                 filtered_rows.append(row)
 
         return Rows(filtered_rows)
+
+
+
 
 
     def filterColumns(self,rows: list[dict], columns: list[str]) -> list[dict]:
