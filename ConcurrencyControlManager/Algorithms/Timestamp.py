@@ -1,15 +1,16 @@
+import time
+import random
 from Interface import Response, Action, Rows
 from ConcurrencyControlManager.Algorithms.AbstractAlgorithm import AbstractAlgorithm
 
 class TimestampBasedAlgorithm(AbstractAlgorithm):
-    """
-    Implementation of the Timestamp-Based Concurrency Control algorithm.
-    """
 
-    def __init__(self):
+    def __init__(self, max_retries=5, retry_delay=1):
         self.timestamp_table = {}
         self.read_ts_table = {}
         self.write_ts_table = {}
+        self.max_retries = max_retries  
+        self.retry_delay = retry_delay  
 
     def getTransactionTimestamp(self, transaction_id: int) -> int:
         return self.timestamp_table.get(transaction_id, None)
@@ -65,6 +66,7 @@ class TimestampBasedAlgorithm(AbstractAlgorithm):
     def run(self, db_object: Rows, transaction_id: int) -> None:
         parsed_db_object = self.parseRows(db_object)
         is_committed = False
+        retry_count = 0
         
         for item in parsed_db_object:
             action = item[0]
@@ -73,14 +75,24 @@ class TimestampBasedAlgorithm(AbstractAlgorithm):
             if action == "W":
                 valid = self.write(transaction_id, data_item)
                 if not valid:
-                    print(f"Aborting transaction {transaction_id} due to timestamp violation during write")
-                    break
+                    retry_count += 1
+                    if retry_count > self.max_retries:
+                        print(f"Transaction {transaction_id} aborted due to repeated write conflicts.")
+                        break
+                    print(f"Retrying transaction {transaction_id} due to write conflict...")
+                    time.sleep(self.retry_delay)  
+                    continue  
 
             elif action == "R":
                 valid = self.read(transaction_id, data_item)
                 if not valid:
-                    print(f"Aborting transaction {transaction_id} due to timestamp violation during read")
-                    break
+                    retry_count += 1
+                    if retry_count > self.max_retries:
+                        print(f"Transaction {transaction_id} aborted due to repeated read conflicts.")
+                        break
+                    print(f"Retrying transaction {transaction_id} due to read conflict...")
+                    time.sleep(self.retry_delay) 
+                    continue  
 
             elif action == "C":
                 valid = self.commit(transaction_id)
