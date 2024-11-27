@@ -39,7 +39,6 @@ class HashIndex:
             index in the hash table.
         """
         
-        print(key)
         return hash(key) % self.bucket_amount
     
     def insert(self, key: str, block_id : int) -> None:
@@ -57,26 +56,36 @@ class HashIndex:
                 return
         self.hash_table[index].append([key, block_id])
     
-    def search(self, key : str) -> int:
+    def search(self, key: str) -> int:
         """
-        Search by key and return the block id
+        Search by key and return the block id.
 
         Args: 
-            key : The key of the item
+            key: The key of the item.
         
-        Returns :
-            block_id (int) : block_id where the key is found
-            -1 : return -1 if no key is found
-
+        Returns:
+            block_id (int): block_id where the key is found.
+            -1: Return -1 if no key is found.
         """
-        index = self.__hash__(key)
-        for item in self.hash_table[index]:
-            if item[0] == key:
-                # Return block Id
-                blockId = item[1]
-                return item[1]
+        # Pastikan tipe data key sama dengan yang ada di hash_table
+        for bucket in self.hash_table:
+            for item in bucket:
+                try:
+                    stored_key = item[0]
+                    # Convert key to the same type as the stored key
+                    converted_key = type(stored_key)(key)  
+                    if stored_key == converted_key:
+                        # Jika cocok, hash dan cek di indeks yang sesuai
+                        index = self.__hash__(converted_key)
+                        for pair in self.hash_table[index]:
+                            if pair[0] == stored_key:
+                                return pair[1]
+                except (ValueError, TypeError):
+                    continue
+
         # Key Not Found
         return -1
+
 
     def delete(self, key: str) -> bool:
         """
