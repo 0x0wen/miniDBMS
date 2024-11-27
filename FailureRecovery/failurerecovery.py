@@ -6,7 +6,7 @@ from os import path
 from typing import Optional
 from datetime import datetime
 from recovercriteria import RecoverCriteria
-from QueryProcessor.ExecutionResult import ExecutionResult
+from Interface.ExecutionResult import ExecutionResult
 from QueryProcessor.QueryProcessor import QueryProcessor
 
 
