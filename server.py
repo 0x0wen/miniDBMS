@@ -24,6 +24,7 @@ class Server:
                     queries = [query_input]
                     if query_input.upper().startswith("BEGIN TRANSACTION"):
                         while True:
+                            client_socket.send("Commit if you're done\n".encode("utf-8"))
                             client_socket.send("> ".encode("utf-8"))
                             query_input = client_socket.recv(1024).decode("utf-8").strip()
                             queries.append(query_input)
