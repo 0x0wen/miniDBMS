@@ -24,6 +24,9 @@ class StorageManager:
         index_manager = IndexManager()
         all_filtered_data: Rows = []
 
+        # TODO: Put this change query_tree outside of fucntion
+        # data_retrieval = self.__query_tree_to_data_retrieval(query_tree)
+
         for table_name in data_retrieval.table:  # (support for join in the future)
             indexed_rows = []
             use_index = False
@@ -90,7 +93,7 @@ class StorageManager:
 
         # Filtereed table based on condition
         data : Rows = serializer.readTable(data_deletion.table)
-        filtered_Table = serializer.applyConditions(data, data_deletion.conditions) 
+        filtered_Table = serializer.applyConditions(data, data_deletion) 
 
         schema = serializer.readSchema(data_deletion.table)
 
