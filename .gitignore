@@ -1,3 +1,11 @@
+.vscode
+
+/ConcurrencyControlManager/__pycache__
+/QueryProcessor/__pycache__
+/ConcurrencyControlManager/Algorithms/__pycache__
+*.pyc
+/.idea
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

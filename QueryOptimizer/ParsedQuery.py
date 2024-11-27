@@ -1,4 +1,4 @@
-from QueryTree import QueryTree
+from QueryOptimizer.QueryTree import QueryTree
 
 class ParsedQuery:
     def __init__(self, query: str, query_tree: QueryTree = None):
