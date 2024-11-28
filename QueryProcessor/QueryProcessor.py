@@ -68,38 +68,40 @@ class QueryProcessor:
         print("Transaction has been logged.")
 
         # INI ERROR KARENA BELUM ADA DATABASE YANG BISA DIAMBIL
-        # try:
-        #     for query in optimized_query:
-        #         query_tree = query.query_tree
+        try:
+            for query in optimized_query:
+                query_tree = query.query_tree
+            
+                if query_tree.node_type == "SELECT":
+                    print(query_tree)
+                    data_read = self.storage_manager.query_tree_to_data_retrieval(query_tree)
+                    print(data_read)
+                    result_rows = self.storage_manager.readBlock(data_read)
 
-        #         if query_tree.node_type == "SELECT":
-        #             data_read = self.storage_manager.__query_tree_to_data_retrieval(query_tree)
-        #             result_rows = self.storage_manager.readBlock(data_read)
+                # TODO: katanya masih belom selesai yang write ama block
+                # elif query_tree.node_type == "UPDATE":
+                #     data_write = self.storage_manager.__query_tree_to_data_retrieval(query_tree)
+                #     result_rows = self.storage_manager.writeBlock(data_write)
+                # elif query_tree.node_type == "DELETE":
+                #     data_deletion = self.storage_manager.__query_tree_to_data_retrieval(query_tree)
+                #     result_rows = self.storage_manager.deleteBlock(data_deletion)
 
-        #         # TODO: katanya masih belom selesai yang write ama block
-        #         # elif query_tree.node_type == "UPDATE":
-        #         #     data_write = self.storage_manager.__query_tree_to_data_retrieval(query_tree)
-        #         #     result_rows = self.storage_manager.writeBlock(data_write)
-        #         # elif query_tree.node_type == "DELETE":
-        #         #     data_deletion = self.storage_manager.__query_tree_to_data_retrieval(query_tree)
-        #         #     result_rows = self.storage_manager.deleteBlock(data_deletion)
-
-        #         result = ExecutionResult(
-        #             transaction_id,
-        #             timestamp=datetime.now(),
-        #             message="Query executed successfully",
-        #             data=result_rows,
-        #             query=query.query # udah string kan harusnya
-        #         )
-        #         results.append(result)
+                result = ExecutionResult(
+                    transaction_id,
+                    timestamp=datetime.now(),
+                    message="Query executed successfully",
+                    data=result_rows,
+                    query=query.query # udah string kan harusnya
+                )
+                results.append(result)
         
-        #     self.concurrent_manager.endTransaction(transaction_id)
+            self.concurrent_manager.endTransaction(transaction_id)
 
-        #     return results
+            return results
 
-        # except Exception as e:
-        #     # TODO: ini harusnya ada abort ato rollback
-        #     return results
+        except Exception as e:
+            # TODO: ini harusnya ada abort ato rollback
+            return results
 
         return optimized_query
 

@@ -15,5 +15,13 @@ class DataWrite(Generic[T]):
 
     #debugging
     def __repr__(self) -> str:
-        return (f"DataWrite(type={self.type},table={self.table}, column={self.column}, "
-                f"conditions={self.conditions}), new_value={self.new_value})")
+        return (
+            f"DataWrite(\n"
+            f"  Overwrite: {self.overwrite},\n"
+            f"  Table: {self.selected_table},\n"
+            f"  Joined Table: {self.joined_table},\n"
+            f"  Columns: {self.column},\n"
+            f"  Conditions: {self.conditions},\n"
+            f"  New Value: {self.new_value}\n"
+            f")"
+        )
