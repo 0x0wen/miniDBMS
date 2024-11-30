@@ -31,11 +31,11 @@ class CustomException(Exception):
 
 # Example usage
 # try:
-#     raise CustomError(
+#     raise CustomException(
 #         message="Something went wrong.",
 #         code=500,
 #         context={"operation": "SELECT * FROM non_existing_table"}
 #     )
-# except CustomError as e:
+# except CustomException as e:
 #     print(e)              # Human-readable error message
 #     print(e.to_dict())    # Dictionary representation for logs or APIs
