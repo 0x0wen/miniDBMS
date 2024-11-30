@@ -1,6 +1,6 @@
 from QueryOptimizer.OptimizationEngine import OptimizationEngine
 from ConcurrencyControlManager.ConcurrentControlManager import ConcurrentControlManager
-from FailureRecovery.FailureRecovery import FailureRecovery
+# from FailureRecovery.FailureRecovery import FailureRecovery
 from FailureRecovery.RecoverCriteria import RecoverCriteria
 from Interface.Rows import Rows  
 from QueryOptimizer import QueryTree
@@ -24,7 +24,7 @@ class QueryProcessor:
         if not hasattr(self, "initialized"):  # Ensure __init__ is called only once
             self.concurrent_manager = ConcurrentControlManager()
             self.optimization_engine = OptimizationEngine()
-            self.failure_recovery = FailureRecovery()
+            # self.failure_recovery = FailureRecovery()
             self.storage_manager = StorageManager()
             self.initialized = True
 
