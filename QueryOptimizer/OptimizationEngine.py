@@ -2,11 +2,12 @@ from ParsedQuery import ParsedQuery
 from QueryTree import QueryTree
 import re
 from constants import LEGAL_COMMANDS_AFTER_WHERE,LEGAL_COMPARATORS, LEGAL_COMMANDS_AFTER_UPDATE, LEGAL_COMMANDS_AFTER_SET
-from helpers import isAlphanumericWithQuotes
+from helpers import isAlphanumericWithQuotesAndUnderscoreAndDots
 from CustomException import CustomException
 class OptimizationEngine:
     def __init__(self):
         self.statistics = {}  # Example: Holds table statistics for cost estimation
+        self.one_node_constraint = [] # If there is one-token-only constraint used, add it here
 
     def parseQuery(self, query: str) -> ParsedQuery:
         """
@@ -15,6 +16,15 @@ class OptimizationEngine:
         # Tokenize and construct a basic QueryTree for demonstration purposes
         tokens = re.findall(r'[^\s,]+|,', query)
         print('tokens:',tokens)
+
+        # Validate the first token of the query
+        if (not self.validateFirstToken(tokens)):
+            raise CustomException("Invalid first token", code=400)
+        
+        # Reset the one-node constraint list
+        self.one_node_constraint = []
+        
+        # Create a QueryTree from the tokens
         root = self.__createQueryTree(tokens)
 
         # Return a ParsedQuery object
@@ -60,6 +70,14 @@ class OptimizationEngine:
         print("QueryTree validation passed.")
         return True
     
+    def validateFirstToken(self, tokens: list) -> bool:
+        """
+        Validates the first token of the query.
+        """
+        if tokens[0].upper() not in ["SELECT", "INSERT", "UPDATE", "DELETE", "CREATE", "DROP", "BEGIN", "COMMIT"]:
+            return False
+        return True
+
     def __getCost(self, query: ParsedQuery) -> int:
         """
         Calculates the estimated cost of executing the parsed query.
@@ -81,39 +99,198 @@ class OptimizationEngine:
             return None
 
         token = tokens.pop(0).upper()
-        root = None
 
+        # Check One-Node-Only constraint
+        if token in self.one_node_constraint:
+            raise CustomException(f"Syntax Error: Only one '{token}' allowed", code=400)
+
+        root = QueryTree(node_type=token, val=[])
+        
         if token == "SELECT":
+            self.one_node_constraint.append("SELECT")
+
             # Create SELECT node
             root = QueryTree(node_type="SELECT", val=[])
             
-            # Get all columns until we hit FROM
-            while tokens and tokens[0].upper() != "FROM":
-                token = tokens.pop(0)
-                if not token.endswith(',') and (tokens[0] != ','):
-                    root.val.append(token.rstrip(','))  # Remove trailing commas
-                    break
+            if (tokens and tokens[0].upper() in [",", "NATURAL", "JOIN"]) or not tokens:
+                raise SyntaxError("Syntax Error: Missing attribute name")
+            
+            root.val.append(tokens.pop(0))
+            
+            while tokens and tokens[0].upper() == ",":
+                tokens.pop(0)
+                if tokens and (tokens[0].upper()) not in ["FROM", "NATURAL", "JOIN",",", "WHERE", "LIMIT", "ORDER"]:
+                    root.val.append(tokens.pop(0))
+                else:
+                    raise SyntaxError("Syntax Error: Missing attribute name")
+            
+            if tokens and (tokens[0].upper()) == "FROM":
+                child = self.__createQueryTree(tokens)
+                if child is not None: 
+                    root.children.append(child)
+            else:
+                raise CustomException("Invalid command after SELECT clause", code=400)
+            
                 
-                root.val.append(token.rstrip(','))  # Remove trailing commas
-            child = self.__createQueryTree(tokens)
-            if child is not None:  # Only append if the child is not None
-                root.children.append(child)  
-
         elif token == "FROM":
-            root = QueryTree(node_type="FROM", val=[])
+            # Check if table name doesn't exist
+            if (tokens and tokens[0].upper() in [",", "NATURAL", "JOIN"]) or not tokens:
+                raise SyntaxError("Syntax Error: Missing table name")
             
-            # Get all tables until we hit WHERE or end of tokens
-            while tokens and tokens[0].upper() not in ["WHERE", "ORDER", "GROUP", "HAVING", "LIMIT"]:
-                table = tokens.pop(0).rstrip(',')
-                root.val.append(table)
+            root.val.append(tokens.pop(0))
+               
+            # Check if any join operation is present
+            if (tokens and tokens[0].upper() in [",", "JOIN", "NATURAL"]):
+            
+                parent = root
+                child = root
+                grand = root
                 
-                # Skip any commas
-                if tokens and tokens[0] == ',':
-                    tokens.pop(0)
-            
-            child = self.__createQueryTree(tokens)
-            if child is not None:  # Only append if the child is not None
-                root.children.append(child)  
+                while True:
+                    parent = child
+                    child = QueryTree(node_type="", val=[])
+                    
+                    # Change root because of join operation
+                    if parent.node_type == "FROM":
+                            root = child
+                    
+                    # Check if join operation with syntax ','
+                    if tokens and tokens[0].upper() == ',':
+                        tokens.pop(0)
+                        child.node_type = "JOIN"
+                        
+                        if not tokens:
+                            raise SyntaxError("Syntax Error: Missing table name")
+
+                        if tokens and tokens[0].upper() in ["NATURAL", "JOIN",",", "WHERE", "LIMIT", "ORDER"]:
+                            raise SyntaxError("Syntax Error: Missing table name")
+                        
+                        if parent.node_type == "FROM":
+                            childOne = QueryTree(node_type="Value1", val=[parent.val[0]])
+                        else:
+                            childOne = QueryTree(node_type="Value1", val=[parent.children[1].val[0]])
+                            
+                        # Change root if TJOIN is parent
+                        if parent.node_type == "TJOIN":
+                            childTwo = QueryTree(node_type="Value2", val=[tokens.pop(0)])
+                            child.children.append(parent)
+                            child.children.append(childTwo)
+                            
+                            if grand.node_type == "FROM":
+                                root = child
+                            else:
+                                grand.children.pop()
+                                grand.children.append(child)
+                            
+                        else:
+                            childTwo = QueryTree(node_type="Value2", val=[tokens.pop(0)])
+                            child.children.append(childOne)
+                            child.children.append(childTwo)
+                            
+                            if parent.children != []:
+                                parent.children.pop()
+                                
+                            parent.children.append(child)
+                            
+                    # Check if join operation with syntax 'JOIN'
+                    elif tokens and tokens[0].upper() == 'JOIN':
+                        tokens.pop(0)
+                        child.node_type = "TJOIN"
+                        
+                        if not tokens or (tokens[0].upper() in [",", "NATURAL", "JOIN", "WHERE", "LIMIT", "ORDER"]):
+                            raise SyntaxError("Syntax Error: Missing table name")
+                        
+                        if parent.node_type == "FROM":
+                            childOne = QueryTree(node_type="Value1", val=[parent.val[0]])
+                        else:
+                            childOne = QueryTree(node_type="Value1", val=[parent.children[1].val[0]])
+                            
+                        childTwo = QueryTree(node_type="Value2", val=[tokens.pop(0)])
+                        
+                        if tokens and tokens[0].upper() != "ON":
+                            raise SyntaxError("Syntax Error: Missing ON")
+                        
+                        tokens.pop(0)
+                        
+                        isCheckCondition = True
+                        newRoot = child
+                        
+                        # Check condition for join operation
+                        while isCheckCondition:
+                            if (tokens and tokens[0].upper() in ['=', '!=', '>', '<', '>=', '<=', 'OR', 'AND', ","]) or not tokens:
+                                raise SyntaxError("Syntax Error: Missing condition")
+                            
+                            newRoot.val.append(tokens.pop(0))
+                            
+                            if (tokens and tokens[0].upper() not in ['=', '!=']) or not tokens:
+                                raise SyntaxError("Syntax Error: Missing condition")
+                            
+                            newRoot.val.append(tokens.pop(0))
+                            
+                            if (tokens and tokens[0].upper() in ['=', '!=', '>', '<', '>=', '<=', 'OR', 'AND', ","]) or not tokens:
+                                raise SyntaxError("Syntax Error: Missing condition")
+                            
+                            newRoot.val.append(tokens.pop(0))
+                            
+                            if (tokens and tokens[0].upper() not in ['AND', 'OR']) or not tokens:
+                                isCheckCondition = False
+                                
+                            elif (tokens[0].upper() ==  'AND'):
+                                oldRoot = newRoot
+                                newRoot = QueryTree(node_type="TJOIN", val=[])
+                                oldRoot.children.append(newRoot)
+                                tokens.pop(0)
+                                
+                            elif (tokens[0].upper() ==  'OR'):
+                                newRoot.val.append(tokens.pop(0))
+                        
+                        child.children.append(childOne)
+                        child.children.append(childTwo)
+                        
+                        
+                        if parent.children != []:
+                            parent.children.pop()
+                        
+                        parent.children.append(child)
+                        
+                    # Check if join operation with syntax 'NATURAL JOIN'
+                    elif tokens and (tokens[0].upper() == 'NATURAL' and tokens[1].upper() == "JOIN"):
+                        tokens.pop(0)
+                        tokens.pop(0)
+                        child.node_type = "TJOIN"
+                        
+                        if not tokens or (tokens[0].upper() in [",", "NATURAL", "JOIN", "WHERE", "LIMIT", "ORDER"]):
+                            raise SyntaxError("Syntax Error: Missing table name")
+                        
+                        if parent.node_type == "FROM":
+                            childOne = QueryTree(node_type="Value1", val=[parent.val[0]])
+                        else:
+                            childOne = QueryTree(node_type="Value1", val=[parent.children[1].val[0]])
+                            
+                        childTwo = QueryTree(node_type="Value2", val=[tokens.pop(0)])
+                        child.children.append(childOne)
+                        child.children.append(childTwo)
+                        
+                        
+                        if parent.children != []:
+                            parent.children.pop()
+                        
+                        parent.children.append(child)
+                        
+                    # Check token is not a join operation
+                    else:
+                        break
+                    
+                    grand = parent
+                                  
+            if not tokens:
+                return root
+            else:
+                if tokens[0].upper() not in ["WHERE", "LIMIT", "ORDER"]:
+                    raise SyntaxError("Syntax Error: Invalid syntax")
+                child = self.__createQueryTree(tokens)
+                if child is not None:  # Only append if the child is not None
+                    root.children.append(child)  
 
         elif token == "AND":
             root = QueryTree(node_type="WHERE", val=[])
@@ -121,7 +298,7 @@ class OptimizationEngine:
             if(not tokens):
                 raise CustomException("Incomplete syntax for WHERE clause", code=400)
             
-            if(not isAlphanumericWithQuotes(tokens[0].strip("'")) or not isAlphanumericWithQuotes(tokens[2].strip("'"))):
+            if(not isAlphanumericWithQuotesAndUnderscoreAndDots(tokens[0].strip("'")) or not isAlphanumericWithQuotesAndUnderscoreAndDots(tokens[2].strip("'"))):
                 raise CustomException("Invalid syntax for WHERE clause", code=400)
             
             if(not tokens[1] in LEGAL_COMPARATORS):
@@ -143,13 +320,15 @@ class OptimizationEngine:
                 root.children.append(child)  
             
         elif token == "WHERE":
+            self.one_node_constraint.append("WHERE")
+
             root = QueryTree(node_type="WHERE", val=[])
             condition = []
 
             if(not tokens):
                 raise CustomException("Incomplete syntax for WHERE clause", code=400)
             
-            if(not isAlphanumericWithQuotes(tokens[0].strip("'")) or not isAlphanumericWithQuotes(tokens[2].strip("'"))):
+            if(not isAlphanumericWithQuotesAndUnderscoreAndDots(tokens[0].strip("'")) or not isAlphanumericWithQuotesAndUnderscoreAndDots(tokens[2].strip("'"))):
                 raise CustomException("Invalid syntax for WHERE clause", code=400)
             
             if(not tokens[1] in LEGAL_COMPARATORS):
@@ -171,21 +350,58 @@ class OptimizationEngine:
                 root.children.append(child)  
 
         elif token == "ORDER":
-            if tokens and tokens.pop(0).upper() == "BY":
-                root = QueryTree(node_type="ORDER_BY", val=[])
+            self.one_node_constraint.append("ORDER")
+
+            if not tokens:
+                raise CustomException("Incomplete syntax for ORDER BY clause", code=400)
+            
+            if tokens and tokens.pop(0).upper() != "BY":
+                raise CustomException("Invalid syntax for ORDER BY clause", code=400)
+
+            root = QueryTree(node_type="SORT", val=[])
+            
+            while tokens and tokens[0].upper() not in ["LIMIT"]:
+                col = tokens.pop(0)
+                root.val.append(col)
+                if tokens[0] == ",":
+                    tokens.pop(0)
+                    if tokens and tokens[0].upper() in ["LIMIT", ","]:
+                        raise CustomException("Invalid syntax for ORDER BY clause", code=400)
+                    elif not tokens:
+                        raise CustomException("Incomplete syntax for ORDER BY clause", code=400)
                 
-                while tokens and tokens[0].upper() not in ["LIMIT"]:
-                    col = tokens.pop(0).rstrip(',')
-                    root.val.append(col)
-                    
+            if not root.val:
+                raise CustomException("Invalid syntax for ORDER BY clause", code=400)
+            
+            if tokens and tokens[0].upper() not in ["LIMIT"]:
+                raise CustomException("Invalid command after ORDER BY clause", code=400)
+                
+            if tokens:
+                child = self.__createQueryTree(tokens)
+                if child is not None:
+                    root.children.append(child)
 
         elif token == "LIMIT":
-            root = QueryTree(node_type="LIMIT", val=[tokens.pop(0)] if tokens else [])
+            self.one_node_constraint.append("LIMIT")
+
+            if not tokens:
+                raise CustomException("Incomplete syntax for LIMIT clause", code=400)
+
+            if tokens and not tokens[0].isdigit():
+                raise CustomException("Invalid syntax for LIMIT clause", code=400)
+            
+            if tokens and int(tokens[0]) < 0:
+                raise CustomException("LIMIT value must be greater than or equal to 0", code=400)
+            
+            root = QueryTree(node_type="LIMIT", val=[tokens.pop(0)])
+
+            if tokens:
+                raise CustomException("Invalid command after LIMIT clause", code=400)
         
         elif token == "SET":
             root = QueryTree(node_type="SET", val=[])
 
-            if(not isAlphanumericWithQuotes(tokens[0].strip("'")) or not isAlphanumericWithQuotes(tokens[2].strip("'"))):
+            if(not isAlphanumericWithQuotesAndUnderscoreAndDots(tokens[0].strip("'")) or not isAlphanumericWithQuotesAndUnderscoreAndDots(tokens[2].strip("'"))):
                 raise CustomException("Invalid syntax for SET clause", code=400)
             
             if(not tokens[1] in LEGAL_COMPARATORS):
@@ -209,6 +425,8 @@ class OptimizationEngine:
                 root.children.append(child)  
 
         elif token == "UPDATE":
+            self.one_node_constraint.append("UPDATE")
+
             if(not tokens):
                 raise CustomException("Incomplete syntax for UPDATE clause", code=400)
             
@@ -224,19 +442,52 @@ class OptimizationEngine:
         elif token == "BEGIN":
             if tokens and tokens.pop(0).upper() == "TRANSACTION":
                 root = QueryTree(node_type="BEGIN_TRANSACTION", val=[])
+            else:
+                raise CustomException("Invalid syntax: 'BEGIN' must be followed by 'TRANSACTION'", code=400)
             
-            if tokens : # if there is any token, add it as unknown
-                root.children.append(QueryTree(node_type="UNKNOWN", val=[tokens]))
+            if "BEGIN_TRANSACTION" in self.one_node_constraint:
+                raise CustomException("Syntax Error: Only one 'BEGIN TRANSACTION' allowed", code=400)
+            
+            if tokens:
+                raise CustomException("Invalid syntax: 'BEGIN TRANSACTION' must not be followed by any tokens", code=400)
+
+            self.one_node_constraint.append("BEGIN_TRANSACTION")
+            root = QueryTree(node_type="BEGIN_TRANSACTION", val=[])
                 
         elif token == "COMMIT":
-            root = QueryTree(node_type="COMMIT", val=[])
+            if "COMMIT" in self.one_node_constraint:
+                raise CustomException("Syntax Error: Only one 'COMMIT' allowed", code=400)
             
-            if tokens : # if there is any token, add it as unknown
-                root.children.append(QueryTree(node_type="UNKNOWN", val=[tokens]))
-                
+            if tokens: 
+                raise CustomException("Invalid syntax: 'COMMIT' must not be followed by any tokens", code=400)
+
+            self.one_node_constraint.append("COMMIT")
+            root = QueryTree(node_type="COMMIT", val=[])
+
+        elif token == "DELETE":
+            self.one_node_constraint.append("DELETE")
+
+            root = QueryTree(node_type="DELETE", val=[])
+            
+            if tokens and tokens[0].upper() != "FROM":
+                raise CustomException("Invalid command after DELETE clause", code=400)
+            tokens.pop(0)
+
+            if not tokens:
+                raise CustomException("Incomplete syntax for DELETE clause", code=400)
+            
+            root.val.append(tokens.pop(0))
+            
+            if tokens and tokens[0].upper() != "WHERE":
+                raise CustomException("Invalid command after DELETE clause", code=400)
+            
+            child = self.__createQueryTree(tokens)
+            if child is not None:
+                root.children.append(child)
+
         else:
             root = QueryTree(node_type="UNKNOWN", val=[token])
-
+            
         return root
 
     def __applyHeuristicRules(self, query: ParsedQuery):

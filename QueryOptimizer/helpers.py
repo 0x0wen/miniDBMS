@@ -8,5 +8,5 @@ def isAlphanumeric(string):
     """
     return bool(re.fullmatch(r"[a-zA-Z0-9]+", string))
 
-def isAlphanumericWithQuotes(string):
-    return bool(re.fullmatch(r"[a-zA-Z0-9'\"]+", string))
+def isAlphanumericWithQuotesAndUnderscoreAndDots(string):
+    return bool(re.fullmatch(r"[a-zA-Z0-9'\"._]+", string))
