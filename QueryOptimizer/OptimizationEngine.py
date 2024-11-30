@@ -2,7 +2,7 @@ from ParsedQuery import ParsedQuery
 from QueryTree import QueryTree
 import re
 from constants import LEGAL_COMMANDS_AFTER_WHERE,LEGAL_COMPARATORS, LEGAL_COMMANDS_AFTER_UPDATE, LEGAL_COMMANDS_AFTER_SET
-from helpers import isAlphanumericWithQuotes
+from helpers import isAlphanumericWithQuotesAndUnderscoreAndDots
 from CustomException import CustomException
 class OptimizationEngine:
     def __init__(self):
@@ -298,7 +298,7 @@ class OptimizationEngine:
             if(not tokens):
                 raise CustomException("Incomplete syntax for WHERE clause", code=400)
             
-            if(not isAlphanumericWithQuotes(tokens[0].strip("'")) or not isAlphanumericWithQuotes(tokens[2].strip("'"))):
+            if(not isAlphanumericWithQuotesAndUnderscoreAndDots(tokens[0].strip("'")) or not isAlphanumericWithQuotesAndUnderscoreAndDots(tokens[2].strip("'"))):
                 raise CustomException("Invalid syntax for WHERE clause", code=400)
             
             if(not tokens[1] in LEGAL_COMPARATORS):
@@ -328,7 +328,7 @@ class OptimizationEngine:
             if(not tokens):
                 raise CustomException("Incomplete syntax for WHERE clause", code=400)
             
-            if(not isAlphanumericWithQuotes(tokens[0].strip("'")) or not isAlphanumericWithQuotes(tokens[2].strip("'"))):
+            if(not isAlphanumericWithQuotesAndUnderscoreAndDots(tokens[0].strip("'")) or not isAlphanumericWithQuotesAndUnderscoreAndDots(tokens[2].strip("'"))):
                 raise CustomException("Invalid syntax for WHERE clause", code=400)
             
             if(not tokens[1] in LEGAL_COMPARATORS):
@@ -401,7 +401,7 @@ class OptimizationEngine:
         elif token == "SET":
             root = QueryTree(node_type="SET", val=[])
 
-            if(not isAlphanumericWithQuotes(tokens[0].strip("'")) or not isAlphanumericWithQuotes(tokens[2].strip("'"))):
+            if(not isAlphanumericWithQuotesAndUnderscoreAndDots(tokens[0].strip("'")) or not isAlphanumericWithQuotesAndUnderscoreAndDots(tokens[2].strip("'"))):
                 raise CustomException("Invalid syntax for SET clause", code=400)
             
             if(not tokens[1] in LEGAL_COMPARATORS):
