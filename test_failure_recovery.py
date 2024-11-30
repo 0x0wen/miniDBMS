@@ -16,15 +16,21 @@ def test_failure_recovery():
     # Initialize
     fr = FailureRecovery()
     
-    # Test 1: Write Log
-    print("\nTest 1: Write Log")
-    test_data = Rows([{"id": 1, "name": "Database Systems", "credits": 3}])
+    # Test 1: Write Log - Update course credits
+    print("\nTest 1: Write Log - Update Course")
+    test_data = Rows([{
+        "id": 1,
+        "name": "Database Systems",
+        "credits": 4  # Change credits from 3 to 4
+    }])
+    test_data.table_name = "course"  # Explicitly set table name
+    
     execution_result = ExecutionResult(
         transaction_id=1,
         timestamp=datetime.now(),
-        message="Update test",
+        message="Update course credits",
         data=test_data,
-        query="UPDATE course SET credits = 3 WHERE id = 1"
+        query="UPDATE course SET credits = 4 WHERE id = 1"
     )
     
     try:
@@ -33,25 +39,47 @@ def test_failure_recovery():
     except Exception as e:
         print(f"❌ Write log failed: {e}")
 
-    # Test 2: Save Checkpoint
-    print("\nTest 2: Save Checkpoint")
+    # Test 2: Another Update
+    print("\nTest 2: Write Another Log - Update Course Name")
+    test_data2 = Rows([{
+        "id": 1,
+        "name": "Advanced Database Systems",
+        "credits": 4
+    }])
+    test_data2.table_name = "course"
+    
+    execution_result2 = ExecutionResult(
+        transaction_id=1,
+        timestamp=datetime.now(),
+        message="Update course name",
+        data=test_data2,
+        query="UPDATE course SET name = 'Advanced Database Systems' WHERE id = 1"
+    )
+    
+    try:
+        fr.write_log(execution_result2)
+        print("✅ Write log successful")
+    except Exception as e:
+        print(f"❌ Write log failed: {e}")
+
+    # Test 3: Save Checkpoint
+    print("\nTest 3: Save Checkpoint")
     try:
         fr.save_checkpoint()
         print("✅ Checkpoint successful")
     except Exception as e:
         print(f"❌ Checkpoint failed: {e}")
 
-    # Test 3: Recovery
-    print("\nTest 3: Recovery")
+    # Test 4: Recovery to Initial State
+    print("\nTest 4: Recovery")
     criteria = RecoverCriteria(transaction_id=1)
     try:
-        result = fr.recover(criteria)
-        if result:
-            print("✅ Recovery successful")
-        else:
-            print("❌ Recovery failed")
+        fr.recover(criteria)
+        print("✅ Recovery successful")
     except Exception as e:
         print(f"❌ Recovery failed: {e}")
 
 if __name__ == "__main__":
+    # Create logs directory if not exists
+    os.makedirs("Storage/logs", exist_ok=True)
     test_failure_recovery()
