@@ -3,10 +3,17 @@ from StorageManager.StorageManager import StorageManager
 #SELECT year FROM course WHERE year >= 2030 AND year < 2040 OR year > 2070 AND year <> 2080
 
 ret2 = DataRetrieval(table=["course"], column=["year"], conditions=[
-    Condition(column="year", operation=">=", operand=2030, connector=None),
+    Condition(column="year", operation="=", operand=2030, connector=None),
     Condition(column="year", operation="<", operand=2040, connector="AND"),
     Condition(column="year", operation=">", operand=2070, connector="OR"),
     Condition(column="year", operation="<>", operand=2080, connector="AND")
+])
+
+
+#pakai index
+ret3 = DataRetrieval(table=["course"], column=['courseid'], conditions=[
+    Condition(column="courseid", operation=">", operand='40', connector=None),
+    Condition(column="courseid", operation="<", operand='50', connector="AND"),
 ])
 """
 [{'year': 2030}, {'year': 2031}, {'year': 2032}, {'year': 2033}, {'year': 2034},
@@ -20,6 +27,12 @@ ret2 = DataRetrieval(table=["course"], column=["year"], conditions=[
 Amount :  38
 """
 
+retrieval = DataRetrieval(
+    table=["user2"],
+    column=[],
+    conditions=[]
+)
 
 sm = StorageManager()
-sm.readBlock(ret2)
+sm.readBlock(ret3)
+

@@ -7,18 +7,19 @@ class BlocksManager(SchemaManager):
         super().__init__(path_name)
         self.block_size = block_size
 
-    def readBlock(self, table_name: str, block_index : int):
+    def readBlockIndex(self, table_name: str, block_index: int):
         """
         Read data from a specific block based on the block index and schema.
         Args : 
             table_name (str): the table name 
         Returns:
-            list[]
+            list[dict]: List of dictionaries containing the row data for the specified block
         """
         if not table_name:
             raise ValueError("File name cannot be empty")
-        
+        print(table_name)
         schema = self.readSchema(table_name)
+        columns = [col[0] for col in schema]  # Menyimpan nama kolom dari schema
         row_size = sum(size for _, _, size in schema)
         data_path = table_name + "_data.dat"
         full_path = os.path.join(self.path_name, data_path)
@@ -42,13 +43,14 @@ class BlocksManager(SchemaManager):
                         raise ValueError(f"Data row yang dibaca lebih pendek dari {row_size} bytes!")
                     
                     row_data = self._parseRowData(row, schema, row_size)
-                    block_data.append(row_data)
-            return block_data
+                    # Mengonversi row_data menjadi dictionary dengan kolom yang sesuai
+                    record = {columns[i]: row_data[i] for i in range(len(columns))}
+                    block_data.append(record)
+            
+            return block_data  # Mengembalikan list of dictionaries
 
         except Exception as e:
                 raise IOError(f"Unexpected error reading blocks file:  {e}")
-
-
 
     def readBlocks(self, table_name: str) -> list[tuple[int, int]]:
         """
@@ -84,8 +86,8 @@ class BlocksManager(SchemaManager):
             return blocks
         except Exception as e:
             raise IOError(f"Unexpected error reading blocks file : {e}")
-        
-    def _parseRowData(row: bytes, schema: list, row_size: int) -> list:
+
+    def _parseRowData(self, row: bytes, schema: list, row_size: int) -> list:
         """
         Parse a single row of binary data based on the given schema.
         """
@@ -112,3 +114,5 @@ class BlocksManager(SchemaManager):
             row_data.append(value)
     
         return row_data 
+    
+    

@@ -5,9 +5,9 @@ import shutil
 from os import path
 from typing import Optional
 from datetime import datetime
-from recovercriteria import RecoverCriteria
-from QueryProcessor.ExecutionResult import ExecutionResult
-from QueryProcessor.QueryProcessor import QueryProcessor
+from FailureRecovery.RecoverCriteria import RecoverCriteria
+from Interface.ExecutionResult import ExecutionResult
+# from QueryProcessor.QueryProcessor import QueryProcessor
 
 
 # Todo : Penamaan dan integrasi sama QueryProcessor
@@ -142,11 +142,11 @@ class FailureRecovery:
                 break
             
             # Eksekusi query untuk recovery
-            try:
-                QueryProcessor().execute_query(f"ROLLBACK {entry['transaction_id']}")
-            except Exception as e:
-                print(f"Error during recovery: {str(e)}")
-                break
+            # try:
+            #     QueryProcessor().execute_query(f"ROLLBACK {entry['transaction_id']}")
+            # except Exception as e:
+            #     print(f"Error during recovery: {str(e)}")
+            #     break
                            
 
         

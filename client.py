@@ -22,7 +22,13 @@ class Client:
     def start(self):
         self.client_socket.connect((self.host, self.port))
         try:
+            accept = False
             while True:
+                if accept:
+                    server_message = self.client_socket.recv(1024).decode("utf-8")
+                    print(server_message, end="")
+                    accept = False
+
                 server_message = self.client_socket.recv(1024).decode("utf-8")
                 print(server_message, end="")
 
@@ -31,7 +37,8 @@ class Client:
                 while not user_input:
                     print("> ", end="")
                     user_input = self.accept_query()
-                self.client_socket.send(user_input.encode("utf-8"))
+                if self.client_socket.send(user_input.encode("utf-8")):
+                    accept = True
         except KeyboardInterrupt:
             print("\nDisconnecting...")
         finally:

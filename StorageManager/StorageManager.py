@@ -3,6 +3,7 @@ from StorageManager.objects.DataWrite import DataWrite
 from StorageManager.objects.DataDeletion import DataDeletion
 from StorageManager.objects.Statistics import Statistics
 from StorageManager.manager.TableManager import TableManager
+from StorageManager.manager.IndexManager import IndexManager
 # from Serializer import *
 from StorageManager.objects.Rows import Rows  
 import os
@@ -12,28 +13,55 @@ class StorageManager:
     def __init__(self) -> None:
         pass
     
-    def readBlock(self, data_retrieval : DataRetrieval) -> Rows:
+    def readBlock(self, data_retrieval: DataRetrieval) -> Rows:
         """
-        Returns Rows of data from harddisk
-        
+        Returns Rows of data from hard disk based on DataRetrieval.
+
         Args:
-            data_retrieval : objects contains data to help determine which data to be retrieved from hard disk
-        
+            data_retrieval: Object containing data to help determine which data to be retrieved from hard disk.
         """
-        #ini masih baca semua block
-        #ini masih baca semua block
         serializer = TableManager()
-        all_filtered_data : Rows = []
+        index_manager = IndexManager()
+        all_filtered_data: Rows = []
+
         # TODO: Put this change query_tree outside of fucntion
         # data_retrieval = self.__query_tree_to_data_retrieval(query_tree)
-        for table_name in data_retrieval.table: #harusnya bisa join tabel karena list[str] ????
-            data = serializer.readTable(table_name)
-            cond_filtered_data = serializer.applyConditions(data,data_retrieval.conditions)
-            column_filtered_data  = serializer.filterColumns(cond_filtered_data,data_retrieval.column)
+
+        for table_name in data_retrieval.table:  # (support for join in the future)
+            indexed_rows = []
+            use_index = False
+
+            indexable_conditions = [
+                condition for condition in data_retrieval.conditions if condition.operation  in ["=", ">","<"]
+            ]
+
+            for condition in indexable_conditions:
+                index = index_manager.readIndex(table_name, condition.column)
+                if index:  # Use index if available
+                    block_id = index.search(condition.operand)
+                    if block_id is not None:
+                        block_data = serializer.readBlockIndex(table_name, block_id)
+                        indexed_rows.extend(block_data)
+                        use_index = True
+
+            if use_index and indexed_rows: 
+                print("Pencarian menggunakan index")
+                cond_filtered_data = serializer.applyConditions(indexed_rows, data_retrieval)
+            else: 
+                print("Pencarian tidak menggunakan index,baca semua blok")
+                data = serializer.readTable(table_name)
+                cond_filtered_data = serializer.applyConditions(data, data_retrieval)
+
+           
+            column_filtered_data = serializer.filterColumns(cond_filtered_data, data_retrieval.column)
+
+            
             all_filtered_data.extend(column_filtered_data)
+
         print(all_filtered_data)
-        print("Amount : ", all_filtered_data.__len__())
+        print("Amount: ", len(all_filtered_data))
         return all_filtered_data
+
 
 
     def writeBlock(self ,data_write: DataWrite) -> int:
@@ -65,7 +93,7 @@ class StorageManager:
 
         # Filtereed table based on condition
         data : Rows = serializer.readTable(data_deletion.table)
-        filtered_Table = serializer.applyConditions(data, data_deletion.conditions) 
+        filtered_Table = serializer.applyConditions(data, data_deletion) 
 
         schema = serializer.readSchema(data_deletion.table)
 
@@ -83,6 +111,10 @@ class StorageManager:
             column : certain column to be given index
             index_type: type of index (B+ Tree or Hash)
         """
+        serializer = TableManager()
+        indexManager = IndexManager()
+
+        
 
 
     def getStats(self, test = False) -> dict:
