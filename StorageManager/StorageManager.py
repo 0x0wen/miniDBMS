@@ -7,7 +7,7 @@ from StorageManager.manager.TableManager import TableManager
 from StorageManager.manager.IndexManager import IndexManager
 from QueryOptimizer.QueryTree import QueryTree
 # from Serializer import *
-from StorageManager.objects.Rows import Rows  
+from StorageManager.objects.Rows import Rows 
 import os
 
 class StorageManager:
@@ -71,14 +71,42 @@ class StorageManager:
             data_write : objects contains data to help determine which data to be retrieved from hard disk, contain modified data for modification operation, and new data for adddition operation
         
         """
-        serializer = TableManager()
+        table_manager = TableManager()
         table_name = data_write.selected_table
         new_data = data_write.new_value
 
+        def replace_data(self, old_data, new_data, filtered_old_data):
+            if len(new_data) != len(filtered_old_data):
+                raise ValueError("new_data and filtered_old_data must have the same length.")
+
+            indices_to_replace = [old_data.index(row) for row in filtered_old_data]
+
+            updated_data = old_data.copy()
+            for new_row, idx in zip(new_data, indices_to_replace):
+                updated_data[idx] = new_row
+
+            return updated_data
+
         if (data_write.overwrite):
-            print('overwrite')
+            schema = table_manager.readSchema(table_name)
+            old_data = table_manager.readData(table_name, schema)
+            column_names = [column_name for column_name, _, _ in schema]
+
+            old_data_with_schema: Rows = Rows([
+                {column_name: value for column_name, value in zip(column_names, row)}
+                for row in old_data
+            ])
+
+            filtered_old_data_with_schema = table_manager.applyConditions(old_data_with_schema, data_write)
+            filtered_old_data = [list(d.values()) for d in filtered_old_data_with_schema]
+
+            
+            rows_to_write = replace_data(old_data, new_data, filtered_old_data)
+            table_manager.writeTable(table_name, rows_to_write, schema)
+            
+            return new_data.__len__()
         else:
-            return serializer.appendData(table_name, new_data)
+            return table_manager.appendData(table_name, new_data)
         
     def deleteBlock(self, data_deletion : DataDeletion) -> int:
         """
