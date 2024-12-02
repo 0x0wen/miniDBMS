@@ -21,11 +21,8 @@ class IndexManager(DataManager):
         hash_group = HashIndex(column)
 
         full_path = self.path_name  + index_filename
-        if not os.path.exists(full_path):
-            raise ValueError(f"The table {table_name} is not indexed")
-        
-        if not self.isIndexed(table_name, column):
-            raise ValueError(f"The table {table_name} is not indexed")
+        if not os.path.exists(full_path) or not self.isIndexed(table_name, column):
+            return None  # Return None if index is not available
 
         with open(full_path, 'rb') as index_file:
             while True:
