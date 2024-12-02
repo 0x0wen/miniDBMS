@@ -198,7 +198,7 @@ else:
 
 trans_4 = timestamp_protocol.run(db_object_4, 2)
 if trans_4:
-    print("Transaction 4 success (correct behavior)")
+    print("Transaction 4 success (incorrect behavior)")
 else:
     print("Transaction 4 failed (correct behavior)")
 
