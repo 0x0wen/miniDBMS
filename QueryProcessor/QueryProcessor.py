@@ -3,11 +3,13 @@ from ConcurrencyControlManager.ConcurrentControlManager import ConcurrentControl
 from FailureRecovery.FailureRecovery import FailureRecovery
 from FailureRecovery.RecoverCriteria import RecoverCriteria
 from Interface.Rows import Rows  
+from Interface.Action import Action
 from QueryOptimizer import QueryTree
 from typing import List
 from datetime import datetime
 from StorageManager.StorageManager import StorageManager
 from Interface.ExecutionResult import ExecutionResult
+from Interface.Response import Response
 
 class QueryProcessor:
     _instance = None
@@ -59,13 +61,37 @@ class QueryProcessor:
             query_without_aliases = self.remove_aliases(q)
             optimized_query.append(self.optimization_engine.optimizeQuery(self.optimization_engine.parseQuery(query_without_aliases)))
 
-        # concurrency control
+        # concurrency control (validate and logging)
+        # Get transaction ID
         transaction_id = self.concurrent_manager.beginTransaction()
         print(f"Transaction ID: {transaction_id}")
+
+        # Generate Rows object from optimized query
         rows = self.generate_rows_from_query_tree(optimized_query, transaction_id)
         print(rows.data)
-        self.concurrent_manager.logObject(rows, transaction_id)
-        print("Transaction has been logged.")
+
+        # validate and Log the transaction
+        for row_data in rows.data:
+            # Create a Rows object with a single row of data
+            single_row = Rows([row_data])
+
+            # Create an Action object based on the first character of the row string
+            row_string = single_row.data[0]
+            action_type = "read" if row_string[0] == 'R' else "write"
+            action = Action([action_type])
+
+            validate = self.concurrent_manager.validateObject(single_row, transaction_id, action)
+            print(f"Validation result: {validate.status}")
+            if validate.status:
+                #TODO : Implement Query Execution to Storage Manager Here
+
+                # Log the single row
+                print(f"Logging single-row: {single_row.data}")
+                self.concurrent_manager.logObject(single_row, transaction_id)
+            else:
+                #Abort the transaction (when validation fails, concurrent control manager abort the transaction)
+                break
+
 
         # INI ERROR KARENA BELUM ADA DATABASE YANG BISA DIAMBIL
         # try:
