@@ -1,112 +1,136 @@
+from typing import Generic, TypeVar, List
+from abc import ABC, abstractmethod
 import time
-import random
-from Interface import Response, Action, Rows
-from ConcurrencyControlManager.Algorithms.AbstractAlgorithm import AbstractAlgorithm
 
-class TimestampBasedAlgorithm(AbstractAlgorithm):
+T = TypeVar('T')
 
-    def __init__(self, max_retries=5, retry_delay=1):
+class Action:
+    pass
+
+class Response:
+    pass
+
+class Rows(Generic[T]):
+    def __init__(self, data: List[T]):
+        self.data = data
+        self.rows_count = len(data)
+
+class AbstractAlgorithm(ABC):
+    @abstractmethod
+    def run(self, db_object: Rows, transaction_id: int) -> bool:
+        raise NotImplementedError
+
+    @abstractmethod
+    def validate(self, db_object: Rows, transaction_id: int, action: Action) -> Response:
+        raise NotImplementedError
+
+    @abstractmethod
+    def end(self, transaction_id: int) -> bool:
+        raise NotImplementedError
+
+from typing import Generic, TypeVar, List
+from abc import ABC, abstractmethod
+import time
+
+# Define Types
+T = TypeVar('T')
+
+class Action:
+    pass
+
+class Response:
+    pass
+
+class Rows(Generic[T]):
+    def __init__(self, data: List[T]):
+        self.data = data
+        self.rows_count = len(data)
+
+class AbstractAlgorithm(ABC):
+    @abstractmethod
+    def run(self, db_object: Rows, transaction_id: int) -> None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def validate(self, db_object: Rows, transaction_id: int, action: Action) -> Response:
+        raise NotImplementedError
+
+    @abstractmethod
+    def end(self, transaction_id: int) -> bool:
+        raise NotImplementedError
+
+class TimestampBasedProtocol(AbstractAlgorithm):
+    def __init__(self):
         self.timestamp_table = {}
-        self.read_ts_table = {}
-        self.write_ts_table = {}
-        self.max_retries = max_retries  
-        self.retry_delay = retry_delay  
+        self.data_timestamps = {}
+        self.transaction_queue = []
 
-    def getTransactionTimestamp(self, transaction_id: int) -> int:
-        return self.timestamp_table.get(transaction_id, None)
+    def getTimestamp(self, transaction_id: int) -> int:
+        if transaction_id not in self.timestamp_table:
+            self.timestamp_table[transaction_id] = int(time.time())
+        return self.timestamp_table[transaction_id]
 
-    def setTransactionTimestamp(self, transaction_id: int, timestamp: int):
-        self.timestamp_table[transaction_id] = timestamp
+    def readTimestamp(self, data_item: str) -> int:
+        if data_item not in self.data_timestamps:
+            return -1  # No read/write timestamp
+        return self.data_timestamps[data_item]
 
-    def isValidRead(self, transaction_id: int, data_item: str) -> bool:
-        read_ts = self.read_ts_table.get(data_item, -1)
-        write_ts = self.write_ts_table.get(data_item, -1)
-        txn_ts = self.getTransactionTimestamp(transaction_id)
-        if txn_ts < write_ts:
+    def writeTimestamp(self, data_item: str) -> int:
+        if data_item not in self.data_timestamps:
+            return -1
+        return self.data_timestamps[data_item]
+
+    def lockS(self, transaction_id: int, data_item: str) -> bool:
+        current_timestamp = self.getTimestamp(transaction_id)
+        last_write_timestamp = self.writeTimestamp(data_item)
+
+        if last_write_timestamp > current_timestamp:
+            print(f"Transaction {transaction_id} denied for read on {data_item} due to write timestamp conflict.")
             return False
+        
+        print(f"Transaction {transaction_id} read-lock acquired on {data_item}.")
         return True
 
-    def isValidWrite(self, transaction_id: int, data_item: str) -> bool:
-        read_ts = self.read_ts_table.get(data_item, -1)
-        write_ts = self.write_ts_table.get(data_item, -1)
-        txn_ts = self.getTransactionTimestamp(transaction_id)
-        if txn_ts < read_ts:
+    def lockX(self, transaction_id: int, data_item: str) -> bool:
+        current_timestamp = self.getTimestamp(transaction_id)
+        last_read_timestamp = self.readTimestamp(data_item)
+        last_write_timestamp = self.writeTimestamp(data_item)
+
+        if last_read_timestamp > current_timestamp or last_write_timestamp > current_timestamp:
+            print(f"Transaction {transaction_id} denied for write on {data_item} due to timestamp conflict.")
             return False
+        
+        self.data_timestamps[data_item] = current_timestamp
+        print(f"Transaction {transaction_id} write-lock acquired on {data_item}.")
         return True
 
-    def read(self, transaction_id: int, data_item: str) -> bool:
-        if not self.isValidRead(transaction_id, data_item):
-            print(f"Failed to read {data_item} (Timestamp violation)")
-            return False
-        self.read_ts_table[data_item] = self.getTransactionTimestamp(transaction_id)
-        print(f"Transaction {transaction_id} reads {data_item}")
+    def unlock(self, transaction_id: int, data_item: str) -> bool:
+        if data_item in self.data_timestamps:
+            del self.data_timestamps[data_item]
+            print(f"Transaction {transaction_id} released lock on {data_item}.")
+            return True
+        return False
+
+    def deadlockPrevention(self, transaction_id: int) -> bool:
+        if transaction_id not in self.transaction_queue:
+            self.transaction_queue.append(transaction_id)
         return True
 
-    def write(self, transaction_id: int, data_item: str) -> bool:
-        if not self.isValidWrite(transaction_id, data_item):
-            print(f"Failed to write {data_item} (Timestamp violation)")
-            return False
-        self.write_ts_table[data_item] = self.getTransactionTimestamp(transaction_id)
-        print(f"Transaction {transaction_id} writes {data_item}")
-        return True
-
-    def commit(self, transaction_id: int) -> bool:
-        print(f"Transaction {transaction_id} commits")
-        return True
+    def starvationHandling(self, transaction_id: int, data_item: str) -> bool:
+        current_timestamp = self.getTimestamp(transaction_id)
+        if transaction_id in self.transaction_queue:
+            print(f"Transaction {transaction_id} is starving, attempting to acquire {data_item}.")
+            return True
+        return False
 
     def parseRows(self, db_object: Rows):
         parsed_rows = []
         for row in db_object.data:
             if row[0] in ["W", "R"]:
-                parsed_rows.append([row[0], row[1]])
+                parsed_rows.append([row[0], row[2]])
             else:
                 parsed_rows.append([row[0]])
         return parsed_rows
 
     def run(self, db_object: Rows, transaction_id: int) -> None:
-        parsed_db_object = self.parseRows(db_object)
-        is_committed = False
-        retry_count = 0
-        
-        for item in parsed_db_object:
-            action = item[0]
-            data_item = item[1] if len(item) > 1 else None
-            
-            if action == "W":
-                valid = self.write(transaction_id, data_item)
-                if not valid:
-                    retry_count += 1
-                    if retry_count > self.max_retries:
-                        print(f"Transaction {transaction_id} aborted due to repeated write conflicts.")
-                        break
-                    print(f"Retrying transaction {transaction_id} due to write conflict...")
-                    time.sleep(self.retry_delay)  
-                    continue  
-
-            elif action == "R":
-                valid = self.read(transaction_id, data_item)
-                if not valid:
-                    retry_count += 1
-                    if retry_count > self.max_retries:
-                        print(f"Transaction {transaction_id} aborted due to repeated read conflicts.")
-                        break
-                    print(f"Retrying transaction {transaction_id} due to read conflict...")
-                    time.sleep(self.retry_delay) 
-                    continue  
-
-            elif action == "C":
-                valid = self.commit(transaction_id)
-                if not valid:
-                    break
-                is_committed = True
-                break
-
-        if not is_committed:
-            print(f"Transaction {transaction_id} failed to commit due to timestamp violations.")
-
-    def validate(self, db_object: Rows, transaction_id: int, action: Action) -> Response:
-        return Response(success=True, message="Validated successfully")
-
-    def end(self, transaction_id: int) -> bool:
-        print(f"Ending transaction {transaction_id}")
-        return True
+        parsed_db_object = self.parseRows(db_
