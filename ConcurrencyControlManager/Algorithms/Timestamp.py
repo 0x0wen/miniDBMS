@@ -133,4 +133,72 @@ class TimestampBasedProtocol(AbstractAlgorithm):
         return parsed_rows
 
     def run(self, db_object: Rows, transaction_id: int) -> None:
-        parsed_db_object = self.parseRows(db_
+        parsed_db_object = self.parseRows(db_object)
+        print(f'parsed_db_object: {parsed_db_object}')
+        
+        for item in parsed_db_object:
+            if item[0] == "W":
+                valid = self.lockX(transaction_id, item[1])
+                if not valid:
+                    print(f"Failed to lock-X {item[1]}")
+                    return False
+                
+                print(f"Transaction {transaction_id} writes {item[1]}")
+            
+            elif item[0] == "R":
+                valid = self.lockS(transaction_id, item[1])
+                if not valid:
+                    print(f"Failed to lock-S {item[1]}")
+                    return False
+                
+                print(f"Transaction {transaction_id} reads {item[1]}")
+            
+            elif item[0] == "C":
+                if len(item) > 1:  
+                    valid = self.unlock(transaction_id, item[1])
+                    if not valid:
+                        print(f"Transaction {transaction_id} failed to release lock on {item[1]}")
+                print(f"Transaction {transaction_id} commits.")
+                return True
+        
+        return True
+
+    def validate(self, db_object: Rows, transaction_id: int, action: Action) -> Response:
+        pass
+
+    def end(self, transaction_id: int) -> bool:
+        return True
+
+
+# Test cases
+db_object_1 = Rows(["W1(A)", "R1(A)", "C1"])
+db_object_2 = Rows(["W2(A)", "R2(A)", "C2"])
+db_object_3 = Rows(["W1(A)"])
+db_object_4 = Rows(["W2(A)"])
+
+timestamp_protocol = TimestampBasedProtocol()
+
+trans_1 = timestamp_protocol.run(db_object_1, 1)
+if trans_1:
+    print("Transaction 1 success (correct behavior)")
+else:
+    print("Transaction 1 failed (incorrect behavior)")
+
+trans_2 = timestamp_protocol.run(db_object_2, 2)
+if trans_2:
+    print("Transaction 2 success (correct behavior)")
+else:
+    print("Transaction 2 failed (incorrect behavior)")
+
+trans_3 = timestamp_protocol.run(db_object_3, 1)
+if trans_3:
+    print("Transaction 3 success (correct behavior)")
+else:
+    print("Transaction 3 failed (incorrect behavior)")
+
+trans_4 = timestamp_protocol.run(db_object_4, 2)
+if trans_4:
+    print("Transaction 4 success (correct behavior)")
+else:
+    print("Transaction 4 failed (correct behavior)")
+
