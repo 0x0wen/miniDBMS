@@ -1,6 +1,7 @@
 from typing import Generic, TypeVar, List
 from abc import ABC, abstractmethod
 import time
+import re
 
 T = TypeVar('T')
 
@@ -95,12 +96,26 @@ class TimestampBasedProtocol(AbstractAlgorithm):
     def parseRows(self, db_object: Rows):
         parsed_rows = []
         for row in db_object.data:
-            if row[0] in ["W", "R"]:
-                parsed_rows.append([row[0], row[2]])
-            else:
-                parsed_rows.append([row[0]])
-        return parsed_rows
+            action = row[0]  # The action type ('W', 'R', 'C')
+            match = re.match(r'([WRC])(\d*)\((\w+)\)', row)  # Regex to match pattern 'W1(A)'
 
+            if match:
+                # Extract the action type, number, and item inside parentheses
+                action_type = match.group(1)
+                number = match.group(2)
+                item = match.group(3)
+                
+                if action_type in ["W", "R"]:
+                    # For 'W' and 'R' actions, store the action type, number, and item
+                    parsed_rows.append([action_type, int(number), item])
+                else:
+                    # For 'C' action, just store the action
+                    parsed_rows.append([action_type])
+            else:
+                # Handle invalid or unexpected format
+                print(f"Invalid format: {row}")
+
+        return parsed_rows
     def run(self, db_object: Rows, transaction_id: int) -> None:
         parsed_db_object = self.parseRows(db_object)
         print(f'parsed_db_object: {parsed_db_object}')
