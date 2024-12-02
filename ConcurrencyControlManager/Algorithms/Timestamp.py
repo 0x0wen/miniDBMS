@@ -17,37 +17,6 @@ class Rows(Generic[T]):
 
 class AbstractAlgorithm(ABC):
     @abstractmethod
-    def run(self, db_object: Rows, transaction_id: int) -> bool:
-        raise NotImplementedError
-
-    @abstractmethod
-    def validate(self, db_object: Rows, transaction_id: int, action: Action) -> Response:
-        raise NotImplementedError
-
-    @abstractmethod
-    def end(self, transaction_id: int) -> bool:
-        raise NotImplementedError
-
-from typing import Generic, TypeVar, List
-from abc import ABC, abstractmethod
-import time
-
-# Define Types
-T = TypeVar('T')
-
-class Action:
-    pass
-
-class Response:
-    pass
-
-class Rows(Generic[T]):
-    def __init__(self, data: List[T]):
-        self.data = data
-        self.rows_count = len(data)
-
-class AbstractAlgorithm(ABC):
-    @abstractmethod
     def run(self, db_object: Rows, transaction_id: int) -> None:
         raise NotImplementedError
 
@@ -201,4 +170,3 @@ if trans_4:
     print("Transaction 4 success (incorrect behavior)")
 else:
     print("Transaction 4 failed (correct behavior)")
-
