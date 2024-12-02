@@ -93,55 +93,52 @@ class TimestampBasedProtocol(AbstractAlgorithm):
             return True
         return False
 
+
     def parseRows(self, db_object: Rows):
         parsed_rows = []
         for row in db_object.data:
-            action = row[0]  # The action type ('W', 'R', 'C')
-            match = re.match(r'([WRC])(\d*)\((\w+)\)', row)  # Regex to match pattern 'W1(A)'
+            action = row[0]  
+            match = re.match(r'([WRC])(\d*)\((\w+)\)', row)  
 
             if match:
-                # Extract the action type, number, and item inside parentheses
                 action_type = match.group(1)
                 number = match.group(2)
                 item = match.group(3)
                 
                 if action_type in ["W", "R"]:
-                    # For 'W' and 'R' actions, store the action type, number, and item
-                    parsed_rows.append([action_type, int(number), item])
+                    parsed_rows.append([action_type, int(number), item])  
                 else:
-                    # For 'C' action, just store the action
-                    parsed_rows.append([action_type])
+                    parsed_rows.append([action_type, item]) 
             else:
-                # Handle invalid or unexpected format
                 print(f"Invalid format: {row}")
 
         return parsed_rows
+
     def run(self, db_object: Rows, transaction_id: int) -> None:
         parsed_db_object = self.parseRows(db_object)
         print(f'parsed_db_object: {parsed_db_object}')
         
         for item in parsed_db_object:
             if item[0] == "W":
-                valid = self.lockX(transaction_id, item[1])
+                valid = self.lockX(transaction_id, item[2])  
                 if not valid:
-                    print(f"Failed to lock-X {item[1]}")
+                    print(f"Failed to lock-X {item[2]}")
                     return False
                 
-                print(f"Transaction {transaction_id} writes {item[1]}")
+                print(f"Transaction {transaction_id} writes {item[2]}")
             
             elif item[0] == "R":
-                valid = self.lockS(transaction_id, item[1])
+                valid = self.lockS(transaction_id, item[2])  
                 if not valid:
-                    print(f"Failed to lock-S {item[1]}")
+                    print(f"Failed to lock-S {item[2]}")
                     return False
                 
-                print(f"Transaction {transaction_id} reads {item[1]}")
+                print(f"Transaction {transaction_id} reads {item[2]}")
             
             elif item[0] == "C":
-                if len(item) > 1:  
-                    valid = self.unlock(transaction_id, item[1])
-                    if not valid:
-                        print(f"Transaction {transaction_id} failed to release lock on {item[1]}")
+                valid = self.unlock(transaction_id, item[1])  
+                if not valid:
+                    print(f"Transaction {transaction_id} failed to release lock on {item[1]}")
                 print(f"Transaction {transaction_id} commits.")
                 return True
         
