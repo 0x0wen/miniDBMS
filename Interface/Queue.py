@@ -20,24 +20,8 @@ class Queue(Generic[T]):
         self.data.append(element)
         self.queue_length += 1
     
-    def enqueueWithPriority(self, element: T, priority_idx: int) -> None:
-        for i in range (len(self.data)):
-            if element[priority_idx] < self.data[i][priority_idx]:
-                self.data.insert(i, element)
-                self.queue_length += 1
-                return
-        
-        self.data.append(element)
-        self.queue_length += 1
-    
-    def enqueueAsFirstOfSelfPriority(self, element: T, priority_idx: int) -> None:
-        for i in range (len(self.data)):
-            if element[priority_idx] <= self.data[i][priority_idx]:
-                self.data.insert(i, element)
-                self.queue_length += 1
-                return
-        
-        self.data.append(element)
+    def enqueueFront(self, element: T) -> None:
+        self.data.insert(0, element)
         self.queue_length += 1
     
     def dequeue(self) -> T:
