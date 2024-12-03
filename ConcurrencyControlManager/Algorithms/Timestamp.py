@@ -1,33 +1,9 @@
-from typing import Generic, TypeVar, List
-from abc import ABC, abstractmethod
 import time
 import re
-
-T = TypeVar('T')
-
-class Action:
-    pass
-
-class Response:
-    pass
-
-class Rows(Generic[T]):
-    def __init__(self, data: List[T]):
-        self.data = data
-        self.rows_count = len(data)
-
-class AbstractAlgorithm(ABC):
-    @abstractmethod
-    def run(self, db_object: Rows, transaction_id: int) -> None:
-        raise NotImplementedError
-
-    @abstractmethod
-    def validate(self, db_object: Rows, transaction_id: int, action: Action) -> Response:
-        raise NotImplementedError
-
-    @abstractmethod
-    def end(self, transaction_id: int) -> bool:
-        raise NotImplementedError
+from Interface.Rows import Rows
+from Interface.Action import Action
+from Interface.Response import Response
+from ConcurrencyControlManager.Algorithms.AbstractAlgorithm import AbstractAlgorithm
 
 class TimestampBasedProtocol(AbstractAlgorithm):
     def __init__(self):
@@ -149,45 +125,49 @@ class TimestampBasedProtocol(AbstractAlgorithm):
             
             elif item[0] == "C":
                 print(f"Transaction {transaction_id} commits.")
+                self.end(transaction_id)
                 return True 
             
         return True
 
     def validate(self, db_object: Rows, transaction_id: int, action: Action) -> Response:
-        pass
+        return Response(status=True, message=transaction_id)
 
     def end(self, transaction_id: int) -> bool:
+        items_to_unlock = [item for item, tid in self.locks.items() if tid == transaction_id]
+        for item in items_to_unlock:
+            self.unlock(transaction_id, item)
         return True
 
+if __name__ == "__main__":
+    # Test cases
+    db_object_1 = Rows(["W1(A)", "R1(A)", "C1"])
+    db_object_2 = Rows(["W2(A)", "R2(A)", "C2"])
+    db_object_3 = Rows(["W1(A)"])
+    db_object_4 = Rows(["W2(A)"])
 
-# Test cases
-db_object_1 = Rows(["W1(A)", "R1(A)", "C1"])
-db_object_2 = Rows(["W2(A)", "R2(A)", "C2"])
-db_object_3 = Rows(["W1(A)"])
-db_object_4 = Rows(["W2(A)"])
+    timestamp_protocol = TimestampBasedProtocol()
 
-timestamp_protocol = TimestampBasedProtocol()
+    trans_1 = timestamp_protocol.run(db_object_1, 1)
+    if trans_1:
+        print("Transaction 1 success (correct behavior)")
+    else:
+        print("Transaction 1 failed (incorrect behavior)")
 
-trans_1 = timestamp_protocol.run(db_object_1, 1)
-if trans_1:
-    print("Transaction 1 success (correct behavior)")
-else:
-    print("Transaction 1 failed (incorrect behavior)")
+    trans_2 = timestamp_protocol.run(db_object_2, 2)
+    if trans_2:
+        print("Transaction 2 success (correct behavior)")
+    else:
+        print("Transaction 2 failed (incorrect behavior)")
 
-trans_2 = timestamp_protocol.run(db_object_2, 2)
-if trans_2:
-    print("Transaction 2 success (correct behavior)")
-else:
-    print("Transaction 2 failed (incorrect behavior)")
+    trans_3 = timestamp_protocol.run(db_object_3, 1)
+    if trans_3:
+        print("Transaction 3 success (correct behavior)")
+    else:
+        print("Transaction 3 failed (incorrect behavior)")
 
-trans_3 = timestamp_protocol.run(db_object_3, 1)
-if trans_3:
-    print("Transaction 3 success (correct behavior)")
-else:
-    print("Transaction 3 failed (incorrect behavior)")
-
-trans_4 = timestamp_protocol.run(db_object_4, 2)
-if trans_4:
-    print("Transaction 4 success (incorrect behavior)")
-else:
-    print("Transaction 4 failed (correct behavior)")
+    trans_4 = timestamp_protocol.run(db_object_4, 2)
+    if trans_4:
+        print("Transaction 4 success (incorrect behavior)")
+    else:
+        print("Transaction 4 failed (correct behavior)")
