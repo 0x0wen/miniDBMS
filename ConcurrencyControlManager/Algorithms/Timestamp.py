@@ -162,14 +162,14 @@ class TimestampBasedProtocol(AbstractAlgorithm):
         lastWriteTimestamp = self.writeTimestamp(item)
         lastReadTimestamp = self.readTimestamp(item)
 
-        if actionType == "W":
+        if actionType == "write":
             # Validate write action
             if lastReadTimestamp > currentTimestamp or lastWriteTimestamp > currentTimestamp:
                 return Response(status=False, message=f"Transaction {transactionId} denied: write conflict on {item}.")
             if item in self.locks and self.locks[item] != transactionId:
                 return Response(status=False, message=f"Transaction {transactionId} denied: write lock conflict on {item}.")
             
-        elif actionType == "R":
+        elif actionType == "read":
             # Validate read action
             if lastWriteTimestamp > currentTimestamp:
                 return Response(status=False, message=f"Transaction {transactionId} denied: write conflict on {item}.")
