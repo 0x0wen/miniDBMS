@@ -1,4 +1,5 @@
 from ConcurrencyControlManager.Algorithms.AbstractAlgorithm import AbstractAlgorithm
+from ConcurrencyControlManager.Algorithms.Timestamp import TimestampBasedProtocol
 from ConcurrencyControlManager.Algorithms.TwoPhaseLock import TwoPhaseLock
 from Interface import Response, Action, Rows
 from Enum.ConcurrencyControlAlgorithmEnum import ConcurrencyControlAlgorithmEnum
@@ -89,7 +90,7 @@ class ConcurrentControlManager:
                 case ConcurrencyControlAlgorithmEnum.LOCK:
                     self.abstract_algorithm = TwoPhaseLock()
                 case ConcurrencyControlAlgorithmEnum.TIMESTAMP:
-                    pass
+                    self.abstract_algorithm = TimestampBasedProtocol()
                 case ConcurrencyControlAlgorithmEnum.MVCC:
                     pass
                 case _:
