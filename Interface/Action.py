@@ -1,4 +1,4 @@
-from Enum import ActionEnum
+from Enum.ActionEnum import ActionEnum
 
 
 class Action:
