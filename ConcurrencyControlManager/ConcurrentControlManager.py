@@ -11,6 +11,15 @@ class ConcurrentControlManager:
     """
     Manages concurrency control for database transactions using various algorithms.
     """
+    instance = None
+
+    def __new__(cls):
+        """
+        Creates a new instance of the ConcurrentControlManager if one does not exist.
+        """
+        if not hasattr(cls, 'instance'):
+            cls.instance = super(ConcurrentControlManager, cls).__new__(cls)
+        return cls.instance
 
     def __init__(self):
         """
