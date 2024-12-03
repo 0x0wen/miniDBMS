@@ -295,3 +295,34 @@ class TwoPhaseLock(AbstractAlgorithm):
     def end(self, transaction_id: int) -> bool:
         pass
         ### End of method ###
+
+db_object_1 = Rows(["W1(A)", "R1(A)", "C1"])
+db_object_2 = Rows(["W2(A)", "R2(A)", "C2"])
+db_object_3 = Rows(["W1(A)"])
+db_object_4 = Rows(["W2(A)"])
+
+two_phase = TwoPhaseLock()
+# two_phase.lock_s_table.append((2, 'A'))
+trans_1 = two_phase.run(db_object_1, 1)
+if (trans_1):
+    print("Transaction 1 success (correct behavior)")
+else:
+    print("Transaction 1 failed (incorrect behavior)")
+
+trans_2 = two_phase.run(db_object_2, 2)
+if (trans_2):
+    print("Transaction 2 success (correct behavior)")
+else:
+    print("Transaction 2 failed (incorrect behavior)")
+
+trans_3 = two_phase.run(db_object_3, 1)
+if (trans_3):
+    print("Transaction 3 success (correct behavior)")
+else:
+    print("Transaction 3 failed (incorrect behavior)")
+
+trans_4 = two_phase.run(db_object_4, 2)
+if (trans_4):
+    print("Transaction 4 success (incorrect behavior)")
+else:
+    print("Transaction 4 failed (correct behavior)")
