@@ -126,14 +126,15 @@ class TimestampBasedProtocol(AbstractAlgorithm, ABC):
             return
 
     def validate(self, dbObject: Rows, transactionId: int, action: Action) -> Response:
+
         actionType = action.action[0].name
-        item = dbObject.data[0]
+        item = dbObject.data[0].split("(")[1].split(")")[0] # Extract item from dbObject
 
         currentTimestamp = self.getTimestamp(transactionId)
         lastWriteTimestamp = self.writeTimestamp(item)
         lastReadTimestamp = self.readTimestamp(item)
 
-        if actionType == "W":
+        if actionType == "WRITE":
             # Validate write action
             if lastReadTimestamp > currentTimestamp or lastWriteTimestamp > currentTimestamp:
                 return Response(status=False, message=transactionId)
@@ -141,7 +142,7 @@ class TimestampBasedProtocol(AbstractAlgorithm, ABC):
                 return Response(status=False,
                                 message=transactionId)
 
-        elif actionType == "R":
+        elif actionType == "READ":
             # Validate read action
             if lastWriteTimestamp > currentTimestamp:
                 return Response(status=False,
@@ -170,19 +171,31 @@ if __name__ == "__main__":
     timestamp_protocol = TimestampBasedProtocol()
     trans1 = timestamp_protocol.validate(db_object_1, 1, Action(["write"]))
     if trans1.allowed:
+        print("Transaction 1 allowed")
         timestamp_protocol.logObject(db_object_1, 1)
+    else:
+        print("Transaction 1 denied")
 
     trans2 = timestamp_protocol.validate(db_object_2, 2, Action(["write"]))
     if trans2.allowed:
+        print("Transaction 2 allowed")
         timestamp_protocol.logObject(db_object_2, 2)
+    else:
+        print("Transaction 2 denied")
 
     trans3 = timestamp_protocol.validate(db_object_3, 1, Action(["commit"]))
     if trans3.allowed:
+        print("Transaction 3 allowed")
         timestamp_protocol.logObject(db_object_3, 1)
+    else:
+        print("Transaction 3 denied")
 
     trans4 = timestamp_protocol.validate(db_object_4, 2, Action(["write"]))
     if trans4.allowed:
+        print("Transaction 4 allowed")
         timestamp_protocol.logObject(db_object_4, 2)
+    else:
+        print("Transaction 4 denied")
 
     # Expected output:
     # Transaction 1 write-lock acquired on A.
