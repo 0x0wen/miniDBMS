@@ -5,7 +5,7 @@ from Interface.Response import Response
 
 class AbstractAlgorithm(ABC):
     @abstractmethod
-    def run(self, db_object: Rows, transaction_id: int) -> None:
+    def logObject(self, db_object: Rows, transaction_id: int) -> None:
         raise NotImplementedError
 
     @abstractmethod

@@ -1,7 +1,9 @@
 from ConcurrencyControlManager.Algorithms.AbstractAlgorithm import AbstractAlgorithm
 from ConcurrencyControlManager.Algorithms.Timestamp import TimestampBasedProtocol
 from ConcurrencyControlManager.Algorithms.TwoPhaseLock import TwoPhaseLock
-from Interface import Response, Action, Rows
+from Interface.Response import Response
+from Interface.Action import Action
+from Interface.Rows import Rows
 from Enum.ConcurrencyControlAlgorithmEnum import ConcurrencyControlAlgorithmEnum
 
 
@@ -37,7 +39,7 @@ class ConcurrentControlManager:
             transaction_id (int): The ID of the transaction.
         """
         try:
-            self.abstract_algorithm.run(db_object, transaction_id)
+            self.abstract_algorithm.logObject(db_object, transaction_id)
         except Exception as e:
             print(f"Exception: {e}")
 

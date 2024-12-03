@@ -1,5 +1,7 @@
 import time
 import re
+from array import ArrayType
+
 from Interface.Rows import Rows
 from Interface.Action import Action
 from Interface.Response import Response
@@ -104,31 +106,31 @@ class TimestampBasedProtocol(AbstractAlgorithm):
 
         return parsed_rows
 
-    def run(self, db_object: Rows, transaction_id: int) -> bool:
-        parsed_db_object = self.parseRows(db_object)
-        print(f'parsed_db_object: {parsed_db_object}')
-        
-        for item in parsed_db_object:
-            if item[0] == "W":
-                valid = self.lockX(transaction_id, item[2]) 
-                if not valid:
-                    print(f"Failed to lock-X {item[2]}")
-                    return False
-                print(f"Transaction {transaction_id} writes {item[2]}")
-            
-            elif item[0] == "R":
-                valid = self.lockS(transaction_id, item[2])  
-                if not valid:
-                    print(f"Failed to lock-S {item[2]}")
-                    return False
-                print(f"Transaction {transaction_id} reads {item[2]}")
-            
-            elif item[0] == "C":
-                print(f"Transaction {transaction_id} commits.")
-                self.end(transaction_id)
-                return True 
-            
-        return True
+    def logObject(self, db_object: Rows, transaction_id: int) -> None:
+        try:
+            parsed_db_object = self.parseRows(db_object)
+            print(f'parsed_db_object: {parsed_db_object}')
+
+            for item in parsed_db_object:
+                if item[0] == "W":
+                    valid = self.lockX(transaction_id, item[2])
+                    if not valid:
+                        print(f"Failed to lock-X {item[2]}")
+                        return
+                    print(f"Transaction {transaction_id} writes {item[2]}")
+
+                elif item[0] == "R":
+                    valid = self.lockS(transaction_id, item[2])
+                    if not valid:
+                        print(f"Failed to lock-S {item[2]}")
+                        return
+                    print(f"Transaction {transaction_id} reads {item[2]}")
+
+                elif item[0] == "C":
+                    print(f"Transaction {transaction_id} commits.")
+                    self.end(transaction_id)
+        except Exception as e:
+            print(f"Exception: {e}")
 
     def validate(self, db_object: Rows, transaction_id: int, action: Action) -> Response:
         return Response(status=True, message=transaction_id)
@@ -147,27 +149,17 @@ if __name__ == "__main__":
     db_object_4 = Rows(["W2(A)"])
 
     timestamp_protocol = TimestampBasedProtocol()
+    timestamp_protocol.logObject(db_object_1, 1)
+    timestamp_protocol.logObject(db_object_2, 2)
+    timestamp_protocol.logObject(db_object_3, 1)
+    timestamp_protocol.logObject(db_object_4, 2)
 
-    trans_1 = timestamp_protocol.run(db_object_1, 1)
-    if trans_1:
-        print("Transaction 1 success (correct behavior)")
-    else:
-        print("Transaction 1 failed (incorrect behavior)")
-
-    trans_2 = timestamp_protocol.run(db_object_2, 2)
-    if trans_2:
-        print("Transaction 2 success (correct behavior)")
-    else:
-        print("Transaction 2 failed (incorrect behavior)")
-
-    trans_3 = timestamp_protocol.run(db_object_3, 1)
-    if trans_3:
-        print("Transaction 3 success (correct behavior)")
-    else:
-        print("Transaction 3 failed (incorrect behavior)")
-
-    trans_4 = timestamp_protocol.run(db_object_4, 2)
-    if trans_4:
-        print("Transaction 4 success (incorrect behavior)")
-    else:
-        print("Transaction 4 failed (correct behavior)")
+    # Expected output:
+    # Transaction 1 write-lock acquired on A.
+    # Transaction 1 reads A.
+    # Transaction 1 commits.
+    # Transaction 2 write-lock acquired on A.
+    # Transaction 2 reads A.
+    # Transaction 2 commits.
+    # Transaction 1 write-lock acquired on A.
+    # Transaction 2 fail, because there's a lock
