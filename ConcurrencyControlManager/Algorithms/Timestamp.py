@@ -155,28 +155,28 @@ class TimestampBasedProtocol(AbstractAlgorithm):
         return True
 
     def validate(self, dbObject: Rows, transactionId: int, action: Action) -> Response:
-        actionType = action.type 
-        item = action.item  
-
         currentTimestamp = self.getTimestamp(transactionId)
-        lastWriteTimestamp = self.writeTimestamp(item)
-        lastReadTimestamp = self.readTimestamp(item)
+        
+        for act in action():
+            item = act.item 
+            actionType = act.name 
 
-        if actionType == "write":
-            # Validate write action
-            if lastReadTimestamp > currentTimestamp or lastWriteTimestamp > currentTimestamp:
-                return Response(status=False, message=f"Transaction {transactionId} denied: write conflict on {item}.")
-            if item in self.locks and self.locks[item] != transactionId:
-                return Response(status=False, message=f"Transaction {transactionId} denied: write lock conflict on {item}.")
-            
-        elif actionType == "read":
-            # Validate read action
-            if lastWriteTimestamp > currentTimestamp:
-                return Response(status=False, message=f"Transaction {transactionId} denied: write conflict on {item}.")
-            if item in self.locks and self.locks[item] != transactionId:
-                return Response(status=False, message=f"Transaction {transactionId} denied: read lock conflict on {item}.")
+            lastWriteTimestamp = self.writeTimestamp(item)
+            lastReadTimestamp = self.readTimestamp(item)
 
-        return Response(status=True, message=f"Transaction {transactionId} validated successfully for action {actionType} on {item}.")
+            if actionType == "WRITE":
+                if lastReadTimestamp > currentTimestamp or lastWriteTimestamp > currentTimestamp:
+                    return Response(status=False, message=f"Transaction {transactionId} denied: write conflict on {item}.")
+                if item in self.locks and self.locks[item] != transactionId:
+                    return Response(status=False, message=f"Transaction {transactionId} denied: write lock conflict on {item}.")
+                
+            elif actionType == "READ":
+                if lastWriteTimestamp > currentTimestamp:
+                    return Response(status=False, message=f"Transaction {transactionId} denied: write conflict on {item}.")
+                if item in self.locks and self.locks[item] != transactionId:
+                    return Response(status=False, message=f"Transaction {transactionId} denied: read lock conflict on {item}.")
+
+        return Response(status=True, message=f"Transaction {transactionId} validated successfully.")
 
 
     def end(self, transactionId: int) -> bool:
