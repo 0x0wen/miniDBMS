@@ -18,171 +18,171 @@ class Rows(Generic[T]):
 
 class AbstractAlgorithm(ABC):
     @abstractmethod
-    def run(self, db_object: Rows, transaction_id: int) -> None:
+    def run(self, dbObject: Rows, transactionId: int) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    def validate(self, db_object: Rows, transaction_id: int, action: Action) -> Response:
+    def validate(self, dbObject: Rows, transactionId: int, action: Action) -> Response:
         raise NotImplementedError
 
     @abstractmethod
-    def end(self, transaction_id: int) -> bool:
+    def end(self, transactionId: int) -> bool:
         raise NotImplementedError
 
 class TimestampBasedProtocol(AbstractAlgorithm):
     def __init__(self):
-        self.timestamp_table = {}
-        self.data_timestamps = {}
-        self.transaction_queue = []
-        self.locks = {}  
+        self.timestampTable = {}
+        self.dataTimestamps = {}
+        self.transactionQueue = []
+        self.locks = {}
 
-    def getTimestamp(self, transaction_id: int) -> int:
-        if transaction_id not in self.timestamp_table:
-            self.timestamp_table[transaction_id] = int(time.time())
-        return self.timestamp_table[transaction_id]
+    def getTimestamp(self, transactionId: int) -> int:
+        if transactionId not in self.timestampTable:
+            self.timestampTable[transactionId] = int(time.time())
+        return self.timestampTable[transactionId]
 
-    def readTimestamp(self, data_item: str) -> int:
-        if data_item not in self.data_timestamps:
-            return -1  
-        return self.data_timestamps[data_item]
-
-    def writeTimestamp(self, data_item: str) -> int:
-        if data_item not in self.data_timestamps:
+    def readTimestamp(self, dataItem: str) -> int:
+        if dataItem not in self.dataTimestamps:
             return -1
-        return self.data_timestamps[data_item]
+        return self.dataTimestamps[dataItem]
 
-    def lockS(self, transaction_id: int, data_item: str) -> bool:
-        current_timestamp = self.getTimestamp(transaction_id)
-        last_write_timestamp = self.writeTimestamp(data_item)
+    def writeTimestamp(self, dataItem: str) -> int:
+        if dataItem not in self.dataTimestamps:
+            return -1
+        return self.dataTimestamps[dataItem]
 
-        if last_write_timestamp > current_timestamp:
-            print(f"Transaction {transaction_id} denied for read on {data_item} due to write timestamp conflict.")
+    def lockS(self, transactionId: int, dataItem: str) -> bool:
+        currentTimestamp = self.getTimestamp(transactionId)
+        lastWriteTimestamp = self.writeTimestamp(dataItem)
+
+        if lastWriteTimestamp > currentTimestamp:
+            print(f"Transaction {transactionId} denied for read on {dataItem} due to write timestamp conflict.")
             return False
         
-        if data_item in self.locks and self.locks[data_item] != transaction_id:
-            print(f"Transaction {transaction_id} denied for read-lock on {data_item} due to another transaction holding the lock.")
+        if dataItem in self.locks and self.locks[dataItem] != transactionId:
+            print(f"Transaction {transactionId} denied for read-lock on {dataItem} due to another transaction holding the lock.")
             return False
         
-        self.locks[data_item] = transaction_id 
-        print(f"Transaction {transaction_id} read-lock acquired on {data_item}.")
+        self.locks[dataItem] = transactionId 
+        print(f"Transaction {transactionId} read-lock acquired on {dataItem}.")
         return True
 
-    def lockX(self, transaction_id: int, data_item: str) -> bool:
-        current_timestamp = self.getTimestamp(transaction_id)
-        last_read_timestamp = self.readTimestamp(data_item)
-        last_write_timestamp = self.writeTimestamp(data_item)
+    def lockX(self, transactionId: int, dataItem: str) -> bool:
+        currentTimestamp = self.getTimestamp(transactionId)
+        lastReadTimestamp = self.readTimestamp(dataItem)
+        lastWriteTimestamp = self.writeTimestamp(dataItem)
 
-        if last_read_timestamp > current_timestamp or last_write_timestamp > current_timestamp:
-            print(f"Transaction {transaction_id} denied for write on {data_item} due to timestamp conflict.")
+        if lastReadTimestamp > currentTimestamp or lastWriteTimestamp > currentTimestamp:
+            print(f"Transaction {transactionId} denied for write on {dataItem} due to timestamp conflict.")
             return False
 
-        if data_item in self.locks and self.locks[data_item] != transaction_id:
-            print(f"Transaction {transaction_id} denied for write-lock on {data_item} due to another transaction holding the lock.")
+        if dataItem in self.locks and self.locks[dataItem] != transactionId:
+            print(f"Transaction {transactionId} denied for write-lock on {dataItem} due to another transaction holding the lock.")
             return False
         
-        self.data_timestamps[data_item] = current_timestamp
-        self.locks[data_item] = transaction_id 
-        print(f"Transaction {transaction_id} write-lock acquired on {data_item}.")
+        self.dataTimestamps[dataItem] = currentTimestamp
+        self.locks[dataItem] = transactionId 
+        print(f"Transaction {transactionId} write-lock acquired on {dataItem}.")
         return True
 
-    def unlock(self, transaction_id: int, data_item: str) -> bool:
-        if data_item in self.locks and self.locks[data_item] == transaction_id:
-            del self.locks[data_item] 
-            print(f"Transaction {transaction_id} released lock on {data_item}.")
+    def unlock(self, transactionId: int, dataItem: str) -> bool:
+        if dataItem in self.locks and self.locks[dataItem] == transactionId:
+            del self.locks[dataItem] 
+            print(f"Transaction {transactionId} released lock on {dataItem}.")
             return True
-        print(f"Transaction {transaction_id} failed to release lock on {data_item}.")
+        print(f"Transaction {transactionId} failed to release lock on {dataItem}.")
         return False
 
-    def deadlockPrevention(self, transaction_id: int) -> bool:
-        if transaction_id not in self.transaction_queue:
-            self.transaction_queue.append(transaction_id)
+    def deadlockPrevention(self, transactionId: int) -> bool:
+        if transactionId not in self.transactionQueue:
+            self.transactionQueue.append(transactionId)
         return True
 
-    def starvationHandling(self, transaction_id: int, data_item: str) -> bool:
-        current_timestamp = self.getTimestamp(transaction_id)
-        if transaction_id in self.transaction_queue:
-            print(f"Transaction {transaction_id} is starving, attempting to acquire {data_item}.")
+    def starvationHandling(self, transactionId: int, dataItem: str) -> bool:
+        currentTimestamp = self.getTimestamp(transactionId)
+        if transactionId in self.transactionQueue:
+            print(f"Transaction {transactionId} is starving, attempting to acquire {dataItem}.")
             return True
         return False
 
-    def parseRows(self, db_object: Rows):
-        parsed_rows = []
-        for row in db_object.data:
+    def parseRows(self, dbObject: Rows):
+        parsedRows = []
+        for row in dbObject.data:
             action = row[0]  
             match = re.match(r'([WRC])(\d*)\(?(\w*)\)?', row)  
 
             if match:
-                action_type = match.group(1)
+                actionType = match.group(1)
                 number = match.group(2)
                 item = match.group(3)
 
-                if action_type == "C":
-                    parsed_rows.append([action_type])
+                if actionType == "C":
+                    parsedRows.append([actionType])
                 else:
                     if item:
-                        parsed_rows.append([action_type, int(number), item])
+                        parsedRows.append([actionType, int(number), item])
                     else:
-                        parsed_rows.append([action_type, int(number)]) 
+                        parsedRows.append([actionType, int(number)]) 
             else:
                 print(f"Invalid format: {row}")
 
-        return parsed_rows
+        return parsedRows
 
-    def run(self, db_object: Rows, transaction_id: int) -> bool:
-        parsed_db_object = self.parseRows(db_object)
-        print(f'parsed_db_object: {parsed_db_object}')
+    def run(self, dbObject: Rows, transactionId: int) -> bool:
+        parsedDbObject = self.parseRows(dbObject)
+        print(f'parsedDbObject: {parsedDbObject}')
         
-        for item in parsed_db_object:
+        for item in parsedDbObject:
             if item[0] == "W":
-                valid = self.lockX(transaction_id, item[2]) 
+                valid = self.lockX(transactionId, item[2]) 
                 if not valid:
                     print(f"Failed to lock-X {item[2]}")
                     return False
-                print(f"Transaction {transaction_id} writes {item[2]}")
+                print(f"Transaction {transactionId} writes {item[2]}")
             
             elif item[0] == "R":
-                valid = self.lockS(transaction_id, item[2])  
+                valid = self.lockS(transactionId, item[2])  
                 if not valid:
                     print(f"Failed to lock-S {item[2]}")
                     return False
-                print(f"Transaction {transaction_id} reads {item[2]}")
+                print(f"Transaction {transactionId} reads {item[2]}")
             
             elif item[0] == "C":
-                print(f"Transaction {transaction_id} commits.")
-                self.end(transaction_id)
+                print(f"Transaction {transactionId} commits.")
+                self.end(transactionId)
                 return True 
             
         return True
 
-    def validate(self, db_object: Rows, transaction_id: int, action: Action) -> Response:
-        action_type = action.type 
+    def validate(self, dbObject: Rows, transactionId: int, action: Action) -> Response:
+        actionType = action.type 
         item = action.item  
 
-        current_timestamp = self.getTimestamp(transaction_id)
-        last_write_timestamp = self.writeTimestamp(item)
-        last_read_timestamp = self.readTimestamp(item)
+        currentTimestamp = self.getTimestamp(transactionId)
+        lastWriteTimestamp = self.writeTimestamp(item)
+        lastReadTimestamp = self.readTimestamp(item)
 
-        if action_type == "W":
+        if actionType == "W":
             # Validate write action
-            if last_read_timestamp > current_timestamp or last_write_timestamp > current_timestamp:
-                return Response(status=False, message=f"Transaction {transaction_id} denied: write conflict on {item}.")
-            if item in self.locks and self.locks[item] != transaction_id:
-                return Response(status=False, message=f"Transaction {transaction_id} denied: write lock conflict on {item}.")
+            if lastReadTimestamp > currentTimestamp or lastWriteTimestamp > currentTimestamp:
+                return Response(status=False, message=f"Transaction {transactionId} denied: write conflict on {item}.")
+            if item in self.locks and self.locks[item] != transactionId:
+                return Response(status=False, message=f"Transaction {transactionId} denied: write lock conflict on {item}.")
             
-        elif action_type == "R":
+        elif actionType == "R":
             # Validate read action
-            if last_write_timestamp > current_timestamp:
-                return Response(status=False, message=f"Transaction {transaction_id} denied: write conflict on {item}.")
-            if item in self.locks and self.locks[item] != transaction_id:
-                return Response(status=False, message=f"Transaction {transaction_id} denied: read lock conflict on {item}.")
+            if lastWriteTimestamp > currentTimestamp:
+                return Response(status=False, message=f"Transaction {transactionId} denied: write conflict on {item}.")
+            if item in self.locks and self.locks[item] != transactionId:
+                return Response(status=False, message=f"Transaction {transactionId} denied: read lock conflict on {item}.")
 
-        return Response(status=True, message=f"Transaction {transaction_id} validated successfully for action {action_type} on {item}.")
+        return Response(status=True, message=f"Transaction {transactionId} validated successfully for action {actionType} on {item}.")
 
 
-    def end(self, transaction_id: int) -> bool:
-        items_to_unlock = [item for item, tid in self.locks.items() if tid == transaction_id]
-        for item in items_to_unlock:
-            self.unlock(transaction_id, item)
+    def end(self, transactionId: int) -> bool:
+        itemsToUnlock = [item for item, tid in self.locks.items() if tid == transactionId]
+        for item in itemsToUnlock:
+            self.unlock(transactionId, item)
         return True
 
 if __name__ == "__main__":
