@@ -11,9 +11,6 @@ class TwoPhaseLock(AbstractAlgorithm):
         self.lock_s_table = []
         self.lock_x_table = []
 
-        # Queue data format: [[t_id: int, lock_type: str, data_item: str], ...], ex: [[1, 'S', 'A'], [2, 'X', 'B'], ...]
-        self.queued_lock_requests = Queue([])
-
         # Queue data format: [[action: str, t_id: int, data_item: str], ...], ex: [['W', 1, 'A'], ['R', 2, 'B'], ['C', 1, ''], ...]
         self.queued_transactions = Queue([])
 
@@ -63,36 +60,6 @@ class TwoPhaseLock(AbstractAlgorithm):
         if self.isLockedSByOtherTransaction(transaction_id, data_item) or self.isLockedXByOtherTransaction(transaction_id, data_item):
             return False
         self.lock_x_table.append((transaction_id, data_item))
-
-        return True
-        ### End of method ###
-
-    def unlockS(self, transaction_id: int, data_item: str) -> bool:
-        if not self.isLockedSByOtherTransaction(transaction_id, data_item):
-            return False
-        idx = -1
-        for i in range(len(self.lock_s_table)):
-            if self.lock_s_table[i][0] == transaction_id and self.lock_s_table[i][1] == data_item:
-                idx = i
-                break
-        if idx == -1:
-            return False
-        self.lock_s_table.pop(idx)
-
-        return True
-        ### End of method ###
-
-    def unlockX(self, transaction_id: int, data_item: str) -> bool:
-        if not self.isLockedXByOtherTransaction(transaction_id, data_item):
-            return False
-        idx = -1
-        for i in range(len(self.lock_x_table)):
-            if self.lock_x_table[i][0] == transaction_id and self.lock_x_table[i][1] == data_item:
-                idx = i
-                break
-        if idx == -1:
-            return False
-        self.lock_x_table.pop(idx)
 
         return True
         ### End of method ###
@@ -162,6 +129,50 @@ class TwoPhaseLock(AbstractAlgorithm):
         return parsed_rows
         ### End of method ###
     
+    def handleLockXRequest(self, transaction_id: int, data_item: str) -> bool:
+        valid = False
+
+        if not ((self.isLockedXByOtherTransaction(transaction_id, data_item)) or (self.isLockedSByOtherTransaction(transaction_id, data_item))):
+            if (self.isLockedSBySelf(transaction_id, data_item)):
+                valid = self.upgradeLockSToX(transaction_id, data_item)
+            elif (self.isLockedXBySelf(transaction_id, data_item)):
+                valid = True
+            else:
+                valid = self.lockX(transaction_id, data_item)
+        
+        return valid
+        ### End of method ###
+    
+    def handleLockSRequest(self, transaction_id: int, data_item: str) -> bool:
+        valid = False
+
+        if not (self.isLockedXByOtherTransaction(transaction_id, data_item)):
+            if (self.isLockedSBySelf(transaction_id, data_item) or self.isLockedXBySelf(transaction_id, data_item)):
+                valid = True
+            else:
+                valid = self.lockS(transaction_id, data_item)
+        
+        return valid
+        ### End of method ###
+
+    def handleCommit(self, transaction_id: int):
+        valid = (self.unlockAllX(transaction_id)) and (self.unlockAllS(transaction_id))
+        print(f"Transaction {transaction_id} commits")
+
+        #TODO: communicate with other components
+
+        return valid
+        ### End of method ###
+    
+    def handleAbort(self, transaction_id: int):
+        valid = (self.unlockAllX(transaction_id)) and (self.unlockAllS(transaction_id))
+        print(f"Transaction {transaction_id} aborts")
+
+        #TODO: communicate with other components
+
+        return valid
+        ### End of method ###
+    
     def isLockedByOlderTransaction(self, transaction_id: int, data_item: str) -> bool:
         for lock in self.lock_s_table:
             if (lock[0] < transaction_id) and (lock[1] == data_item):
@@ -192,10 +203,6 @@ class TwoPhaseLock(AbstractAlgorithm):
         
         else:
             transaction_to_wound = self.getTransactionIdOfLock(data_item)
-
-            if (transaction_to_wound == -1):
-                # This condition will never be met
-                return "WAIT"
             
             # TODO: Implement abort for transaction_to_wound
             self.unlockAllS(transaction_to_wound)
@@ -204,86 +211,117 @@ class TwoPhaseLock(AbstractAlgorithm):
             # TODO: somehow notify the transaction_to_wound to abort
 
             return "WOUND"
+
+        ### End of method ###
     
     def handleQueuedTransactions(self):
-        pass
+        if not (self.queued_transactions.isEmpty()):
+            is_possible_to_handle = False
+
+            item = self.queued_transactions.head()
+
+            if ((item[0] == "W") and (not self.isLockedXByOtherTransaction(item[1], item[2]))):
+                is_possible_to_handle = True
+            elif ((item[0] == "R") and (not self.isLockedXByOtherTransaction(item[1], item[2]))):
+                is_possible_to_handle = True
+            
+            if (is_possible_to_handle):
+                print("Handling queued transactions")
+            else:
+                print("Cannot handle queued transactions yet")
+            
+            while (is_possible_to_handle):
+                item = self.queued_transactions.dequeue()
+
+                if (item[0] == "W"):
+                    valid = self.handleLockXRequest(item[1], item[2])
+
+                    if (not valid):
+                        print(f"Transaction {item[1]} failed to lock-X {item[2]}")
+                        is_possible_to_handle = False
+                        self.queued_transactions.enqueueFront(item)
+                    
+                    if (valid):
+                        print(f"Transaction {item[1]} writes {item[2]}")
+                
+                elif (item[0] == "R"):
+                    valid = self.handleLockSRequest(item[1], item[2])
+
+                    if not (valid):
+                        print(f"Transaction {item[1]} failed to lock-S {item[2]}")
+                        is_possible_to_handle = False
+                        self.queued_transactions.enqueueFront(item)
+                    
+                    if (valid):
+                        print(f"Transaction {item[1]} reads {item[2]}")
+                
+                elif (item[0] == "C"):
+                    self.handleCommit(item[1])
+                
+                elif (item[0] == "A"):
+                    self.handleAbort(item[1])
+                
+                if (self.queued_transactions.isEmpty()):
+                    break
+        
+        ### End of method ###
 
     def run(self, db_object: Rows, transaction_id: int) -> None:
         parsed_db_object = self.parseRows(db_object)
         enqueue_the_rest = False
 
         for item in parsed_db_object:
-            # if (enqueue_the_rest):
-            #     self.queued_transactions.enqueue([item[0], item[1], item[2]])
-            #     continue
+            if (enqueue_the_rest):
+                self.queued_transactions.enqueue([item[0], item[1], item[2]])
+                continue
 
             if item[0] == "W":
-                valid = False
-
-                if not ((self.isLockedXByOtherTransaction(transaction_id, item[2])) or (self.isLockedSByOtherTransaction(transaction_id, item[2]))):
-                    if (self.isLockedSBySelf(transaction_id, item[2])):
-                        valid = self.upgradeLockSToX(transaction_id, item[2])
-                    elif (self.isLockedXBySelf(transaction_id, item[2])):
-                        valid = True
-                    else:
-                        valid = self.lockX(transaction_id, item[2])
+                valid = self.handleLockXRequest(transaction_id, item[2])
 
                 if (not valid):
                     print(f"Transaction {transaction_id} failed to lock-X {item[2]}")
 
                     # TODO: finish this part
-                    # to_do = self.woundOrWait(transaction_id, item[2])
+                    to_do = self.woundOrWait(transaction_id, item[2])
 
-                    # if (to_do == "WAIT"):
-                    #     print(f"Transaction {transaction_id} is queued")
-                    #     enqueue_the_rest = True
-                    # else:
-                    #     print(f"Transaction {transaction_id} wound other transaction")
-                    #     valid = self.lockX(transaction_id, item[2])
+                    if (to_do == "WAIT"):
+                        self.queued_transactions.enqueue([item[0], item[1], item[2]])
+                        print(f"Transaction {transaction_id} is queued")
+                        enqueue_the_rest = True
+                    else:
+                        print(f"Transaction {transaction_id} wound other transaction")
+                        valid = self.lockX(transaction_id, item[2])
 
                 if (valid):
                     print(f"Transaction {transaction_id} writes {item[2]}")
             
             elif item[0] == "R":
-                valid = False
-
-                if not ((self.isLockedXByOtherTransaction(transaction_id, item[2]))):
-                    if ((self.isLockedSBySelf(transaction_id, item[2])) or (self.isLockedXBySelf(transaction_id, item[2]))):
-                        valid = True
-                    else:
-                        valid = self.lockS(transaction_id, item[2])
+                valid = self.handleLockSRequest(transaction_id, item[2])
 
                 if not (valid):
                     print(f"Transaction {transaction_id} failed to lock-S {item[2]}")
                     
                     # TODO: finish this part
-                    # to_do = self.woundOrWait(transaction_id, item[2])
+                    to_do = self.woundOrWait(transaction_id, item[2])
 
-                    # if (to_do == "WAIT"):
-                    #     print(f"Transaction {transaction_id} is queued")
-                    #     enqueue_the_rest = True
-                    # else:
-                    #     print(f"Transaction {transaction_id} wound other transaction")
-                    #     valid = self.lockS(transaction_id, item[2])
+                    if (to_do == "WAIT"):
+                        self.queued_transactions.enqueue([item[0], transaction_id, item[2]])
+                        print(f"Transaction {transaction_id} is queued")
+                        enqueue_the_rest = True
+                    else:
+                        print(f"Transaction {transaction_id} wound other transaction")
+                        valid = self.lockS(transaction_id, item[2])
 
                 if (valid):
                     print(f"Transaction {transaction_id} reads {item[2]}")
             
             elif item[0] == "C":
-                valid = (self.unlockAllX(transaction_id)) and (self.unlockAllS(transaction_id))
-                print(f"Transaction {transaction_id} commits")
-
-                # TODO: communicate with other components
+                valid = self.handleCommit(transaction_id)
             
             elif item[0] == "A":
-                valid = (self.unlockAllX(transaction_id)) and (self.unlockAllS(transaction_id))
-                print(f"Transaction {transaction_id} aborts")
+                valid = self.handleAbort(transaction_id)
 
-                # TODO: communicate with other components
-                
-
-        # TODO: continue this part
-        # self.handleQueuedTransactions()
+        self.handleQueuedTransactions()
 
         ### End of method ###
 
