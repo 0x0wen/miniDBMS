@@ -105,7 +105,50 @@ class TimestampBasedAlgorithm(AbstractAlgorithm):
             print(f"Transaction {transaction_id} failed to commit due to timestamp violations.")
 
     def validate(self, db_object: Rows, transaction_id: int, action: Action) -> Response:
-        return Response(success=True, message="Validated successfully")
+        data_item = db_object["data_item"]
+        read_ts = self.read_ts_table.get(data_item, -1)
+        write_ts = self.write_ts_table.get(data_item, -1)
+        txn_ts = self.getTransactionTimestamp(transaction_id)
+
+        if  action == "write":
+            if read_ts is not None and  txn_ts < read_ts:
+                return Response(status=False, message="Validated failed") 
+            else:
+                return Response(status=True, message="Validated successfully")
+        elif  action == "read" :
+            if write_ts is not None and txn_ts < write_ts:
+                return Response(status=False, message="Validated failed") 
+            else:
+                return Response(status=True, message="Validated successfully")
+        # if txn_ts is None:
+        #     return Response(success=False, message="Validated failed")
+
+        # if action == "read":
+        #     if not self.isValidRead(transaction_id, data_item):
+        #         return Response(success=False, message="Validated failed")
+        #     return Response(success=True, message="Validated successfully")
+
+        # elif action == "write":
+        #     if not self.isValidWrite(transaction_id, data_item):
+        #         return Response(success=False, message="Validated failed")
+        #     return Response(success=True, message="Validated successfully")
+        
+        ################################################################################
+        # if txn_ts is None:
+        #     return Response(success=False, message="Validated failed")
+        
+        ########################################################
+        # if  action == "write":
+        #     if getReadTimestamp != NULL and self.compareTimestamps(transaction_timestamp, getReadTimestamp): 
+        #         return Response(success=False, message="Validated failed") 
+        #     else:
+        #         return Response(success=True, message="Validated successfully")
+        # elif  action == "read" :
+        #     if getWriteTimestamp != NULL and self.compareTimestamps(transaction_timestamp, getWriteTimestamp):
+        #         return Response(success=False, message="Validated failed") 
+        #     else:
+        #         return Response(success=True, message="Validated successfully")
+        ##return Response(success=True, message="Validated successfully")
 
     def end(self, transaction_id: int) -> bool:
         print(f"Ending transaction {transaction_id}")
