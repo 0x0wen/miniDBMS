@@ -7,12 +7,13 @@ from Interface.Action import Action
 from Interface.Response import Response
 from ConcurrencyControlManager.Algorithms.AbstractAlgorithm import AbstractAlgorithm
 
+
 class TimestampBasedProtocol(AbstractAlgorithm):
     def __init__(self):
         self.timestamp_table = {}
         self.data_timestamps = {}
         self.transaction_queue = []
-        self.locks = {}  
+        self.locks = {}
 
     def getTimestamp(self, transaction_id: int) -> int:
         if transaction_id not in self.timestamp_table:
@@ -21,7 +22,7 @@ class TimestampBasedProtocol(AbstractAlgorithm):
 
     def readTimestamp(self, data_item: str) -> int:
         if data_item not in self.data_timestamps:
-            return -1  
+            return -1
         return self.data_timestamps[data_item]
 
     def writeTimestamp(self, data_item: str) -> int:
@@ -36,12 +37,13 @@ class TimestampBasedProtocol(AbstractAlgorithm):
         if last_write_timestamp > current_timestamp:
             print(f"Transaction {transaction_id} denied for read on {data_item} due to write timestamp conflict.")
             return False
-        
+
         if data_item in self.locks and self.locks[data_item] != transaction_id:
-            print(f"Transaction {transaction_id} denied for read-lock on {data_item} due to another transaction holding the lock.")
+            print(
+                f"Transaction {transaction_id} denied for read-lock on {data_item} due to another transaction holding the lock.")
             return False
-        
-        self.locks[data_item] = transaction_id 
+
+        self.locks[data_item] = transaction_id
         print(f"Transaction {transaction_id} read-lock acquired on {data_item}.")
         return True
 
@@ -55,17 +57,18 @@ class TimestampBasedProtocol(AbstractAlgorithm):
             return False
 
         if data_item in self.locks and self.locks[data_item] != transaction_id:
-            print(f"Transaction {transaction_id} denied for write-lock on {data_item} due to another transaction holding the lock.")
+            print(
+                f"Transaction {transaction_id} denied for write-lock on {data_item} due to another transaction holding the lock.")
             return False
-        
+
         self.data_timestamps[data_item] = current_timestamp
-        self.locks[data_item] = transaction_id 
+        self.locks[data_item] = transaction_id
         print(f"Transaction {transaction_id} write-lock acquired on {data_item}.")
         return True
 
     def unlock(self, transaction_id: int, data_item: str) -> bool:
         if data_item in self.locks and self.locks[data_item] == transaction_id:
-            del self.locks[data_item] 
+            del self.locks[data_item]
             print(f"Transaction {transaction_id} released lock on {data_item}.")
             return True
         print(f"Transaction {transaction_id} failed to release lock on {data_item}.")
@@ -83,52 +86,48 @@ class TimestampBasedProtocol(AbstractAlgorithm):
             return True
         return False
 
-    def parseRows(self, db_object: Rows):
-        parsed_rows = []
-        for row in db_object.data:
-            action = row[0]  
-            match = re.match(r'([WRC])(\d*)\(?(\w*)\)?', row)  
+    def parseRows(self, db_object: Rows) -> list[str]:
+        action = db_object.data[0]
+        match = re.match(r'([WRC])(\d*)\(?(\w*)\)?', action)
 
-            if match:
-                action_type = match.group(1)
-                number = match.group(2)
-                item = match.group(3)
+        if match:
+            action_type = match.group(1)
+            number = match.group(2)
+            item = match.group(3)
 
-                if action_type == "C":
-                    parsed_rows.append([action_type])
-                else:
-                    if item:
-                        parsed_rows.append([action_type, int(number), item])
-                    else:
-                        parsed_rows.append([action_type, int(number)]) 
+            if action_type == "C":
+                return [action_type]
             else:
-                print(f"Invalid format: {row}")
-
-        return parsed_rows
+                if item:
+                    return [action_type, int(number), item]
+                else:
+                    return [action_type, int(number)]
+        else:
+            print(f"Invalid format: {action}")
 
     def logObject(self, db_object: Rows, transaction_id: int) -> None:
         try:
             parsed_db_object = self.parseRows(db_object)
             print(f'parsed_db_object: {parsed_db_object}')
 
-            for item in parsed_db_object:
-                if item[0] == "W":
-                    valid = self.lockX(transaction_id, item[2])
-                    if not valid:
-                        print(f"Failed to lock-X {item[2]}")
-                        return
-                    print(f"Transaction {transaction_id} writes {item[2]}")
+            if parsed_db_object[0] == "W":
+                valid = self.lockX(transaction_id, parsed_db_object[2])
+                if not valid:
+                    print(f"Failed to lock-X {parsed_db_object[2]}")
+                    return
+                print(f"Transaction {transaction_id} writes {parsed_db_object[2]}")
 
-                elif item[0] == "R":
-                    valid = self.lockS(transaction_id, item[2])
-                    if not valid:
-                        print(f"Failed to lock-S {item[2]}")
-                        return
-                    print(f"Transaction {transaction_id} reads {item[2]}")
+            elif parsed_db_object[0] == "R":
+                valid = self.lockS(transaction_id, parsed_db_object[2])
+                if not valid:
+                    print(f"Failed to lock-S {parsed_db_object[2]}")
+                    return
+                print(f"Transaction {transaction_id} reads {parsed_db_object[2]}")
 
-                elif item[0] == "C":
-                    print(f"Transaction {transaction_id} commits.")
-                    self.end(transaction_id)
+            elif parsed_db_object[0] == "C":
+                print(f"Transaction {transaction_id} commits.")
+                self.end(transaction_id)
+
         except Exception as e:
             print(f"Exception: {e}")
 
@@ -141,10 +140,11 @@ class TimestampBasedProtocol(AbstractAlgorithm):
             self.unlock(transaction_id, item)
         return True
 
+
 if __name__ == "__main__":
     # Test cases
-    db_object_1 = Rows(["W1(A)", "R1(A)", "C1"])
-    db_object_2 = Rows(["W2(A)", "R2(A)", "C2"])
+    db_object_1 = Rows(["W1(A)"])
+    db_object_2 = Rows(["W2(A)"])
     db_object_3 = Rows(["W1(A)"])
     db_object_4 = Rows(["W2(A)"])
 

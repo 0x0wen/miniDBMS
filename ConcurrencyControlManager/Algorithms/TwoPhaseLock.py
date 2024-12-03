@@ -1,5 +1,9 @@
-from Interface import Queue, Response, Action, Rows
+from Interface.Response import Response
+from Interface.Action import Action
+from Interface.Queue import Queue
+from Interface.Rows import Rows
 from ConcurrencyControlManager.Algorithms.AbstractAlgorithm import AbstractAlgorithm
+
 
 class TwoPhaseLock(AbstractAlgorithm):
     """
@@ -28,7 +32,7 @@ class TwoPhaseLock(AbstractAlgorithm):
         for lock in self.lock_x_table:
             if (lock[0] != transaction_id) and (lock[1] == data_item):
                 return True
-            
+
         return False
         ### End of method ###
 
@@ -39,7 +43,7 @@ class TwoPhaseLock(AbstractAlgorithm):
 
         return False
         ### End of method ###
-    
+
     def isLockedXBySelf(self, transaction_id: int, data_item: str) -> bool:
         for lock in self.lock_x_table:
             if (lock[0] == transaction_id) and (lock[1] == data_item):
@@ -57,16 +61,17 @@ class TwoPhaseLock(AbstractAlgorithm):
         ### End of method ###
 
     def lockX(self, transaction_id: int, data_item: str) -> bool:
-        if self.isLockedSByOtherTransaction(transaction_id, data_item) or self.isLockedXByOtherTransaction(transaction_id, data_item):
+        if self.isLockedSByOtherTransaction(transaction_id, data_item) or self.isLockedXByOtherTransaction(
+                transaction_id, data_item):
             return False
         self.lock_x_table.append((transaction_id, data_item))
 
         return True
         ### End of method ###
-    
+
     def unlockAllS(self, transaction_id: int) -> bool:
         all_unlocked = False
-        while not (all_unlocked):
+        while not all_unlocked:
             idx = -1
             for i in range(len(self.lock_s_table)):
                 if self.lock_s_table[i][0] == transaction_id:
@@ -79,10 +84,10 @@ class TwoPhaseLock(AbstractAlgorithm):
 
         return True
         ### End of method ###
-    
+
     def unlockAllX(self, transaction_id: int) -> bool:
         all_unlocked = False
-        while not (all_unlocked):
+        while not all_unlocked:
             idx = -1
             for i in range(len(self.lock_x_table)):
                 if self.lock_x_table[i][0] == transaction_id:
@@ -111,7 +116,7 @@ class TwoPhaseLock(AbstractAlgorithm):
 
         return True
         ### End of method ###
-    
+
     def parseRows(self, db_object: Rows):
         """
         Returns a list of list of strings
@@ -119,39 +124,37 @@ class TwoPhaseLock(AbstractAlgorithm):
         Example:
         [["W", "1", "A"], ["R", "2", "A"], ["C", "1", ""], ...]
         """
-        parsed_rows = []
-        for row in db_object.data:
-            if (row[0] == "W" or row[0] == "R"):
-                parsed_rows.append([row[0], int(row[1]), row[3]])
-            else:
-                parsed_rows.append([row[0], int(row[1]), ""])
-        
-        return parsed_rows
+        row = db_object.data[0]
+        if row == "W" or row == "R":
+            return [row[0], int(row[1]), row[3]]
+        else:
+            return [row[0], int(row[1]), ""]
         ### End of method ###
-    
+
     def handleLockXRequest(self, transaction_id: int, data_item: str) -> bool:
         valid = False
 
-        if not ((self.isLockedXByOtherTransaction(transaction_id, data_item)) or (self.isLockedSByOtherTransaction(transaction_id, data_item))):
-            if (self.isLockedSBySelf(transaction_id, data_item)):
+        if not ((self.isLockedXByOtherTransaction(transaction_id, data_item)) or (
+                self.isLockedSByOtherTransaction(transaction_id, data_item))):
+            if self.isLockedSBySelf(transaction_id, data_item):
                 valid = self.upgradeLockSToX(transaction_id, data_item)
-            elif (self.isLockedXBySelf(transaction_id, data_item)):
+            elif self.isLockedXBySelf(transaction_id, data_item):
                 valid = True
             else:
                 valid = self.lockX(transaction_id, data_item)
-        
+
         return valid
         ### End of method ###
-    
+
     def handleLockSRequest(self, transaction_id: int, data_item: str) -> bool:
         valid = False
 
         if not (self.isLockedXByOtherTransaction(transaction_id, data_item)):
-            if (self.isLockedSBySelf(transaction_id, data_item) or self.isLockedXBySelf(transaction_id, data_item)):
+            if self.isLockedSBySelf(transaction_id, data_item) or self.isLockedXBySelf(transaction_id, data_item):
                 valid = True
             else:
                 valid = self.lockS(transaction_id, data_item)
-        
+
         return valid
         ### End of method ###
 
@@ -159,132 +162,131 @@ class TwoPhaseLock(AbstractAlgorithm):
         valid = (self.unlockAllX(transaction_id)) and (self.unlockAllS(transaction_id))
         print(f"Transaction {transaction_id} commits")
 
-        #TODO: communicate with other components
+        # TODO: communicate with other components
 
         return valid
         ### End of method ###
-    
+
     def handleAbort(self, transaction_id: int):
         valid = (self.unlockAllX(transaction_id)) and (self.unlockAllS(transaction_id))
         print(f"Transaction {transaction_id} aborts")
 
-        #TODO: communicate with other components
+        # TODO: communicate with other components
 
         return valid
         ### End of method ###
-    
+
     def isLockedByOlderTransaction(self, transaction_id: int, data_item: str) -> bool:
         for lock in self.lock_s_table:
             if (lock[0] < transaction_id) and (lock[1] == data_item):
                 return True
-        
+
         for lock in self.lock_x_table:
             if (lock[0] < transaction_id) and (lock[1] == data_item):
                 return True
-        
+
         return False
         ### End of method ###
-    
+
     def getTransactionIdOfLock(self, data_item: str) -> int:
         for lock in self.lock_x_table:
             if lock[1] == data_item:
                 return lock[0]
-            
+
         for lock in self.lock_s_table:
             if lock[1] == data_item:
                 return lock[0]
-        
+
         return -1
         ### End of method ###
-    
-    def woundOrWait(self, transaction_id: int, data_item: str) -> bool:
-        if (self.isLockedByOlderTransaction(transaction_id, data_item)):
+
+    def woundOrWait(self, transaction_id: int, data_item: str) -> str:
+        if self.isLockedByOlderTransaction(transaction_id, data_item):
             return "WAIT"
-        
+
         else:
             transaction_to_wound = self.getTransactionIdOfLock(data_item)
-            
+
             # TODO: Implement abort for transaction_to_wound
             self.unlockAllS(transaction_to_wound)
             self.unlockAllX(transaction_to_wound)
 
             # TODO: somehow notify the transaction_to_wound to abort
-
             return "WOUND"
 
         ### End of method ###
-    
+
     def handleQueuedTransactions(self):
         if not (self.queued_transactions.isEmpty()):
             is_possible_to_handle = False
 
             item = self.queued_transactions.head()
 
-            if ((item[0] == "W") and (not self.isLockedXByOtherTransaction(item[1], item[2]))):
+            if (item[0] == "W") and (not self.isLockedXByOtherTransaction(item[1], item[2])):
                 is_possible_to_handle = True
-            elif ((item[0] == "R") and (not self.isLockedXByOtherTransaction(item[1], item[2]))):
+            elif (item[0] == "R") and (not self.isLockedXByOtherTransaction(item[1], item[2])):
                 is_possible_to_handle = True
-            
-            if (is_possible_to_handle):
+
+            if is_possible_to_handle:
                 print("Handling queued transactions")
             else:
                 print("Cannot handle queued transactions yet")
-            
-            while (is_possible_to_handle):
+
+            while is_possible_to_handle:
                 item = self.queued_transactions.dequeue()
 
-                if (item[0] == "W"):
+                if item[0] == "W":
                     valid = self.handleLockXRequest(item[1], item[2])
 
-                    if (not valid):
+                    if not valid:
                         print(f"Transaction {item[1]} failed to lock-X {item[2]}")
                         is_possible_to_handle = False
                         self.queued_transactions.enqueueFront(item)
-                    
-                    if (valid):
+
+                    if valid:
                         print(f"Transaction {item[1]} writes {item[2]}")
-                
-                elif (item[0] == "R"):
+
+                elif item[0] == "R":
                     valid = self.handleLockSRequest(item[1], item[2])
 
-                    if not (valid):
+                    if not valid:
                         print(f"Transaction {item[1]} failed to lock-S {item[2]}")
                         is_possible_to_handle = False
                         self.queued_transactions.enqueueFront(item)
-                    
-                    if (valid):
+
+                    if valid:
                         print(f"Transaction {item[1]} reads {item[2]}")
-                
-                elif (item[0] == "C"):
+
+                elif item[0] == "C":
                     self.handleCommit(item[1])
-                
-                elif (item[0] == "A"):
+
+                elif item[0] == "A":
                     self.handleAbort(item[1])
-                
-                if (self.queued_transactions.isEmpty()):
+
+                if self.queued_transactions.isEmpty():
                     break
-        
+
         ### End of method ###
 
-    def run(self, db_object: Rows, transaction_id: int) -> None:
+    def logObject(self, db_object: Rows, transaction_id: int) -> None:
         parsed_db_object = self.parseRows(db_object)
         enqueue_the_rest = False
 
         for item in parsed_db_object:
-            if (enqueue_the_rest):
+            if enqueue_the_rest:
                 self.queued_transactions.enqueue([item[0], item[1], item[2]])
                 continue
 
             if item[0] == "W":
                 valid = self.handleLockXRequest(transaction_id, item[2])
 
-                if (not valid):
+                if not valid:
                     print(f"Transaction {transaction_id} failed to lock-X {item[2]}")
 
                     # TODO: finish this part
                     to_do = self.woundOrWait(transaction_id, item[2])
 
-                    if (to_do == "WAIT"):
+                    if to_do == "WAIT":
                         self.queued_transactions.enqueue([item[0], item[1], item[2]])
                         print(f"Transaction {transaction_id} is queued")
                         enqueue_the_rest = True
@@ -292,19 +294,19 @@ class TwoPhaseLock(AbstractAlgorithm):
                         print(f"Transaction {transaction_id} wound other transaction")
                         valid = self.lockX(transaction_id, item[2])
 
-                if (valid):
+                if valid:
                     print(f"Transaction {transaction_id} writes {item[2]}")
-            
+
             elif item[0] == "R":
                 valid = self.handleLockSRequest(transaction_id, item[2])
 
-                if not (valid):
+                if not valid:
                     print(f"Transaction {transaction_id} failed to lock-S {item[2]}")
-                    
+
                     # TODO: finish this part
                     to_do = self.woundOrWait(transaction_id, item[2])
 
-                    if (to_do == "WAIT"):
+                    if to_do == "WAIT":
                         self.queued_transactions.enqueue([item[0], transaction_id, item[2]])
                         print(f"Transaction {transaction_id} is queued")
                         enqueue_the_rest = True
@@ -312,55 +314,59 @@ class TwoPhaseLock(AbstractAlgorithm):
                         print(f"Transaction {transaction_id} wound other transaction")
                         valid = self.lockS(transaction_id, item[2])
 
-                if (valid):
+                if valid:
                     print(f"Transaction {transaction_id} reads {item[2]}")
-            
+
             elif item[0] == "C":
                 valid = self.handleCommit(transaction_id)
-            
+
             elif item[0] == "A":
                 valid = self.handleAbort(transaction_id)
 
         self.handleQueuedTransactions()
-
         ### End of method ###
 
     def validate(self, db_object: Rows, transaction_id: int, action: Action) -> Response:
         pass
         ### End of method ###
 
-
     def end(self, transaction_id: int) -> bool:
-        pass
-        ### End of method ###
+        self.unlockAllS(transaction_id)
+        self.unlockAllX(transaction_id)
+        return True
 
-db_object_1 = Rows(["W1(A)", "R1(A)", "C1"])
-db_object_2 = Rows(["W2(A)", "R2(A)", "C2"])
-db_object_3 = Rows(["W1(A)"])
-db_object_4 = Rows(["W2(A)"])
 
-two_phase = TwoPhaseLock()
-# two_phase.lock_s_table.append((2, 'A'))
-trans_1 = two_phase.run(db_object_1, 1)
-if (trans_1):
-    print("Transaction 1 success (correct behavior)")
-else:
-    print("Transaction 1 failed (incorrect behavior)")
 
-trans_2 = two_phase.run(db_object_2, 2)
-if (trans_2):
-    print("Transaction 2 success (correct behavior)")
-else:
-    print("Transaction 2 failed (incorrect behavior)")
+if __name__ == "__main__":
+    db_object_1 = Rows(["W1(A)", "R1(A)", "C1"])
+    db_object_2 = Rows(["W2(A)", "R2(A)", "C2"])
+    db_object_3 = Rows(["W1(A)"])
+    db_object_4 = Rows(["W2(A)"])
 
-trans_3 = two_phase.run(db_object_3, 1)
-if (trans_3):
-    print("Transaction 3 success (correct behavior)")
-else:
-    print("Transaction 3 failed (incorrect behavior)")
+    two_phase = TwoPhaseLock()
+    # two_phase.lock_s_table.append((2, 'A'))
+    two_phase.logObject(db_object_1, 1)
+    trans_1 = two_phase.validate(db_object_1, 1, Action.COMMIT)
 
-trans_4 = two_phase.run(db_object_4, 2)
-if (trans_4):
-    print("Transaction 4 success (incorrect behavior)")
-else:
-    print("Transaction 4 failed (correct behavior)")
+    two_phase.logObject(db_object_2, 2)
+
+    two_phase.logObject(db_object_3, 1)
+
+    two_phase.logObject(db_object_4, 2)
+
+    # if trans_1:
+    #     print("Transaction 1 success (correct behavior)")
+    # else:
+    #     print("Transaction 1 failed (incorrect behavior)")
+    # if trans_2:
+    #     print("Transaction 2 success (correct behavior)")
+    # else:
+    #     print("Transaction 2 failed (incorrect behavior)")
+    # if trans_3:
+    #     print("Transaction 3 success (correct behavior)")
+    # else:
+    #     print("Transaction 3 failed (incorrect behavior)")
+    # if trans_4:
+    #     print("Transaction 4 success (incorrect behavior)")
+    # else:
+    #     print("Transaction 4 failed (correct behavior)")

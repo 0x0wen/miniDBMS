@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
-from Interface import Action, Rows
+from Interface.Action import Action
+from Interface.Rows import Rows
 from Interface.Response import Response
 
 
