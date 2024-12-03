@@ -4,12 +4,13 @@ import re
 from constants import LEGAL_COMMANDS_AFTER_WHERE,LEGAL_COMPARATORS, LEGAL_COMMANDS_AFTER_UPDATE, LEGAL_COMMANDS_AFTER_SET
 from helpers import isAlphanumericWithQuotesAndUnderscoreAndDots
 from CustomException import CustomException
+import copy
 class OptimizationEngine:
     def __init__(self):
         self.statistics = {}  # Example: Holds table statistics for cost estimation
         self.one_node_constraint = [] # If there is one-token-only constraint used, add it here
 
-    def parseQuery(self, query: str) -> ParsedQuery:
+    def parseQuery(self, query: str, test:dict) -> ParsedQuery:
         """
         Parses the given SQL query string into a ParsedQuery object.
         """
@@ -25,7 +26,7 @@ class OptimizationEngine:
         self.one_node_constraint = []
         
         # Create a QueryTree from the tokens
-        root = self.__createQueryTree(tokens)
+        root = self.__createQueryTree(tokens, test)
 
         # Return a ParsedQuery object
         return ParsedQuery(query=query, query_tree=root)
@@ -90,7 +91,7 @@ class OptimizationEngine:
 
     # Auxiliary Helper Methods
 
-    def __createQueryTree(self, tokens: list) -> QueryTree:
+    def __createQueryTree(self, tokens: list, test: dict) -> QueryTree:
         """
         Helper method to create a complete QueryTree from tokens.
         Handles the full SQL query structure with proper parent-child relationships.
@@ -125,7 +126,7 @@ class OptimizationEngine:
                     raise SyntaxError("Syntax Error: Missing attribute name")
             
             if tokens and (tokens[0].upper()) == "FROM":
-                child = self.__createQueryTree(tokens)
+                child = self.__createQueryTree(tokens, test)
                 if child is not None: 
                     root.children.append(child)
             else:
@@ -245,13 +246,21 @@ class OptimizationEngine:
                                 newRoot.val.append(tokens.pop(0))
                         
                         child.children.append(childOne)
-                        child.children.append(childTwo)
                         
-                        
-                        if parent.children != []:
+                        if parent.node_type == "TJOIN":
+                            childTwo.node_type = "value1"
+                            child.children.append(childTwo)
+                            temp = copy.deepcopy(parent)
                             parent.children.pop()
+                            parent.children.append(child)
+                            child.children.append(temp)
+                            child.children.pop(0)
+                        else:
+                            child.children.append(childTwo)
+                            if parent.children != []:
+                                parent.children.pop()
+                            parent.children.append(child)
                         
-                        parent.children.append(child)
                         
                     # Check if join operation with syntax 'NATURAL JOIN'
                     elif tokens and (tokens[0].upper() == 'NATURAL' and tokens[1].upper() == "JOIN"):
@@ -262,15 +271,28 @@ class OptimizationEngine:
                         if not tokens or (tokens[0].upper() in [",", "NATURAL", "JOIN", "WHERE", "LIMIT", "ORDER"]):
                             raise SyntaxError("Syntax Error: Missing table name")
                         
+                        table1 = None
+                        table2 = None
                         if parent.node_type == "FROM":
                             childOne = QueryTree(node_type="Value1", val=[parent.val[0]])
+                            table1 = parent.val[0]
                         else:
                             childOne = QueryTree(node_type="Value1", val=[parent.children[1].val[0]])
+                            table1 = parent.children[1].val[0]
                             
-                        childTwo = QueryTree(node_type="Value2", val=[tokens.pop(0)])
+                        table2 = tokens.pop(0) 
+                        childTwo = QueryTree(node_type="Value2", val=[table2])
                         child.children.append(childOne)
                         child.children.append(childTwo)
                         
+                        cols1 = test[table1]["cols"]
+                        cols2 = test[table2]["cols"]
+                        
+                        common_cols = set(cols1).intersection(set(cols2))
+                        
+                        if common_cols == set():
+                            print("Error: No common columns found for NATURAL JOIN")
+                            raise SyntaxError("Syntax Error: Invalid syntax")
                         
                         if parent.children != []:
                             parent.children.pop()
@@ -288,7 +310,7 @@ class OptimizationEngine:
             else:
                 if tokens[0].upper() not in ["WHERE", "LIMIT", "ORDER"]:
                     raise SyntaxError("Syntax Error: Invalid syntax")
-                child = self.__createQueryTree(tokens)
+                child = self.__createQueryTree(tokens, test)
                 if child is not None:  # Only append if the child is not None
                     root.children.append(child)  
 
@@ -489,6 +511,39 @@ class OptimizationEngine:
             root = QueryTree(node_type="UNKNOWN", val=[token])
             
         return root
+
+    def optimizeQueryTree(self, oldQueryTree: QueryTree, test: dict) -> QueryTree:
+        if oldQueryTree and oldQueryTree.query_tree.node_type == "SELECT":
+            valSelect = oldQueryTree.query_tree.val
+            joinQTree = oldQueryTree.query_tree.children[0]
+
+            condition = joinQTree.val
+            val1 = joinQTree.children[0].val
+            val2 = joinQTree.children[1].val
+            
+            projection1 = copy.deepcopy(joinQTree.children[0])
+            projection2 = copy.deepcopy(joinQTree.children[1])
+            
+            projection1.node_type = "SELECT"
+            projection2.node_type = "SELECT"
+            projection1.val = []
+            projection2.val = []
+            projection1.val.append(condition[0])
+            projection1.val.append(valSelect[0])
+            projection2.val.append(condition[2])
+            
+            projection1.children.append(copy.deepcopy(joinQTree.children[0]))
+            projection2.children.append(copy.deepcopy(joinQTree.children[1]))
+            
+            joinQTree.children[0] = projection1
+            joinQTree.children[1] = projection2
+            
+            print(oldQueryTree.query_tree)
+            
+            
+
+        
+        return oldQueryTree
 
     def __applyHeuristicRules(self, query: ParsedQuery):
         """
