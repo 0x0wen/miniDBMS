@@ -53,8 +53,6 @@ class StorageManager:
 
            
             column_filtered_data = serializer.filterColumns(cond_filtered_data, data_retrieval.column)
-
-            
             all_filtered_data.extend(column_filtered_data)
 
         print(all_filtered_data)
@@ -117,17 +115,41 @@ class StorageManager:
         """
 
         serializer = TableManager()
+        index_manager = IndexManager()
+
+        use_index = False
+        
+        indexed_rows = []
+        indexable_conditions = [
+            condition for condition in data_deletion.conditions if condition.operation in ["=", ">", "<"]
+        ]
+
+        for condition in indexable_conditions:
+            index = index_manager.readIndex(table_name=data_deletion.table, column=condition.column)
+
+            if index:
+                block_id = index.search(condition.operand)
+                if block_id is not None:
+                    block_data = serializer.readBlockIndex(table_name=data_deletion.table,block_index= block_id)
+                    indexed_rows.extend(block_data)
+                    use_index = True
+        cond_filtered_data = ""
+        data = ""
+        data = serializer.readTable(data_deletion.table)
+        if use_index and indexed_rows: 
+            print("Pencarian menggunakan index")
+            cond_filtered_data = serializer.applyConditions(indexed_rows, data_deletion)
+        else: 
+            cond_filtered_data = serializer.applyConditions(data, data_deletion)
 
         # Filtereed table based on condition
-        data : Rows = serializer.readTable(data_deletion.table)
-        filtered_Table = serializer.applyConditions(data, data_deletion) 
-
         schema = serializer.readSchema(data_deletion.table)
-
+        
         # Create new data that doesn't contain filtered table
-        newData = data.getRowsNotMatching(filtered_Table)
+        newData = data.getRowsNotMatching(cond_filtered_data)
         serializer.writeTable(data_deletion.table, newData ,schema)
         return newData.__len__()
+
 
     def setIndex(self, table : str, column : str, index_type : str) -> None:
         """
@@ -138,12 +160,12 @@ class StorageManager:
             column : certain column to be given index
             index_type: type of index (B+ Tree or Hash)
         """
-        serializer = TableManager()
-        indexManager = IndexManager()
-
+        if(index_type == "Hash"):
+            indexManager = IndexManager()
+            indexManager.writeIndex(table, column)
+        else:
+            print("Blm dibikin bang")
         
-
-
     def getStats(self, test = False) -> dict:
         """
         Return dictionary of statistics for all tables in the database
