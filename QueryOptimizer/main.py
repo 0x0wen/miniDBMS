@@ -4,13 +4,14 @@ from ParsedQuery import ParsedQuery
 from CustomException import CustomException
 
 from whereOptimize import optimizeWhere
+from sortLimitOptimize import optimizeSortLimit
 
 
 test = {
-    "users": {"row": 100, "cols": ['user_id','name','age','sibling','office_id']},
-    "office": {"row": 80, "cols": ['office_id', 'name', 'location']},
-    "address": {"row": 80, "cols": ['address_id', 'address', 'city', 'state', 'zip']},
-    "salary": {"row": 80, "cols": ['salary_id', 'user_id', 'salary', 'date']},
+    "users": {"row": 100, "cols": ["user_id", "name", "age", "sibling", "office_id"]},
+    "office": {"row": 80, "cols": ["office_id", "name", "location"]},
+    "address": {"row": 80, "cols": ["address_id", "address", "city", "state", "zip"]},
+    "salary": {"row": 80, "cols": ["salary_id", "user_id", "salary", "date"]},
 }
 
 # Example SQL query
@@ -27,14 +28,15 @@ engine = OptimizationEngine()
 # Parse the query
 try:
     parsed_query = engine.parseQuery(query_str)
-    optimizeWhere(parsed_query)
+    parsed_query = optimizeWhere(parsed_query)
+    parsed_query = optimizeSortLimit(parsed_query)
 except CustomException as e:
     print(e)
     exit(1)
 except Exception as e:
     print(f"Exception: {e}")
     exit(1)
-    
+
 print(f"{parsed_query.query_tree}")
 
 # is_valid = engine.validateParsedQuery(parsed_query.query_tree)
@@ -42,7 +44,7 @@ print(f"{parsed_query.query_tree}")
 #     print("Query is valid and ready for optimize.")
 # else:
 #     print("Query contains syntax errors.")
-    
+
 # # Optimize the query
 # optimized_query = engine.optimizeQuery(parsed_query)
 # print(f"Optimized Query Estimated Cost: {optimized_query.estimated_cost}")
