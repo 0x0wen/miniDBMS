@@ -5,6 +5,7 @@ from Interface.Rows import Rows
 from Interface.Action import Action
 from typing import List
 from StorageManager.StorageManager import StorageManager
+from Interface import ExecutionResult
 
 
 class QueryProcessor:
