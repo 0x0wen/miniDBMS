@@ -89,7 +89,8 @@ class QueryProcessor:
                 self.concurrent_manager.logObject(single_row, transaction_id)
 
                 # Send data to FailureRecovery
-                self.send_to_failure_recovery(transaction_id, row_string, action_type, single_row.data)
+                self.send_to_failure_recovery(transaction_id, row_string, action_type, single_row)
+
             else:
                 # Abort the transaction (when validation fails, concurrent control manager abort the transaction)
                 break
@@ -139,7 +140,8 @@ class QueryProcessor:
             timestamp=datetime.now(),
             query=row_string,
             message=f"{action_type.capitalize()} action executed successfully",
-            rows=rows
+            data=rows,  
+            rows=rows.data   
         )
         self.failure_recovery.writeLog(execution_result)
 
