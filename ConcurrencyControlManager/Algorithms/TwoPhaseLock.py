@@ -62,7 +62,22 @@ class TwoPhaseLock(AbstractAlgorithm):
         pass
 
     def validate(self, db_object: int, transaction_id: int, action: Action) -> Response:
-        pass
+        data_item = db_object 
+
+        if action == "read":
+            if self.isLockedX(data_item):
+                return Response(status= False, message= transaction_id)
+            if not self.lockS(transaction_id, data_item):
+                return Response(status= False, message= transaction_id)
+            return Response(status= True, message= transaction_id)
+
+        elif action == "write":
+            if self.isLockedS(data_item) or self.isLockedX(data_item):
+                return Response(status= False, message= transaction_id)
+            if not self.lockX(transaction_id, data_item):
+                return Response(status= False, message= transaction_id)
+            return Response(status= True, message= transaction_id)
+
 
     def end(self, transaction_id: int) -> bool:
         pass
