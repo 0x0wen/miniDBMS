@@ -14,13 +14,27 @@ class TestConcurrentControlManager(TestCase):
         self.assertEqual(concurrency_control_manager.beginTransaction(), 4)
 
     def test_log_object(self):
-        self.fail()
+        concurrency_control_manager = ConcurrentControlManager()
+        concurrency_control_manager.setConcurrencyControl(ConcurrencyControlAlgorithmEnum.TIMESTAMP)
+
+        # Test case 1
+        db_object_1 = ["W1(A)", "R1(A)", "C1"]
+        self.assertTrue(concurrency_control_manager.logObject(db_object_1, 1))
+        self.assertTrue(concurrency_control_manager.logObject(db_object_1, 2))
+
 
     def test_validate_object(self):
-        self.fail()
+        concurrency_control_manager = ConcurrentControlManager()
+        concurrency_control_manager.setConcurrencyControl(ConcurrencyControlAlgorithmEnum.TIMESTAMP)
+
+        # Test case 1
+        db_object_1 = ["W1(A)", "R1(A)", "C1"]
+        self.assertTrue(concurrency_control_manager.validateObject(db_object_1, 1))
+
+
 
     def test_end_transaction(self):
-        self.fail()
+
 
     def test_set_concurrency_control(self):
         # Initialize the concurrency control manager
