@@ -3,12 +3,15 @@ from Enum.ActionEnum import ActionEnum
 
 class Action:
     def __init__(self, action: [str]):
-        self.action: [ActionEnum] = []
-        for a in action:
-            if a not in ["read", "write"]:
-                raise ValueError(f"Invalid action: {a}")
-            else:
-                self.action.append(ActionEnum.READ if a == "read" else ActionEnum.WRITE)
+        try:
+            self.action: [ActionEnum] = []
+            for a in action:
+                if a not in ["read", "write", "commit"]:
+                    raise ValueError(f"Invalid action: {a}")
+                else:
+                    self.action.append(ActionEnum[a.upper()])
+        except KeyError:
+            raise ValueError(f"Invalid action: {action}")
 
     def __str__(self):
         response = f"Action: "

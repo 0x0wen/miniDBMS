@@ -1,15 +1,11 @@
 from QueryOptimizer.OptimizationEngine import OptimizationEngine
 from ConcurrencyControlManager.ConcurrentControlManager import ConcurrentControlManager
 from FailureRecovery.FailureRecovery import FailureRecovery
-from FailureRecovery.RecoverCriteria import RecoverCriteria
-from Interface.Rows import Rows  
+from Interface.Rows import Rows
 from Interface.Action import Action
-from QueryOptimizer import QueryTree
 from typing import List
-from datetime import datetime
 from StorageManager.StorageManager import StorageManager
-from Interface.ExecutionResult import ExecutionResult
-from Interface.Response import Response
+
 
 class QueryProcessor:
     _instance = None
@@ -59,7 +55,8 @@ class QueryProcessor:
         optimized_query = []
         for q in query:
             query_without_aliases = self.remove_aliases(q)
-            optimized_query.append(self.optimization_engine.optimizeQuery(self.optimization_engine.parseQuery(query_without_aliases)))
+            optimized_query.append(
+                self.optimization_engine.optimizeQuery(self.optimization_engine.parseQuery(query_without_aliases)))
 
         # concurrency control (validate and logging)
         # Get transaction ID
@@ -81,9 +78,9 @@ class QueryProcessor:
             action = Action([action_type])
 
             validate = self.concurrent_manager.validateObject(single_row, transaction_id, action)
-            print(f"Validation result: {validate.status}")
-            if validate.status:
-                #TODO : Implement Query Execution to Storage Manager Here
+            print(f"Validation result: {validate.allowed}")
+            if validate.allowed:
+                # TODO : Implement Query Execution to Storage Manager Here
 
                 # Log the single row
                 print(f"Logging single-row: {single_row.data}")
@@ -92,8 +89,42 @@ class QueryProcessor:
                 # Send data to FailureRecovery
                 self.send_to_failure_recovery(transaction_id, row_string, action_type)
             else:
-                #Abort the transaction (when validation fails, concurrent control manager abort the transaction)
+                # Abort the transaction (when validation fails, concurrent control manager abort the transaction)
                 break
+
+        # INI ERROR KARENA BELUM ADA DATABASE YANG BISA DIAMBIL
+        # try:
+        #     for query in optimized_query:
+        #         query_tree = query.query_tree
+
+        #         if query_tree.node_type == "SELECT":
+        #             data_read = self.storage_manager.__query_tree_to_data_retrieval(query_tree)
+        #             result_rows = self.storage_manager.readBlock(data_read)
+
+        #         # TODO: katanya masih belom selesai yang write ama block
+        #         # elif query_tree.node_type == "UPDATE":
+        #         #     data_write = self.storage_manager.__query_tree_to_data_retrieval(query_tree)
+        #         #     result_rows = self.storage_manager.writeBlock(data_write)
+        #         # elif query_tree.node_type == "DELETE":
+        #         #     data_deletion = self.storage_manager.__query_tree_to_data_retrieval(query_tree)
+        #         #     result_rows = self.storage_manager.deleteBlock(data_deletion)
+
+        #         result = ExecutionResult(
+        #             transaction_id,
+        #             timestamp=datetime.now(),
+        #             message="Query executed successfully",
+        #             data=result_rows,
+        #             query=query.query # udah string kan harusnya
+        #         )
+        #         results.append(result)
+
+        #     self.concurrent_manager.endTransaction(transaction_id)
+
+        #     return results
+
+        # except Exception as e:
+        #     # TODO: ini harusnya ada abort ato rollback
+        #     return results
 
         return optimized_query
 
