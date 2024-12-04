@@ -85,6 +85,9 @@ class QueryProcessor:
                 # Log the single row
                 print(f"Logging single-row: {single_row.data}")
                 self.concurrent_manager.logObject(single_row, transaction_id)
+
+                # Send data to FailureRecovery
+                self.send_to_failure_recovery(transaction_id, row_string, action_type)
             else:
                 # Abort the transaction (when validation fails, concurrent control manager abort the transaction)
                 break
@@ -124,6 +127,18 @@ class QueryProcessor:
         #     return results
 
         return optimized_query
+
+    def send_to_failure_recovery(self, transaction_id: int, row_string: str, action_type: str):
+        """
+        Send data to FailureRecovery to store it into the buffer.
+        """
+        execution_result = ExecutionResult(
+            transaction_id=transaction_id,
+            timestamp=datetime.now(),
+            query=row_string,
+            message=f"{action_type.capitalize()} action executed successfully"
+        )
+        self.failure_recovery.writeLog(execution_result)
 
     def generate_rows_from_query_tree(self, optimized_query: List, transaction_id: int) -> Rows:
         """
