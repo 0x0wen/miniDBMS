@@ -5,7 +5,8 @@ from Interface.Rows import Rows
 from Interface.Action import Action
 from typing import List
 from StorageManager.StorageManager import StorageManager
-from Interface import ExecutionResult
+from datetime import datetime
+from Interface.ExecutionResult import ExecutionResult
 
 
 class QueryProcessor:
@@ -88,7 +89,7 @@ class QueryProcessor:
                 self.concurrent_manager.logObject(single_row, transaction_id)
 
                 # Send data to FailureRecovery
-                self.send_to_failure_recovery(transaction_id, row_string, action_type)
+                self.send_to_failure_recovery(transaction_id, row_string, action_type, single_row.data)
             else:
                 # Abort the transaction (when validation fails, concurrent control manager abort the transaction)
                 break
@@ -129,7 +130,7 @@ class QueryProcessor:
 
         return optimized_query
 
-    def send_to_failure_recovery(self, transaction_id: int, row_string: str, action_type: str):
+    def send_to_failure_recovery(self, transaction_id: int, row_string: str, action_type: str, rows: List[str]):
         """
         Send data to FailureRecovery to store it into the buffer.
         """
@@ -137,7 +138,8 @@ class QueryProcessor:
             transaction_id=transaction_id,
             timestamp=datetime.now(),
             query=row_string,
-            message=f"{action_type.capitalize()} action executed successfully"
+            message=f"{action_type.capitalize()} action executed successfully",
+            rows=rows
         )
         self.failure_recovery.writeLog(execution_result)
 
