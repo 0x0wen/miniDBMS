@@ -3,7 +3,7 @@ import threading
 from QueryProcessor.QueryProcessor import QueryProcessor
 
 class Server:
-    def __init__(self, host="localhost", port=12346):
+    def __init__(self, host="localhost", port=1234):
         self.host = host
         self.port = port
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -13,7 +13,6 @@ class Server:
     def handle_client(self, client_socket):
         try:
             while True:
-                # Kirim prompt ke klien
                 client_socket.send("> ".encode("utf-8"))
                 query_input = client_socket.recv(1024).decode("utf-8").strip()
 
@@ -21,11 +20,11 @@ class Server:
                     continue
 
                 try:
-                    # Proses dan optimasi query
+                    # optimasi query
                     queries = [query_input]
                     if query_input.upper().startswith("BEGIN TRANSACTION"):
                         while True:
-                            client_socket.send("Commit if you're done\n".encode("utf-8"))
+                            client_socket.send("enter COMMIT; if you're done\n".encode("utf-8"))
                             client_socket.send("> dariserver".encode("utf-8"))
                             query_input = client_socket.recv(1024).decode("utf-8").strip()
                             queries.append(query_input)
@@ -34,14 +33,14 @@ class Server:
 
                     optimized_query = self.query_processor.execute_query(queries)
 
-                    # Kirim hasil ke klien
+                    # kirim hasil ke client
                     send_to_client = ""
                     for q in optimized_query:
                         send_to_client += (f"Optimized Query Tree: {q.query_tree}\n")
                     client_socket.send(send_to_client.encode("utf-8"))
 
                 except Exception as e:
-                    # Tangani error query tanpa memutus koneksi
+                    # biar ga diskonek kalo query error
                     error_message = f"Error processing query: {e}\n"
                     client_socket.send(error_message.encode("utf-8"))
         except Exception as e:
@@ -65,7 +64,6 @@ class Server:
             self.stop()
         except Exception as e:
             print(f"Server error: {e}")
-        finally:
             self.stop()
 
     def stop(self):
