@@ -104,12 +104,14 @@ class QueryProcessor:
                 query_tree = query.query_tree
             
                 if query_tree.node_type == "SELECT":
-                    print(query_tree)
+                    print("query tree ", query_tree)
                     data_read = self.storage_manager.query_tree_to_data_retrieval(query_tree)
-                    print(data_read)
+                    print("data read ", data_read)
                     result_rows = self.storage_manager.readBlock(data_read)
+                    print("result rows ", result_rows)
 
                 # TODO: katanya masih belom selesai yang write ama block
+                # gampang lah ini tinggal nyesuain sama yg select aja
                 # elif query_tree.node_type == "UPDATE":
                 #     data_write = self.storage_manager.__query_tree_to_data_retrieval(query_tree)
                 #     result_rows = self.storage_manager.writeBlock(data_write)
@@ -118,13 +120,15 @@ class QueryProcessor:
                 #     result_rows = self.storage_manager.deleteBlock(data_deletion)
 
                 result = ExecutionResult(
-                    transaction_id,
+                    transaction_id = transaction_id,
                     timestamp=datetime.now(),
                     message="Query executed successfully",
-                    data=result_rows,
+                    data_before=result_rows,
+                    data_after=result_rows,
                     query=query.query # udah string kan harusnya
                 )
                 results.append(result)
+                print("hasilnya adalah ", result.data_after)
         
             self.concurrent_manager.endTransaction(transaction_id)
 
@@ -133,8 +137,6 @@ class QueryProcessor:
         except Exception as e:
             # TODO: ini harusnya ada abort ato rollback
             return results
-
-        return optimized_query
 
     def send_to_failure_recovery(self, transaction_id: int, row_string: str, action_type: str, rows: List[str]):
         """
