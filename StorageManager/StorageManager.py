@@ -7,7 +7,9 @@ from StorageManager.manager.TableManager import TableManager
 from StorageManager.manager.IndexManager import IndexManager
 from QueryOptimizer.QueryTree import QueryTree
 # from Serializer import *
-from StorageManager.objects.Rows import Rows 
+from StorageManager.objects.Rows import Rows
+
+from FailureRecovery.FailureRecovery import FailureRecovery 
 import os
 
 class StorageManager:
@@ -22,6 +24,18 @@ class StorageManager:
         Args:
             data_retrieval: Object containing data to help determine which data to be retrieved from hard disk.
         """
+    
+        
+        """
+        tolong di adjust sama mekanisme kalian -rafi
+        """
+        failureRecovery = FailureRecovery()
+        rows = failureRecovery.buffer.retrieveData(data_retrieval)
+        
+        if rows is not None:
+            return rows
+        
+                
         serializer = TableManager()
         index_manager = IndexManager()
         all_filtered_data: Rows = []
@@ -46,17 +60,21 @@ class StorageManager:
             if use_index and indexed_rows: 
                 print("Pencarian menggunakan index")
                 cond_filtered_data = serializer.applyConditions(indexed_rows, data_retrieval)
+    
             else: 
                 print("Pencarian tidak menggunakan index,baca semua blok")
                 data = serializer.readTable(table_name)
                 cond_filtered_data = serializer.applyConditions(data, data_retrieval)
-
+    
            
             column_filtered_data = serializer.filterColumns(cond_filtered_data, data_retrieval.column)
+            print("\n\nFrom StorageManager: column_filtered_data", column_filtered_data)
             all_filtered_data.extend(column_filtered_data)
-
-        print(all_filtered_data)
-        print("Amount: ", len(all_filtered_data))
+            
+        
+        # write to buffer in failureRecovery
+        failureRecovery.buffer.writeData(rows=cond_filtered_data, dataRetrieval=data_retrieval)
+        
         return all_filtered_data
 
 

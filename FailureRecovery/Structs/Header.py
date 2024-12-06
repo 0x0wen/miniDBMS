@@ -17,8 +17,8 @@ Contoh:
 
 class Header:
     def __init__(self):
-        self.names : List[str] = None
-        self.types : List[Type] = None
+        self.names : List[str] = []
+        self.types : List[Type] = []
         
     def addColumn(self, name: str, type: Type) -> None:
         self.names.append(name)
@@ -36,3 +36,6 @@ class Header:
     def typeOfColumnByIndex(self, index: int) -> Type:
         '''perlu try catch buat invalid index juga atau langsung return None jg bisa biar gk error'''
         return self.types[index]
+    
+    def __repr__(self) -> str:
+        return f"Header({self.names}, {self.types})"

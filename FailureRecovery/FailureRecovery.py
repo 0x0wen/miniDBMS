@@ -2,22 +2,13 @@ from datetime import datetime
 from typing import Any, Optional, Dict
 
 # Importing modules in Failure Recovery
-from FailureRecovery.Buffer import Buffer
+from FailureRecovery.Structs.Buffer import Buffer
 from FailureRecovery.LogManager import LogManager
 from FailureRecovery.RecoverCriteria import RecoverCriteria
 
 # Importing modules from the Interface
 from Interface.ExecutionResult import ExecutionResult
-
-# Importing modules in Query Optimizer to parse
-from QueryOptimizer.OptimizationEngine import OptimizationEngine
-
-# Importing modules from Query Processor
-from QueryProcessor.QueryProcessor import QueryProcessor
-
-# Importing modules in Storage Manager for manipulating the database
-from StorageManager.StorageManager import StorageManager
-from StorageManager.objects.DataWrite import DataWrite
+# from StorageManager.objects.DataWrite import DataWrite
 
 class FailureRecovery:
     _instance = None
@@ -25,15 +16,20 @@ class FailureRecovery:
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
+            
+        print("Failure Recovery instance created")
+        
         return cls._instance
 
     def __init__(self, buffer_size: int = 1024):
         if not hasattr(self, 'initialized'):
-            self.buffer = Buffer[Any](buffer_size)
-            self.log_manager = LogManager()
-            self.storage_manager = StorageManager()
-            self.query_processor = QueryProcessor()
+            self.buffer = Buffer()
+            # self.log_manager = LogManager()
+            # self.storage_manager = StorageManager()
+            # self.query_processor = QueryProcessor()
             self.initialized = True
+
+            print("Failure Recovery initialized")
 
     def write_log(self, info: ExecutionResult) -> None:
         """Write-Ahead Logging implementation"""
@@ -67,15 +63,15 @@ class FailureRecovery:
             entries = self.log_manager.get_entries_since_checkpoint()
             
             # Update physical storage with WAL entries
-            for entry in entries:
-                if entry["data_after"]:
-                    self.storage_manager.writeBlock(DataWrite(
-                        overwrite=True,
-                        selected_table=entry["table"],
-                        column=list(entry["data_after"].keys()),
-                        conditions=[],
-                        new_value=[entry["data_after"]]
-                    ))
+            # for entry in entries:
+            #     if entry["data_after"]:
+            #         self.storage_manager.writeBlock(DataWrite(
+            #             overwrite=True,
+            #             selected_table=entry["table"],
+            #             column=list(entry["data_after"].keys()),
+            #             conditions=[],
+            #             new_value=[entry["data_after"]]
+            #         ))
             
             # Empty buffer after physical update
             self.buffer.empty_buffer()

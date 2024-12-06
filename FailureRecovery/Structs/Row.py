@@ -47,3 +47,6 @@ class Row:
         else:
             raise ValueError(f"Unsupported operator: {condition.operation}")
 
+    # print repr
+    def __repr__(self):
+        return f"Row({self.row_id}, {self.row_data})"

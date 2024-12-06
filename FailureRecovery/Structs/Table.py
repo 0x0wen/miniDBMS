@@ -3,9 +3,10 @@ from typing import List, TypeVar
 from StorageManager.objects.Condition import Condition
 T = TypeVar('T')
 
-from Row import Row
-from Header import Header
-from Table import Table
+from FailureRecovery.Structs import Row
+from FailureRecovery.Structs import Header
+
+from StorageManager.objects.Rows import Rows
 
 '''
 class ini itu untuk nyimpen data tabel, 1 tabel terdiri dari header dan list of rows, 
@@ -13,11 +14,12 @@ contohnhya ada di Buffer.py
 '''
 
 class Table:
-    def __init__(self, table_name: str, header: Header = None, rows: list[Row] = None):
+    def __init__(self, table_name: str, header: Header = None, rows: list[Row] = []):
         
         self.table_name = table_name
         self.header = header
         self.rows = rows
+        self.num_rows = 0
     
     def setHeader(self, header: Header) -> None:
         self.header = header
@@ -25,10 +27,12 @@ class Table:
     def addRow(self, row: Row) -> None:
         '''ini kaya perlu verifikasi dlu apakah row yang dimasukin itu,
            jumlah kolom serta tipe datanya sesuai header atau gk'''
-        if row.isRowValid(self.header):
-            self.rows.append(row)
-        else:
-            raise ValueError("Row data doesn't match header")
+        self.rows.append(row)
+        self.num_rows += 1
+        # if row.isRowValid(self.header):
+        #     self.rows.append(row)
+        # else:
+        #     raise ValueError("Row data doesn't match header")
         
     def getRowByid(self, row_id: int) -> Row:
         for row in self.rows:
@@ -71,6 +75,20 @@ class Table:
             if row.isRowFullfilngCondition(condition):
                 row.row_data = new_data
 
+    def numRows(self) -> int:
+        return self.num_rows
+    
+    # print repr
+    def __str__(self):
+        
+        print("Table name:", self.table_name)
+        print("Header:", self.header)
+        
+        print("Rows")
+        for row in self.rows:
+            print(row)
+            
+        return ""
     
     '''Fungsi CRUD diatas itu gw rada yapping sih perlu dipikir lg implementasinya
     apakah perlu fungsi lain lg atau tidak'''

@@ -15,6 +15,11 @@ ret3 = DataRetrieval(table=["course"], column=['courseid'], conditions=[
     Condition(column="courseid", operation=">", operand='40', connector=None),
     Condition(column="courseid", operation="<", operand='50', connector="AND"),
 ])
+
+ret4 = DataRetrieval(table=["course"], column=[], conditions=[
+    Condition(column="courseid", operation=">", operand='40', connector=None),
+    Condition(column="courseid", operation="<", operand='50', connector="AND"),
+])
 """
 [{'year': 2030}, {'year': 2031}, {'year': 2032}, {'year': 2033}, {'year': 2034},
  {'year': 2035}, {'year': 2036}, {'year': 2037}, {'year': 2038}, {'year': 2039},

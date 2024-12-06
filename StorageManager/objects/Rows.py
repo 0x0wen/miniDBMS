@@ -2,9 +2,9 @@ class Rows(list):
     def __init__(self, rows: list[dict]) -> None:
         super().__init__(rows)
     
-    #print 
-    def __repr__(self) -> str:
-        return f"Rows(rows={self})"
+    # #print 
+    # def __repr__(self) -> str:
+    #     return f"Rows(rows={self})"
     
     def extend(self, new_rows: list[dict]) -> None:
         if all(isinstance(row, dict) for row in new_rows):
