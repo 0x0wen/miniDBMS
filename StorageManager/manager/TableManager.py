@@ -110,7 +110,7 @@ class TableManager(DataManager):
             # Mengecek kondisi operasi
             if condition.operation == "=":
                 return value == operand
-            elif condition.operation == "<>":
+            elif condition.operation == "<>" or condition.operation == "!=":
                 return value != operand
             elif condition.operation == ">":
                 return value > operand
