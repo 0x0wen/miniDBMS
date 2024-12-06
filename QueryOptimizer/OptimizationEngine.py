@@ -418,7 +418,7 @@ class OptimizationEngine:
 
             root.val = values
             
-            if(tokens[0] not in LEGAL_COMMANDS_AFTER_SET):
+            if(tokens[0].upper() not in LEGAL_COMMANDS_AFTER_SET):
                 raise CustomException("Invalid command after SET clause", code=400)
             child = self.__createQueryTree(tokens)
             if child is not None:  # Only append if the child is not None
@@ -432,7 +432,7 @@ class OptimizationEngine:
             
             root = QueryTree(node_type="UPDATE", val=[tokens.pop(0)])
             
-            if(tokens[0] not in LEGAL_COMMANDS_AFTER_UPDATE):
+            if(tokens[0].upper() not in LEGAL_COMMANDS_AFTER_UPDATE):
                 raise CustomException("Invalid command after UPDATE clause", code=400)    
             
             child = self.__createQueryTree(tokens)
