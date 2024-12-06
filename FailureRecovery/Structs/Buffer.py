@@ -1,3 +1,6 @@
+from FailureRecovery.Structs import Row
+from FailureRecovery.Structs.Row import Row
+from StorageManager.objects import DataRetrieval
 from .Table import Table
 from typing import List, TypeVar
 T = TypeVar('T')
@@ -39,8 +42,12 @@ class Buffer:
         self.tables : List[Table] = []
         self.size: int = 0
         
-    def addTabble(self, table: Table) -> None:
+    def addTabble(self, table: Table) -> bool:
+        if self.size >= MAX_BUFFER_SIZE:
+            return False
         self.tables.append(table)
+        self.size += 1
+        return True
 
     def getTable(self, table_name: str) -> Table:
         for table in self.tables:
@@ -114,4 +121,30 @@ class Buffer:
             print(table)
         
         print("Data successfully added to buffer\n")
+        
+        
+    def getRowsBuffer(self, data: DataRetrieval) -> List[Row]:
+        '''ngecek apakah data yang mau diambil ada di buffer atau gk'''
+        table = self.getTable(data.table)
+        matching_rows = []
+        
+        if table:
+            for row in table.rows:
+                if row.isRowFullfilngCondition(data.conditions):
+                    matching_rows.append(row)
+        
+        return matching_rows
+    
+    def retrieveDataInBuffer(self, data: DataRetrieval) -> List[Row]:
+        '''ngecek apakah data yang mau diambil ada di buffer atau gk'''
+        matching_rows = []
+        
+        for table_name in data.table:
+            table = self.getTable(table_name)
+            if table:
+                for row in table.rows:
+                    if all(row.isRowFullfilngCondition(condition) for condition in data.conditions):
+                        matching_rows.append(row)
+        
+        return matching_rows
         
