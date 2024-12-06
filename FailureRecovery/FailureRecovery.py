@@ -46,6 +46,23 @@ class FailureRecovery:
                 info.data.data[0] if info.data and info.data.data else None
             )
 
+            # Data Before yang didapet dari Execution Result: 
+            # [0, 'Santi', 21]
+            # [2, 'Doe', 30]
+            # [1, 'John', 20]
+
+            # Data After yang didapet dari Execution Result:
+            # ['table' = course, 'id' = 0, 'name' = 'Santi', 10]
+            # [2, 'Budi', 20]
+            # [1, 'Doe', 30]
+
+            # Rows di tabel buffer
+            # [0, 'Santi', 21]
+            # [2, 'Doe', 30]
+            # [1, 'John', 20]
+
+            # Apus dulu rows yang ada di tabel buffer
+
             # 3. Update buffer with new data
             if info.data and info.data.data:
                 self.buffer.write_data(info.data.table_name, info.data.data[0])

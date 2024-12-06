@@ -166,4 +166,9 @@ class Buffer:
                         matching_rows.append(row)
         
         return matching_rows
-        
+    
+    def update_buffer (databefore, dataafter) {
+        #find data before
+        # delete data before from buffer
+        # insert data after dengan cara append
+    }
