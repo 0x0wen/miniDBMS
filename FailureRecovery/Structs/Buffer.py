@@ -1,3 +1,5 @@
+from FailureRecovery.Structs import Row
+from StorageManager.objects import DataRetrieval
 from .Table import Table
 from typing import List, TypeVar
 T = TypeVar('T')
@@ -45,3 +47,16 @@ class Buffer:
     
     def clearBuffer(self) -> None:
         self.tables = []
+        
+    def getRowsBuffer(self, data: DataRetrieval) -> List[Row]:
+        '''ngecek apakah data yang mau diambil ada di buffer atau gk'''
+        table = self.getTable(data.table)
+        matching_rows = []
+        
+        if table:
+            for row in table.rows:
+                if row.isRowFullfilngCondition(data.conditions):
+                    matching_rows.append(row)
+        
+        return matching_rows
+    
