@@ -65,3 +65,16 @@ class Buffer:
         
         return matching_rows
     
+    def retrieveDataInBuffer(self, data: DataRetrieval) -> List[Row]:
+        '''ngecek apakah data yang mau diambil ada di buffer atau gk'''
+        matching_rows = []
+        
+        for table_name in data.table:
+            table = self.getTable(table_name)
+            if table:
+                for row in table.rows:
+                    if all(row.isRowFullfilngCondition(condition) for condition in data.conditions):
+                        matching_rows.append(row)
+        
+        return matching_rows
+        
