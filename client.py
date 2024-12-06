@@ -1,7 +1,7 @@
 import socket
 
 class Client:
-    def __init__(self, host="localhost", port=12345):
+    def __init__(self, host="localhost", port=12346):
         self.host = host
         self.port = port
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -26,11 +26,11 @@ class Client:
             while True:
                 if accept:
                     server_message = self.client_socket.recv(1024).decode("utf-8")
-                    print(server_message, end="")
+                    print(server_message, end="(dari atas)\n")
                     accept = False
 
                 server_message = self.client_socket.recv(1024).decode("utf-8")
-                print(server_message, end="")
+                print(server_message, end="(dari bawah)\n")
 
                 # ngirim ke server
                 user_input = self.accept_query()
@@ -39,6 +39,9 @@ class Client:
                     user_input = self.accept_query()
                 if self.client_socket.send(user_input.encode("utf-8")):
                     accept = True
+                    print("sending bro")
+                else:
+                    print("ga sending bro")
         except KeyboardInterrupt:
             print("\nDisconnecting...")
         finally:
