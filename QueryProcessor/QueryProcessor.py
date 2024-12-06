@@ -53,14 +53,16 @@ class QueryProcessor:
     def execute_query(self, query: List[str]) -> List:
         results = []
 
-        # optimizing
+        # BEGIN OPTIMIZING
         optimized_query = []
         for q in query:
             query_without_aliases = self.remove_aliases(q)
             optimized_query.append(
                 self.optimization_engine.optimizeQuery(self.optimization_engine.parseQuery(query_without_aliases)))
+        # END OPTIMIZING
+        print(optimized_query)
 
-        # concurrency control (validate and logging)
+        # BEGIN CONCURRENCY CONTROL
         # Get transaction ID
         transaction_id = self.concurrent_manager.beginTransaction()
         print(f"Transaction ID: {transaction_id}")
@@ -94,6 +96,7 @@ class QueryProcessor:
             else:
                 # Abort the transaction (when validation fails, concurrent control manager abort the transaction)
                 break
+        # END CONCURRENCY CONTROL
 
         # INI ERROR KARENA BELUM ADA DATABASE YANG BISA DIAMBIL
         try:
