@@ -31,9 +31,15 @@ class StorageManager:
         """
         failureRecovery = FailureRecovery()
         rows = failureRecovery.buffer.retrieveData(data_retrieval)
+
+        print("Inside StorageManager.readblock()")
         
         if rows is not None:
+            print("     Rows from buffer: ", rows)
             return rows
+        else:
+            print("     Rows from buffer is empty\n")
+    
         
                 
         serializer = TableManager()
@@ -68,8 +74,10 @@ class StorageManager:
     
            
             column_filtered_data = serializer.filterColumns(cond_filtered_data, data_retrieval.column)
-            print("\n\nFrom StorageManager: column_filtered_data", column_filtered_data)
+            # print("\n\nFrom StorageManager: column_filtered_data", column_filtered_data)
             all_filtered_data.extend(column_filtered_data)
+            
+        print("all filtered data", all_filtered_data)
             
         
         # write to buffer in failureRecovery

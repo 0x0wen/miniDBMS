@@ -14,7 +14,7 @@ contohnhya ada di Buffer.py
 '''
 
 class Table:
-    def __init__(self, table_name: str, header: Header = None, rows: list[Row] = []):
+    def __init__(self, table_name: str, header: Header = None, rows: List['Row'] = []):
         
         self.table_name = table_name
         self.header = header

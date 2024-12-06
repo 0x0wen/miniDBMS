@@ -37,5 +37,9 @@ class Header:
         '''perlu try catch buat invalid index juga atau langsung return None jg bisa biar gk error'''
         return self.types[index]
     
+    def indexOfColumn(self, name: str) -> int:
+        return self.names.index(name)
+
+    
     def __repr__(self) -> str:
         return f"Header({self.names}, {self.types})"

@@ -39,5 +39,10 @@ retrieval = DataRetrieval(
 )
 
 sm = StorageManager()
-sm.readBlock(ret3)
+
+print("\n---First read with ret4-----")
+sm.readBlock(ret4)
+
+print("---Second read with ret4-----")
+sm.readBlock(ret4)
 

@@ -38,7 +38,7 @@ MAX_BUFFER_SIZE = 100
 
 class Buffer:
     def __init__(self):
-        print("Buffer initialized")
+        # print("Buffer initialized")
         self.tables : List[Table] = []
         self.size: int = 0
         
@@ -62,17 +62,29 @@ class Buffer:
         self.tables = []
         
     def retrieveData(self, data: DataRetrieval) -> List[dict]:
+        
+        print("\nInside Buffer.retrieveData()")
+        
         matching_rows = []
         
         for table_name in data.table:
             table = self.getTable(table_name)
             if table:
                 for row in table.rows:
-                    if all(row.isRowFullfilngCondition(condition) for condition in data.conditions):
-                        matching_rows.append(row)
+                    if(row.isRowFullfilingCondition(data.conditions, table.header)):
+                        matching_rows.append(row.convertoStorageManagerRow(table.header))
+                        # print(matching_rows)
                         
         if len(matching_rows) == 0:
+            
+            print("     Data requested not found in buffer")
+            print("     Retrieving data from physical storage instead\n")
             return None
+        
+
+        print("     Data found in buffer")
+        print("     Returning data from buffer\n")
+
         
         return matching_rows
         
@@ -86,14 +98,14 @@ class Buffer:
         if len(rows) == 0:
             return False
         
-        print("\n\nInside Buffer.writeData()\n")
-        print("Adding data to buffer\n")
+        print("\n\nInside Buffer.writeData()")
+        print("     Adding data to buffer")
         
         table_name = dataRetrieval.table[0]
         is_table_exist = self.getTable(table_name)
         
         if not is_table_exist:
-            print ("Table not found, creating new table\n")
+            print ("        Table not found, creating new table")
             
             new_table = Table(table_name)
             table_header = Header()
@@ -111,10 +123,10 @@ class Buffer:
                 new_table.addRow(Row(new_table.numRows(), row_data))
                 
             self.addTabble(new_table)
-            print(new_table)
+            # print(new_table)
                 
         else:
-            print("Table found, adding data to existing table\n")
+            print("     Table found, adding data to existing table")
             
             table = self.getTable(table_name)
             
@@ -125,9 +137,9 @@ class Buffer:
                     
                 table.addRow(Row(table.numRows(), row_data))
 
-            print(table)
+            # print(table)
         
-        print("Data successfully added to buffer\n")
+        print("     Data successfully added to buffer\n")
         
         
     def getRowsBuffer(self, data: DataRetrieval) -> List[Row]:

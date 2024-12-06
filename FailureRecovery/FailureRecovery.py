@@ -17,7 +17,7 @@ class FailureRecovery:
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             
-        print("Failure Recovery instance created")
+        # print("Failure Recovery instance created")
         
         return cls._instance
 
@@ -29,7 +29,7 @@ class FailureRecovery:
             # self.query_processor = QueryProcessor()
             self.initialized = True
 
-            print("Failure Recovery initialized")
+            # print("Failure Recovery initialized")
 
     def write_log(self, info: ExecutionResult) -> None:
         """Write-Ahead Logging implementation"""
