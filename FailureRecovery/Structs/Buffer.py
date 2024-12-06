@@ -62,13 +62,20 @@ class Buffer:
         self.tables = []
         
     def retrieveData(self, data: DataRetrieval) -> List[dict]:
-        '''mengambil data dari tabel berdasarkan kondisi yang diberikan'''
-        print("Retrieving data from buffer")
-        # table = self.getTable(data.table[0])
-        # if table:
-        #     rows = table.findRows(data.conditions)
-        #     return rows
-        return None
+        matching_rows = []
+        
+        for table_name in data.table:
+            table = self.getTable(table_name)
+            if table:
+                for row in table.rows:
+                    if all(row.isRowFullfilngCondition(condition) for condition in data.conditions):
+                        matching_rows.append(row)
+                        
+        if len(matching_rows) == 0:
+            return None
+        
+        return matching_rows
+        
     
     def writeData(self, rows: Rows, dataRetrieval: DataRetrieval) -> bool:
         
