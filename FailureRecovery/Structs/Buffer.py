@@ -1,4 +1,5 @@
 from FailureRecovery.Structs import Row
+from FailureRecovery.Structs.Row import Row
 from StorageManager.objects import DataRetrieval
 from .Table import Table
 from typing import List, TypeVar
@@ -30,11 +31,15 @@ MAX_BUFFER_SIZE = 100
 
 class Buffer:
     def __init__(self):
-        self.tables : List[Table] = None
+        self.tables : List[Table] = []
         self.size: int = 0
         
-    def addTabble(self, table: Table) -> None:
+    def addTabble(self, table: Table) -> bool:
+        if self.size >= MAX_BUFFER_SIZE:
+            return False
         self.tables.append(table)
+        self.size += 1
+        return True
 
     def getTable(self, table_name: str) -> Table:
         for table in self.tables:

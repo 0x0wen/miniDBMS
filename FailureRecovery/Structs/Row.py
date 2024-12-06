@@ -1,6 +1,7 @@
 from typing import List, TypeVar
 
 from FailureRecovery.Structs import Header
+from FailureRecovery.Structs.Header import Type
 from StorageManager.objects.Condition import Condition
 T = TypeVar('T')
 
@@ -20,12 +21,16 @@ class Row:
         '''ngecek apakah row_data sesuai dengan header'''
         
         if len(self.row_data) != header.countColumn():
-            raise ValueError("Row data doesn't match header")
+            return False
         
-        for row in self.row_data:
-            if type(row) != header.types[self.row_data.index(row)]:
-                raise ValueError("Row data type doesn't match header")
-        
+        for i, value in enumerate(self.row_data):
+            expected_type = header.typeOfColumnByIndex(i)
+            if expected_type == Type.INT and not isinstance(value, int):
+                return False
+            elif expected_type == Type.STR and not isinstance(value, str):
+                return False
+            elif expected_type == Type.FLOAT and not isinstance(value, float):
+                return False
         return True
     
     def isRowFullfilngCondition(self, condition: Condition) -> bool:

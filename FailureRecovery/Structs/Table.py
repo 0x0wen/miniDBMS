@@ -17,7 +17,7 @@ class Table:
         
         self.table_name = table_name
         self.header = header
-        self.rows = rows
+        self.rows = rows or []
     
     def setHeader(self, header: Header) -> None:
         self.header = header
