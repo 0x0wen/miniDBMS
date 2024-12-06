@@ -1,6 +1,7 @@
 from FailureRecovery.Structs import Row
 from FailureRecovery.Structs.Row import Row
 from StorageManager.objects import DataRetrieval
+from StorageManager.objects.DataWrite import DataWrite
 from .Table import Table
 from typing import List, TypeVar
 T = TypeVar('T')
@@ -167,8 +168,12 @@ class Buffer:
         
         return matching_rows
     
-    def update_buffer (databefore, dataafter) {
-        #find data before
-        # delete data before from buffer
-        # insert data after dengan cara append
-    }
+    def updateData(self, data: DataWrite, databefore: List[str], dataafter: List[str]):
+        table = self.getTable(data.selected_table)
+        
+        if table:
+            for row in table.rows:
+                if row == databefore:
+                    table.rows.remove(row)
+                    table.addRow(Row(table.numRows(), dataafter))
+        
