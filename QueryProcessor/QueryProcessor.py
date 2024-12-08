@@ -1,5 +1,9 @@
 from QueryOptimizer.OptimizationEngine import OptimizationEngine
+from QueryOptimizer.QueryTree import QueryTree
 from ConcurrencyControlManager.ConcurrentControlManager import ConcurrentControlManager
+from StorageManager.objects.DataRetrieval import DataRetrieval, Condition
+from StorageManager.objects.JoinCondition import JoinCondition
+from StorageManager.objects.JoinOperation import JoinOperation
 # from FailureRecovery.FailureRecovery import FailureRecovery
 from Interface.Rows import Rows
 from Interface.Action import Action
@@ -58,9 +62,12 @@ class QueryProcessor:
         for q in query:
             query_without_aliases = self.remove_aliases(q)
             optimized_query.append(
-                self.optimization_engine.optimizeQuery(self.optimization_engine.parseQuery(query_without_aliases)))
+                self.optimization_engine.optimizeQuery(self.optimization_engine.parseQuery(q)))
+                # self.optimization_engine.optimizeQuery(self.optimization_engine.parseQuery(query_without_aliases)))
         # END OPTIMIZING
-        print(optimized_query)
+        print("optimized querynya adalah")
+        for q in optimized_query:
+            print(q.query_tree)
 
         # BEGIN CONCURRENCY CONTROL
         # Get transaction ID
@@ -98,10 +105,13 @@ class QueryProcessor:
                 break
         # END CONCURRENCY CONTROL
 
-        # INI ERROR KARENA BELUM ADA DATABASE YANG BISA DIAMBIL
+        # BEGIN STORAGE MANAGER
         try:
             for query in optimized_query:
                 query_tree = query.query_tree
+                print("DIA MASUK KESINI")
+                print(query_tree.node_type)
+                self.data_retrievals_to_results(query_tree)
             
                 if query_tree.node_type == "SELECT":
                     old_rows = self.storage_manager.query_tree_to_data_retrieval(query_tree)
@@ -119,9 +129,9 @@ class QueryProcessor:
                     )
 
                 elif query_tree.node_type == "UPDATE":
-                    old_rows = self.storage_manager.__query_tree_to_data_retrieval(query_tree)
-                    result_rows = self.storage_manager.writeBlock(old_rows)
+                    old_rows = self.storage_manager.query_tree_to_data_retrieval(query_tree)
                     print("query tree ", query_tree)
+                    result_rows = self.storage_manager.writeBlock(old_rows)
                     print("old rows ", old_rows)
                     print("result rows ", result_rows)
                     result = ExecutionResult(
@@ -205,3 +215,75 @@ class QueryProcessor:
 
         # Create and return Rows object
         return Rows(operations)
+    
+    def get_table_and_condition(self, qt: QueryTree, tables: list, conditions: list):
+        for child in qt.children:
+            if child.node_type == "WHERE":
+                conditions.append(child.val)
+            elif child.node_type == "Value1" or child.node_type == "Value2":
+                tables.append(child.val[0])
+            self.get_table_and_condition(child, tables, conditions)
+
+    def query_tree_to_data_retrievals(self, qt: QueryTree):
+        tables = []
+        conditions = []
+        self.get_table_and_condition(qt, tables, conditions)
+        print("tablenya", tables)
+        print("conditionnya", conditions)
+
+        columns = {}
+        for table in tables:
+            temp = []
+            for key, value in self.storage_manager.readBlock(DataRetrieval(table=[table], column=[], conditions=[]))[0].items():
+                temp.append(key)
+            columns[table] = temp
+            temp = []
+
+        print("columns", columns)
+
+        conditions_objects = []
+
+        for condition in conditions:
+            if 'or' not in [c.lower() for c in condition]:
+                if condition == conditions[0]:
+                    conditions_objects.append(Condition(column=condition[0], operation=condition[1], operand=condition[2], connector=None))
+                else:
+                    conditions_objects.append(Condition(column=condition[0], operation=condition[1], operand=condition[2], connector="AND"))
+            else:
+                if condition == conditions[0]:
+                    conditions_objects.append(Condition(column=condition[0], operation=condition[1], operand=condition[2], connector=None))
+                    conditions_objects.append(Condition(column=condition[4], operation=condition[5], operand=condition[6], connector="OR"))
+                else:
+                    conditions_objects.append(Condition(column=condition[0], operation=condition[1], operand=condition[2], connector="AND"))
+                    conditions_objects.append(Condition(column=condition[4], operation=condition[5], operand=condition[6], connector="OR"))
+
+        print("objek kondisi", conditions_objects)
+
+        list_of_data_retrievals = []
+
+        for table in tables:
+            condition_object_temp = []
+            for condition in conditions_objects:
+                if condition.column in columns[table]:
+                    condition_object_temp.append(condition)
+            list_of_data_retrievals.append(DataRetrieval(table=[table], column=[], conditions=condition_object_temp))
+        
+        return list_of_data_retrievals, tables
+    
+    # def get_join_operations(self, qt: QueryTree, jo: list[JoinOperation]):
+    #     if ("JOIN" in qt.node_type):
+
+    #     for child in qt.children:
+    #         if "JOIN" in child.node
+
+    
+    def data_retrievals_to_results(self, qt: QueryTree):
+        list_of_data_retrievals, tables = self.query_tree_to_data_retrievals(qt)
+        results = {}
+        for data_retrieval in list_of_data_retrievals:
+            results[data_retrieval.table[0]] = self.storage_manager.readBlock(data_retrieval)
+
+        for table in tables:
+            print("hasil akhirnya", results[table])
+
+    

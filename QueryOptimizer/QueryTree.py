@@ -13,7 +13,7 @@ class QueryTree:
         Creates a string representation of the entire tree structure.
         """
         # Current node representation
-        ret = "  " * level + f"QueryTree(node_type: {self.node_type}, values: {self.val})"
+        ret = "  " * level + f"{level} QueryTree(node_type: {self.node_type}, values: {self.val})"
         
         # Add all children representations
         for child in self.children:

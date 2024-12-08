@@ -55,7 +55,7 @@ class StorageManager:
             column_filtered_data = serializer.filterColumns(cond_filtered_data, data_retrieval.column)
             all_filtered_data.extend(column_filtered_data)
 
-        print(all_filtered_data)
+        # print(all_filtered_data)
         print("Amount: ", len(all_filtered_data))
         return all_filtered_data
 

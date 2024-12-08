@@ -299,6 +299,8 @@ class OptimizationEngine:
                 raise CustomException("Incomplete syntax for WHERE clause", code=400)
             
             if(not isAlphanumericWithQuotes(tokens[0].strip("'")) or not isAlphanumericWithQuotes(tokens[2].strip("'"))):
+                print("error atas")
+                print(tokens[0].strip("'"))
                 raise CustomException("Invalid syntax for WHERE clause", code=400)
             
             if(not tokens[1] in LEGAL_COMPARATORS):
@@ -308,12 +310,13 @@ class OptimizationEngine:
                 condition.append(tokens.pop(0))
                 condition.append(tokens.pop(0))
                 condition.append(tokens.pop(0))
-                if(not tokens or tokens[0] != "OR"):
+                if(not tokens or tokens[0].upper() != "OR"):
                     break
                 else:
                     condition.append(tokens.pop(0))
             root.val = condition
-            if(tokens and tokens[0] not in LEGAL_COMMANDS_AFTER_WHERE):
+            if(tokens and tokens[0].upper() not in LEGAL_COMMANDS_AFTER_WHERE):
+                print("anu nya ", tokens[0])
                 raise CustomException("Invalid command after WHERE clause", code=400)
             child = self.__createQueryTree(tokens)
             if child is not None:  # Only append if the child is not None
@@ -329,6 +332,8 @@ class OptimizationEngine:
                 raise CustomException("Incomplete syntax for WHERE clause", code=400)
             
             if(not isAlphanumericWithQuotes(tokens[0].strip("'")) or not isAlphanumericWithQuotes(tokens[2].strip("'"))):
+                print("error bawah")
+                print(tokens[0].strip("'"))
                 raise CustomException("Invalid syntax for WHERE clause", code=400)
             
             if(not tokens[1] in LEGAL_COMPARATORS):
@@ -338,12 +343,13 @@ class OptimizationEngine:
                 condition.append(tokens.pop(0))
                 condition.append(tokens.pop(0))
                 condition.append(tokens.pop(0))
-                if(not tokens or tokens[0] != "OR"):
+                if(not tokens or tokens[0].upper() != "OR"):
                     break
                 else:
                     condition.append(tokens.pop(0))
             root.val = condition
-            if(tokens and tokens[0] not in LEGAL_COMMANDS_AFTER_WHERE):
+            if(tokens and tokens[0].upper() not in LEGAL_COMMANDS_AFTER_WHERE):
+                print("anu nya", tokens[0])
                 raise CustomException("Invalid command after WHERE clause", code=400)
             child = self.__createQueryTree(tokens)
             if child is not None:  # Only append if the child is not None
