@@ -112,6 +112,10 @@ class QueryProcessor:
                 print("DIA MASUK KESINI")
                 print(query_tree.node_type)
                 self.data_retrievals_to_results(query_tree)
+                print("join operations")
+                jo = self.get_join_operations(query_tree)
+                print(jo)
+                print("loligaging")
             
                 if query_tree.node_type == "SELECT":
                     old_rows = self.storage_manager.query_tree_to_data_retrieval(query_tree)
@@ -270,11 +274,52 @@ class QueryProcessor:
         
         return list_of_data_retrievals, tables
     
-    # def get_join_operations(self, qt: QueryTree, jo: list[JoinOperation]):
-    #     if ("JOIN" in qt.node_type):
-
-    #     for child in qt.children:
-    #         if "JOIN" in child.node
+    def get_join_operations(self, qt: QueryTree):
+        print("iterating", qt.node_type)
+        print("qt nya", qt)
+        if qt.node_type == "Value1" or qt.node_type == "Value2":
+            print("masuk 1")
+            print("return", qt.val[0])
+            return qt.val[0]
+        if qt.node_type == "JOIN": # cross join 
+            print("masuk 2")
+            return JoinOperation([self.get_join_operations(qt.children[0]), self.get_join_operations(qt.children[1])], JoinCondition("CROSS", []))
+        elif qt.node_type == "TJOIN" and len(qt.children) == 2 and len(qt.children) == 0: # natural join
+            print("masuk 3")
+            return JoinOperation([self.get_join_operations(qt.children[0]), self.get_join_operations(qt.children[1])], JoinCondition("NATURAL", []))
+        elif qt.node_type == "TJOIN":
+            cond = [qt.val]
+            val1 = str()
+            val2 = str()
+            new_tree = False
+            for child in qt.children:
+                if child.node_type == "Value1":
+                    val1 = child.val[0]
+                elif child.node_type == "Value2":
+                    val2 = child.val[0]
+                elif child.node_type == "TJOIN" and len(child.children) == 0:
+                    print("condnya sblm", cond)
+                    cond.append(child.val)
+                    print("condnya sesudah", cond)
+                elif "JOIN" in child.node_type:
+                    new_tree = child
+            print("val 1", val1)
+            print("val 2", val2)
+            if val1 and val2:
+                print("masuk 1.1")
+                print(val1)
+                print(val2)
+                print(cond)
+                return JoinOperation([val1, val2], JoinCondition("ON", cond))
+            elif val1:
+                print("masuk 1.2")
+                return JoinOperation([val1, self.get_join_operations(new_tree)], JoinCondition("ON", cond))
+            elif val2:
+                print("masuk 1.3")
+                return JoinOperation([self.get_join_operations(new_tree), val2], JoinCondition("ON", cond))
+        else:
+            print("masuk 4")
+            return self.get_join_operations(qt.children[0])
 
     
     def data_retrievals_to_results(self, qt: QueryTree):

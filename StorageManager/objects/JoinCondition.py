@@ -16,6 +16,11 @@ class JoinCondition:
         elif self.join_type == "NATURAL":
             return "NATURAL JOIN"
         elif self.join_type == "ON" and self.condition:
-            condition_str = " AND ".join(self.condition)
+            condition_str = str()
+            for c in self.condition:
+                if c == self.condition[len(self.condition)-1]:
+                    condition_str += " ".join(c)
+                else:
+                    condition_str += (" ".join(c) + " AND ")
             return f"JOIN ON {condition_str}"
         return f"JOIN {self.join_type}"

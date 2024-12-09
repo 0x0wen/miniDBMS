@@ -3,7 +3,7 @@ import threading
 from QueryProcessor.QueryProcessor import QueryProcessor
 
 class Server:
-    def __init__(self, host="localhost", port=1235):
+    def __init__(self, host="localhost", port=1234):
         self.host = host
         self.port = port
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

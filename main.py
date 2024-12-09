@@ -1,4 +1,6 @@
 from StorageManager.objects.DataRetrieval import DataRetrieval,Condition
+from StorageManager.objects.JoinOperation import JoinOperation
+from StorageManager.objects.JoinCondition import JoinCondition
 from StorageManager.StorageManager import StorageManager
 #SELECT year FROM course WHERE year >= 2030 AND year < 2040 OR year > 2070 AND year <> 2080
 
@@ -52,3 +54,5 @@ print()
 print("ISI USER 2")
 for key, value in result3[0].items():
     print(key)
+
+print(JoinOperation(["val1", "val2"], JoinCondition("ON", [['courseid', '=', 'studentid'], ['coursename', '=', 'fullname']])))
