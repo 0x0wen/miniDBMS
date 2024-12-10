@@ -38,8 +38,8 @@ class FailureRecovery:
                 info.transaction_id,
                 info.query,
                 info.query.selected_table,
-                info.data_before if current_data else None, 
-                info.rows if info.rows else None
+                info.data_before.data if current_data else None, 
+                info.data_after.data if info.data_after else None
             )
 
             # Data Before yang didapet dari Execution Result: 
