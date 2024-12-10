@@ -273,88 +273,54 @@ class StorageManager:
         # Buat dan return objek Statistik
         return Statistics(n_r=n_r, b_r=b_r, l_r=l_r, f_r=f_r, V_a_r=V_a_r)
     
-    def synchronize_stroage(self):
-        #STUB - Panggil checkpoint dari Error recovery
-        #STUB - untuk tiap table di buffer, cek ada datanya atau ga
-        #STUB - baca data table dari physical
-        #STUB - ambil data physical yang alive
-        #STUB - Untuk tiap table ada isinya kita panggil writeTable
-        return None
+    def merge_data(buffer_rows, physical_storage, key_column):
+        """
+        Menggabungkan data antara buffer dan storage fisik.
+        
+        Args:
+            buffer_rows (list[dict]): Data yang ada di buffer.
+            physical_storage (list[dict]): Data yang ada di storage fisik.
+            key_column (str): Nama kolom kunci utama untuk perbandingan.
+            
+        Returns:
+            list[dict]: Data terbaru yang telah digabungkan.
+        """
+        # Buat dictionary dari physical storage untuk akses cepat
+        storage_dict = {row[key_column]: row for row in physical_storage}
+        
+        # Update storage dengan buffer
+        for buffer_row in buffer_rows:
+            storage_dict[buffer_row[key_column]] = buffer_row  # Replace or add buffer row
+
+        # Kembalikan data yang sudah digabungkan
+        return list(storage_dict.values())
     
-    def query_tree_to_data_retrieval(self, query_tree: QueryTree) -> DataRetrieval:
+    def synchronize_stroage(self):
         """
-        Convert QueryTree object to DataRetrieval object with proper handling of joins, where conditions, and tables.
+        Sinkronisasi antara buffer dan storage fisik.
         """
-        tables = []
-        columns = []
-        where_conditions = []  # To store WHERE conditions
-        join_conditions = []   # To store JOIN conditions
-        processed_tables = set()  # To track processed tables 
-
-        def traverse_tree(node: QueryTree, connector: str = None):
-            """
-            Recursively traverse the QueryTree object to extract tables, columns, and conditions.
-            """
-            nonlocal tables, columns, where_conditions, join_conditions, processed_tables
-
-            if node.node_type == "SELECT":
-                columns.extend(node.val) if node.val[0] != "*" else columns.extend([])
-            elif node.node_type == "FROM":
-                # Add tables from the FROM clause
-                for table in node.val:
-                    if table not in processed_tables:
-                        tables.append(table)
-                        processed_tables.add(table)
-
-            elif node.node_type == "WHERE":
-                if len(node.val) == 3:
-                    # Simple WHERE condition
-                    column, operation, operand = node.val
-                    where_conditions.append(Condition(column=column, operation=operation, operand=operand, connector=connector))
-                elif len(node.val) > 3:
-                    # Complex WHERE condition (OR)
-                    for i in range(0, len(node.val), 4):
-                        column, operation, operand = node.val[i:i+3]
-                        where_conditions.append(Condition(column=column, operation=operation, operand=operand, connector=connector))
-                        connector = "OR"
-
-            elif node.node_type == "JOIN":
-                # Handle Cross Join (no condition)
-                if len(node.val) == 0:
-                    if tuple(tables) not in processed_tables:  # Ensure CROSS JOIN is added only once
-                        join_conditions.append(JoinCondition(join_type="CROSS"))
-                        processed_tables.add(tuple(tables))
-                else:
-                    # Don't add a generic JOIN, only process ON conditions for JOIN
-                    pass
-
-            elif node.node_type == "TJOIN":
-                # Handle Natural Join or Join On with conditions
-                if len(node.val) == 0:
-                    # Natural Join (no condition)
-                    join_conditions.append(JoinCondition(join_type="NATURAL"))
-                else:
-                    # JOIN ON
-                    join_conditions.append(JoinCondition(join_type="ON", condition=node.val))
-
-                # Add tables involved in the JOIN
-                if node.children:
-                    for child in node.children:
-                        table_name = child.val[0]
-                        if table_name not in processed_tables:
-                            tables.append(table_name)
-                            processed_tables.add(table_name)
-
-            # Recursively process the child nodes
-            for child in node.children:
-                if child.node_type.startswith("Value"):  # Ensure only table nodes are added
-                    table_name = child.val[0]
-                    if table_name not in processed_tables:
-                        tables.append(table_name)
-                        processed_tables.add(table_name)
-
-                traverse_tree(child, connector="AND")
-
-        # Start traversing from the root of the QueryTree
-        traverse_tree(query_tree)
-        return DataRetrieval(table=tables, column=columns, conditions=where_conditions, join_conditions=join_conditions)
+        #get buffer
+        failureRecovery = FailureRecovery()
+        tables = failureRecovery.buffer.getTables()
+        
+        #get table di physical storage dan bandingkan dengan buffer
+        serializer = TableManager()
+        for table in tables:
+            # get header and rows from buffer
+            header = table.header
+            buffer_rows =[]
+            for row in table.rows:
+                buffer_rows.append(row.convertoStorageManagerRow(header))
+            
+            # get data from physical storage
+            data = serializer.readTable(table.table_name)
+            
+            # merge data
+            new_data = self.merge_data(buffer_rows, data, header[0][0])
+        
+            # write new data to physical storage
+            serializer.writeTable(table.table_name, new_data, serializer.readSchema(table.table_name))
+        
+        #Call checkpoint from failure recovery
+        failureRecovery.save_checkpoint()
+        return None
