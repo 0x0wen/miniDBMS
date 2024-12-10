@@ -49,7 +49,6 @@ class QueryProcessor:
                 tokens.pop(i)  # Remove alias
                 tokens.insert(i, ',')
                 i+=1
-                print(alias)
             elif tokens[i].upper() == 'FROM':
                 tokens.pop(i-1)
                 break
@@ -57,11 +56,8 @@ class QueryProcessor:
                 i += 1
 
         for j in range(len(tokens)):
-            print("-----")
-            print(tokens[j].split('.')[0])
             if tokens[j].split('.')[0] in alias_map:
                 tokens[j] = alias_map[tokens[j].split('.')[0]] + '.' + tokens[j].split('.')[1]
-                print("awawwa")
             
         print(' '.join(tokens))
         return ' '.join(tokens), alias_map
