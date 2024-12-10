@@ -1,5 +1,9 @@
-from Interface import Queue, Response, Action, Rows
+from Interface.Response import Response
+from Interface.Action import Action
+from Interface.Queue import Queue
+from Interface.Rows import Rows
 from ConcurrencyControlManager.Algorithms.AbstractAlgorithm import AbstractAlgorithm
+
 
 class TwoPhaseLock(AbstractAlgorithm):
     """
@@ -28,7 +32,7 @@ class TwoPhaseLock(AbstractAlgorithm):
         for lock in self.lock_x_table:
             if (lock[0] != transaction_id) and (lock[1] == data_item):
                 return True
-            
+
         return False
         ### End of method ###
 
@@ -39,7 +43,7 @@ class TwoPhaseLock(AbstractAlgorithm):
 
         return False
         ### End of method ###
-    
+
     def isLockedXBySelf(self, transaction_id: int, data_item: str) -> bool:
         for lock in self.lock_x_table:
             if (lock[0] == transaction_id) and (lock[1] == data_item):
@@ -57,16 +61,17 @@ class TwoPhaseLock(AbstractAlgorithm):
         ### End of method ###
 
     def lockX(self, transaction_id: int, data_item: str) -> bool:
-        if self.isLockedSByOtherTransaction(transaction_id, data_item) or self.isLockedXByOtherTransaction(transaction_id, data_item):
+        if self.isLockedSByOtherTransaction(transaction_id, data_item) or self.isLockedXByOtherTransaction(
+                transaction_id, data_item):
             return False
         self.lock_x_table.append((transaction_id, data_item))
 
         return True
         ### End of method ###
-    
+
     def unlockAllS(self, transaction_id: int) -> bool:
         all_unlocked = False
-        while not (all_unlocked):
+        while not all_unlocked:
             idx = -1
             for i in range(len(self.lock_s_table)):
                 if self.lock_s_table[i][0] == transaction_id:
@@ -79,10 +84,10 @@ class TwoPhaseLock(AbstractAlgorithm):
 
         return True
         ### End of method ###
-    
+
     def unlockAllX(self, transaction_id: int) -> bool:
         all_unlocked = False
-        while not (all_unlocked):
+        while not all_unlocked:
             idx = -1
             for i in range(len(self.lock_x_table)):
                 if self.lock_x_table[i][0] == transaction_id:
@@ -111,7 +116,7 @@ class TwoPhaseLock(AbstractAlgorithm):
 
         return True
         ### End of method ###
-    
+
     def parseRows(self, db_object: Rows):
         """
         Returns a list of string, int, string.
@@ -132,30 +137,31 @@ class TwoPhaseLock(AbstractAlgorithm):
         
         return parsed_rows
         ### End of method ###
-    
+
     def handleLockXRequest(self, transaction_id: int, data_item: str) -> bool:
         valid = False
 
-        if not ((self.isLockedXByOtherTransaction(transaction_id, data_item)) or (self.isLockedSByOtherTransaction(transaction_id, data_item))):
-            if (self.isLockedSBySelf(transaction_id, data_item)):
+        if not ((self.isLockedXByOtherTransaction(transaction_id, data_item)) or (
+                self.isLockedSByOtherTransaction(transaction_id, data_item))):
+            if self.isLockedSBySelf(transaction_id, data_item):
                 valid = self.upgradeLockSToX(transaction_id, data_item)
-            elif (self.isLockedXBySelf(transaction_id, data_item)):
+            elif self.isLockedXBySelf(transaction_id, data_item):
                 valid = True
             else:
                 valid = self.lockX(transaction_id, data_item)
-        
+
         return valid
         ### End of method ###
-    
+
     def handleLockSRequest(self, transaction_id: int, data_item: str) -> bool:
         valid = False
 
         if not (self.isLockedXByOtherTransaction(transaction_id, data_item)):
-            if (self.isLockedSBySelf(transaction_id, data_item) or self.isLockedXBySelf(transaction_id, data_item)):
+            if self.isLockedSBySelf(transaction_id, data_item) or self.isLockedXBySelf(transaction_id, data_item):
                 valid = True
             else:
                 valid = self.lockS(transaction_id, data_item)
-        
+
         return valid
         ### End of method ###
 
@@ -165,35 +171,35 @@ class TwoPhaseLock(AbstractAlgorithm):
 
         return True
         ### End of method ###
-    
+
     def isLockedByOlderTransaction(self, transaction_id: int, data_item: str) -> bool:
         for lock in self.lock_s_table:
             if (lock[0] < transaction_id) and (lock[1] == data_item):
                 return True
-        
+
         for lock in self.lock_x_table:
             if (lock[0] < transaction_id) and (lock[1] == data_item):
                 return True
-        
+
         return False
         ### End of method ###
-    
+
     def getTransactionIdOfLock(self, data_item: str) -> int:
         for lock in self.lock_x_table:
             if lock[1] == data_item:
                 return lock[0]
-            
+
         for lock in self.lock_s_table:
             if lock[1] == data_item:
                 return lock[0]
-        
+
         return -1
         ### End of method ###
-    
-    def woundOrWait(self, transaction_id: int, data_item: str) -> bool:
-        if (self.isLockedByOlderTransaction(transaction_id, data_item)):
+
+    def woundOrWait(self, transaction_id: int, data_item: str) -> str:
+        if self.isLockedByOlderTransaction(transaction_id, data_item):
             return "WAIT"
-        
+
         else:
             transaction_to_wound = self.getTransactionIdOfLock(data_item)
             
@@ -206,7 +212,7 @@ class TwoPhaseLock(AbstractAlgorithm):
 
         ### End of method ###
 
-    def run(self, db_object: Rows, transaction_id: int) -> None:
+    def logObject(self, db_object: Rows, transaction_id: int) -> None:
         parsed_db_object = self.parseRows(db_object)
 
         if parsed_db_object[0] == "W":
@@ -276,7 +282,6 @@ class TwoPhaseLock(AbstractAlgorithm):
         return response
 
         ### End of method ###
-
 
     def end(self, transaction_id: int) -> bool:
 

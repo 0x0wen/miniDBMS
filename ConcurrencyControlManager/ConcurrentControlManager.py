@@ -1,6 +1,9 @@
 from ConcurrencyControlManager.Algorithms.AbstractAlgorithm import AbstractAlgorithm
+from ConcurrencyControlManager.Algorithms.Timestamp import TimestampBasedProtocol
 from ConcurrencyControlManager.Algorithms.TwoPhaseLock import TwoPhaseLock
-from Interface import Response, Action, Rows
+from Interface.Response import Response
+from Interface.Action import Action
+from Interface.Rows import Rows
 from Enum.ConcurrencyControlAlgorithmEnum import ConcurrencyControlAlgorithmEnum
 
 
@@ -8,6 +11,15 @@ class ConcurrentControlManager:
     """
     Manages concurrency control for database transactions using various algorithms.
     """
+    instance = None
+
+    def __new__(cls):
+        """
+        Creates a new instance of the ConcurrentControlManager if one does not exist.
+        """
+        if not hasattr(cls, 'instance'):
+            cls.instance = super(ConcurrentControlManager, cls).__new__(cls)
+        return cls.instance
 
     def __init__(self):
         """
@@ -15,7 +27,7 @@ class ConcurrentControlManager:
         """
         self.sequence_number: int = 0  # last id assigned to a transaction
         self.concurrency_control: ConcurrencyControlAlgorithmEnum = ConcurrencyControlAlgorithmEnum.LOCK  # Algorithm to use
-        self.abstract_algorithm: AbstractAlgorithm = TwoPhaseLock()
+        self.abstract_algorithm: AbstractAlgorithm = TimestampBasedProtocol()
 
     def beginTransaction(self) -> int:
         """
@@ -36,7 +48,7 @@ class ConcurrentControlManager:
             transaction_id (int): The ID of the transaction.
         """
         try:
-            self.abstract_algorithm.run(db_object, transaction_id)
+            self.abstract_algorithm.logObject(db_object, transaction_id)
         except Exception as e:
             print(f"Exception: {e}")
 
@@ -89,7 +101,7 @@ class ConcurrentControlManager:
                 case ConcurrencyControlAlgorithmEnum.LOCK:
                     self.abstract_algorithm = TwoPhaseLock()
                 case ConcurrencyControlAlgorithmEnum.TIMESTAMP:
-                    pass
+                    self.abstract_algorithm = TimestampBasedProtocol()
                 case ConcurrencyControlAlgorithmEnum.MVCC:
                     pass
                 case _:
