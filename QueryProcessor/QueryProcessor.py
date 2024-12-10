@@ -42,18 +42,18 @@ class QueryProcessor:
             if tokens[i].upper() == 'AS':
                 alias = tokens[i + 1]
                 original = tokens[i - 1]
-                alias_map[alias] = original
+                alias_map[original] = alias
                 tokens.pop(i)  # remove 'AS'
                 tokens.pop(i)  # remove alias
+                tokens.insert(i, ',')
                 i -= 1
-            i += 1
 
-        # replace aliases
-        for j in range(len(tokens)):
-            if tokens[j] in alias_map:
-                tokens[j] = alias_map[tokens[j]]
-
-        return ' '.join(tokens)
+            elif tokens[i].upper() == 'FROM':
+                tokens.pop(i-1)
+                break
+            i+=1
+        
+        return ' '.join(tokens), alias_map
 
     def execute_query(self, query: List[str]) -> List:
         results = []
@@ -61,7 +61,7 @@ class QueryProcessor:
         # BEGIN OPTIMIZING
         optimized_query = []
         for q in query:
-            query_without_aliases = self.remove_aliases(q)
+            query_without_aliases, alias_map = self.remove_aliases(q)
             optimized_query.append(
                 self.optimization_engine.optimizeQuery(self.optimization_engine.parseQuery(q)))
                 # self.optimization_engine.optimizeQuery(self.optimization_engine.parseQuery(query_without_aliases)))
