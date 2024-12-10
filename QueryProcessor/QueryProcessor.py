@@ -40,19 +40,30 @@ class QueryProcessor:
 
         while i < len(tokens):
             if tokens[i].upper() == 'AS':
-                alias = tokens[i + 1]
+                alias_without_comma = tokens[i + 1].split(',')[0]
+                alias =alias_without_comma
+                alias.removesuffix(',')
                 original = tokens[i - 1]
-                alias_map[original] = alias
-                tokens.pop(i)  # remove 'AS'
-                tokens.pop(i)  # remove alias
+                alias_map[alias] = original
+                tokens.pop(i)  # Remove 'AS'
+                tokens.pop(i)  # Remove alias
                 tokens.insert(i, ',')
-                i -= 1
-
+                i+=1
+                print(alias)
             elif tokens[i].upper() == 'FROM':
                 tokens.pop(i-1)
                 break
-            i+=1
-        
+            else:
+                i += 1
+
+        for j in range(len(tokens)):
+            print("-----")
+            print(tokens[j].split('.')[0])
+            if tokens[j].split('.')[0] in alias_map:
+                tokens[j] = alias_map[tokens[j].split('.')[0]] + '.' + tokens[j].split('.')[1]
+                print("awawwa")
+            
+        print(' '.join(tokens))
         return ' '.join(tokens), alias_map
 
     def execute_query(self, query: List[str]) -> List:
