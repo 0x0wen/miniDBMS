@@ -17,19 +17,14 @@ class FailureRecovery:
         if cls._instance is None:
             cls._instance = super().__new__(cls)
             
-        # print("Failure Recovery instance created")
         
         return cls._instance
 
     def __init__(self, buffer_size: int = 1024):
         if not hasattr(self, 'initialized'):
             self.buffer = Buffer()
-            # self.log_manager = LogManager()
-            # self.storage_manager = StorageManager()
-            # self.query_processor = QueryProcessor()
+            self.logManager = LogManager()
             self.initialized = True
-
-            # print("Failure Recovery initialized")
 
     def write_log(self, info: ExecutionResult) -> None:
         """Write-Ahead Logging implementation"""
@@ -77,24 +72,17 @@ class FailureRecovery:
     def save_checkpoint(self) -> None:
         """Synchronize WAL entries with physical storage"""
         try:
-            entries = self.log_manager.get_entries_since_checkpoint()
-            
-            # Update physical storage with WAL entries
-            # for entry in entries:
-            #     if entry["data_after"]:
-            #         self.storage_manager.writeBlock(DataWrite(
-            #             overwrite=True,
-            #             selected_table=entry["table"],
-            #             column=list(entry["data_after"].keys()),
-            #             conditions=[],
-            #             new_value=[entry["data_after"]]
-            #         ))
-            
-            # Empty buffer after physical update
-            self.buffer.empty_buffer()
+            # The Schema of checkpoint
 
-            # Archive and clear WAL
-            self.log_manager.archive_wal()
+            #1 Storage Manager checks if the wal is full
+
+            #2 If it is full, then we firstly get the entries of the wal. Then we clear the WAL
+            entries = self.logManager.get_entries()
+
+            # 3. Then we empty the buffer
+            self.buffer.clearBuffer()
+            
+            return entries
             
         except Exception as e:
             raise Exception(f"Checkpoint failed: {e}")
