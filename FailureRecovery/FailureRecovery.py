@@ -35,7 +35,7 @@ class FailureRecovery:
             # 2. Write to WAL first
             self.logManager.write_log_entry(
                 info.transaction_id,
-                info.query,
+                "UPDATE" if info.query.overwrite else "INSERT",
                 info.query.selected_table,
                 info.data_before.data if current_data else None, 
                 info.data_after.data if info.data_after else None
