@@ -1,9 +1,9 @@
 from datetime import datetime
-from typing import Any, Optional, Dict
+from typing import Any, Optional, Dict, List
 
 # Importing modules in Failure Recovery
 from FailureRecovery.Structs.Buffer import Buffer
-from FailureRecovery.LogManager import LogManager
+from FailureRecovery.LogManager import LogManager, LogEntry
 from FailureRecovery.RecoverCriteria import RecoverCriteria
 
 # Importing modules from the Interface
@@ -32,38 +32,20 @@ class FailureRecovery:
             # 1. Get current state from buffer/storage
             current_data = self.buffer.getTable(info.query.selected_table)
             
-       
             # 2. Write to WAL first
-            self.log_manager.write_log_entry(
+            self.logManager.write_log_entry(
                 info.transaction_id,
                 info.query,
                 info.query.selected_table,
                 info.data_before.data if current_data else None, 
                 info.data_after.data if info.data_after else None
             )
-
-            # Data Before yang didapet dari Execution Result: 
-            # [0, 'Santi', 21]
-            # [2, 'Doe', 30]
-            # [1, 'John', 20]
-
-            # Data After yang didapet dari Execution Result:
-            # ['table' = course, 'id' = 0, 'name' = 'Santi', 10]
-            # [2, 'Budi', 20]
-            # [1, 'Doe', 30]
-
-            # Rows di tabel buffer
-            # [0, 'Santi', 21]
-            # [2, 'Doe', 30]
-            # [1, 'John', 20]
-
-
-            # # 3. Update buffer with new data
-            # if info.data and info.data.data:
-            #     self.buffer.write_data(info.data.table_name, info.data.data[0])
+            
+            # 3. Update to buffer using updateData method from Buffer
+            self.buffer.updateData(info.query.selected_table, info.data_before.data, info.data_after.data)
 
             # 4. Check WAL size for checkpoint
-            if self.log_manager.is_wal_full():
+            if self.logManager.is_wal_full():
                 self.save_checkpoint()
 
         except Exception as e:
@@ -90,13 +72,22 @@ class FailureRecovery:
     def recover(self, criteria: RecoverCriteria) -> None:
         """Recover database state using WAL"""
         try:
-            logs = self.logManager.read_logs(criteria)
-            reversed_logs = logs[::-1]  
+            filtered_logs: List[LogEntry] = self.logManager.read_logs(criteria)
             
-            for log in reversed_logs:  
-                print(log.data_before, log.data_after)
-                # replace_data(log.data_after, log.data_before)
-                    
+            for log in reversed(filtered_logs):
+                if log.operation == "INSERT":
+                    # self.buffer.recoverInsertData(log)
+                    pass
+                elif log.operation == "UPDATE":
+                    self.buffer.updateData(log.table, log.data_after, log.data_before)
+                    # self.buffer.recoverUpdateData(log)
+                    pass
+                elif log.operation == "DELETE":
+                    # self.buffer.recoverDeleteData(log)
+                    pass
+                else:
+                    raise ValueError(f"Invalid operation: {log.operation}")
+
         except Exception as e:
             raise Exception(f"Recovery failed: {e}")
         

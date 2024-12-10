@@ -11,24 +11,7 @@ from StorageManager.objects.DataRetrieval import DataRetrieval, Condition
 from StorageManager.objects.Rows import Rows
 from FailureRecovery.Structs.Header import Header
 from FailureRecovery.Structs.Row import Row
-
-
-    # Buffer
-    #     self.tables isinya
-    #         Table1 : "DataNama"
-    #             Header  : [id, name, age]
-    #             Rows    : [
-        #                 [1, 'John', 20], 
-    #                     [2, 'Doe', 30],
-    #                     [3, 'Jane', 25]
-    #                      ]
-    #         Table2 : "DataKota"
-    #             Header  : [id, city, country]
-    #             Rows    : [
-        #                 [1, 'Jakarta', 'Indonesia'],
-    #                     [2, 'New York', 'USA'],
-    #                     [3, 'Tokyo', 'Japan']
-    #                      ]
+from FailureRecovery.LogManager import LogEntry
 
 
 MAX_BUFFER_SIZE = 100
@@ -39,10 +22,10 @@ class Buffer:
         self.size: int = 0
         
     def addTabble(self, table: Table) -> bool:
-        if self.size >= MAX_BUFFER_SIZE:
-            return False
+        # if self.size >= MAX_BUFFER_SIZE:
+        #     return False
         self.tables.append(table)
-        self.size += 1
+        # self.size += 1
         return True
 
     def getTable(self, table_name: str) -> Table:
@@ -65,6 +48,7 @@ class Buffer:
         
         if table:
             matching_rows = table.findRows(data.conditions)
+            matching_rows = [row.data for row in matching_rows]
             
             return matching_rows
             
@@ -83,31 +67,61 @@ class Buffer:
         
         if not is_table_exist:            
             new_table = Table(table_name)
-            table_header = Header()
+            # table_header = Header()
             
-            for column in rows[0]:
-                table_header.addColumn(column, "str")
+            # for column in rows[0]:
+            #     table_header.addColumn(column, "str")
                 
-            new_table.setHeader(table_header)
+            # new_table.setHeader(table_header)
             self.addTabble(new_table)
                 
         table = self.getTable(table_name)
         
         for row in rows:
-            row_data = []
-            for column in row:
-                row_data.append(row[column])
-                
-            table.addRow(Row(table.numRows(), row_data))
+            # row_data = []
+            # for column in row:
+            #     row_data.append(row[column])
+            table.addRow(Row(row))
+            
+        print(table)
 
         print("     Data successfully added to buffer\n")
         
-    def updateData(self, data: DataWrite, databefore: List[str], dataafter: List[str]):
-        table = self.getTable(data.selected_table)
+    def updateData(self, table_name: str, data_before: List[str], data_after: List[str]):
+        table = self.getTable(table_name)
         
         if table:
-            for row in table.rows:
-                if row == databefore:
-                    table.rows.remove(row)
-                    table.addRow(Row(table.numRows(), dataafter))
+            data_before = [Row(row) for row in data_before]
+            data_after = [Row(row) for row in data_after]
+
+            table.rows = [row_in_table for row_in_table in table.rows if not any(row_in_table.isRowEqual(row) for row in data_before)]
+
+            for row in data_after:
+                table.addRow(row)
+
+                    
+    # def recoverUpdateData(self, log: LogEntry):
+    #     table = self.getTable(log.table)
         
+    #     if table:
+    #         for data_after_row in log.data_after:
+    #             for row in table.rows[:]:
+    #                 if row == data_after_row:
+    #                     table.rows.remove(row)
+                        
+    #         for data_before_row in log.data_before:
+    #             table.addRow(Row(table.numRows(), data_before_row))            
+                
+    # def recoverDeleteData(self, log: LogEntry):
+    #     table = self.getTable(log.table)
+        
+    #     if table:
+    #         for data_before_row in log.data_before:
+    #             table.addRow(Row(table.numRows(), data_before_row))
+    
+    # def recoverInsertData(self, log: LogEntry):
+    #     table = self.getTable(log.table)
+        
+    #     if table:
+    #         for data_after_row in log.data_after:
+    #             table.rows.remove(data_after_row)

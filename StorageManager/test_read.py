@@ -1,5 +1,10 @@
+from datetime import datetime
+from FailureRecovery.FailureRecovery import FailureRecovery
+from Interface.ExecutionResult import ExecutionResult
+from Interface.Rows import Rows
 from StorageManager.objects.DataRetrieval import DataRetrieval,Condition
 from StorageManager.StorageManager import StorageManager
+from StorageManager.objects.DataWrite import DataWrite
 #SELECT year FROM course WHERE year >= 2030 AND year < 2040 OR year > 2070 AND year <> 2080
 
 ret2 = DataRetrieval(table=["course"], column=["year"], conditions=[
@@ -46,3 +51,40 @@ sm.readBlock(ret4)
 print("---Second read with ret4-----")
 sm.readBlock(ret4)
 
+transaction_id = 1
+timestamp = datetime.now()
+message = "Test log entry"
+data_before = Rows([{"courseid": 41, "year": 2041, "coursename": "Course Name41", "coursedesc": "Course Description41"}])
+data_after = Rows([{"courseid": 42, "year": 2042, "coursename": "Course Name42", "coursedesc": "Course Description42"}])
+query = DataWrite(
+    overwrite=True,
+    selected_table="course",
+    column=["courseid", "year", "coursename", "coursedesc"],
+    conditions=[Condition(column="courseid", operation="=", operand=41)],
+    new_value=[{"courseid": 42, "year": 2042, "coursename": "Course Name42", "coursedesc": "Course Description42"}]
+)
+
+execution_result = ExecutionResult(
+    transaction_id=transaction_id,
+    timestamp=timestamp,
+    message=message,
+    data_before=data_before,
+    data_after=data_after,
+    query=query
+)
+
+# f = FailureRecovery()
+
+# f.write_log(execution_result)
+
+
+from FailureRecovery.Structs.Row import Row
+
+row1 = Row({"id": "1", "name":"budi", "age":"12"})
+row2 = Row({"id": "1", "name":"budi", "age":"12"})
+row3 = Row({"id": "2", "name":"doni", "age":"12"})
+
+if (row1.isRowEqual(row2)):
+    print("equal row1")
+if (row1.isRowEqual(row3)):
+    print("equal row2")
