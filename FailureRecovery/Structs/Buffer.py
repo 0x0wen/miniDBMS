@@ -90,58 +90,54 @@ class Buffer:
         return matching_rows
         
     
-    def writeData(self, rows: Rows, dataRetrieval: DataRetrieval) -> bool:
-        
-        # new_table = Table("course")
-        # header = Header()
-        # self.addTabble(new_table)
-        
+    def writeData(self, rows: Rows, datawrite: DataWrite) -> bool:
+        """Write data to buffer using DataWrite specification"""
         if len(rows) == 0:
             return False
         
         print("\n\nInside Buffer.writeData()")
         print("     Adding data to buffer")
         
-        table_name = dataRetrieval.table[0]
+        table_name = datawrite.selected_table
         is_table_exist = self.getTable(table_name)
         
         if not is_table_exist:
-            print ("        Table not found, creating new table")
+            print("        Table not found, creating new table")
             
             new_table = Table(table_name)
             table_header = Header()
             
-            for column in rows[0]:
+            # Use columns from DataWrite instead of inferring from rows
+            for column in datawrite.column:
                 table_header.addColumn(column, "str")
                 
             new_table.setHeader(table_header)
             
-            for row in rows:
-                row_data = []
-                for column in row:
-                    row_data.append(row[column])
-                    
-                new_table.addRow(Row(new_table.numRows(), row_data))
-                
+            # Add rows using new_value from DataWrite if available
+            if datawrite.new_value:
+                for row_data in datawrite.new_value:
+                    values = []
+                    for column in datawrite.column:
+                        values.append(row_data.get(column))
+                    new_table.addRow(Row(new_table.numRows(), values))
+            
             self.addTabble(new_table)
-            # print(new_table)
                 
         else:
-            print("     Table found, adding data to existing table")
+            print("Table found, adding data to existing table")
             
             table = self.getTable(table_name)
             
-            for row in rows:
-                row_data = []
-                for column in row:
-                    row_data.append(row[column])
-                    
-                table.addRow(Row(table.numRows(), row_data))
-
-            # print(table)
+            # Add new values using columns specified in DataWrite
+            if datawrite.new_value:
+                for row_data in datawrite.new_value:
+                    values = []
+                    for column in datawrite.column:
+                        values.append(row_data.get(column))
+                    table.addRow(Row(table.numRows(), values))
         
-        print("     Data successfully added to buffer\n")
-        
+        print("Data successfully added to buffer\n")
+        return True        
         
     def getRowsBuffer(self, data: DataRetrieval) -> List[Row]:
         '''ngecek apakah data yang mau diambil ada di buffer atau gk'''

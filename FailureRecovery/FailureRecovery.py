@@ -32,7 +32,6 @@ class FailureRecovery:
             # 1. Get current state from buffer/storage
             current_data = self.buffer.getTable(info.query.selected_table)
             
-       
             # 2. Write to WAL first
             self.log_manager.write_log_entry(
                 info.transaction_id,
@@ -41,26 +40,6 @@ class FailureRecovery:
                 info.data_before.data if current_data else None, 
                 info.data_after.data if info.data_after else None
             )
-
-            # Data Before yang didapet dari Execution Result: 
-            # [0, 'Santi', 21]
-            # [2, 'Doe', 30]
-            # [1, 'John', 20]
-
-            # Data After yang didapet dari Execution Result:
-            # ['table' = course, 'id' = 0, 'name' = 'Santi', 10]
-            # [2, 'Budi', 20]
-            # [1, 'Doe', 30]
-
-            # Rows di tabel buffer
-            # [0, 'Santi', 21]
-            # [2, 'Doe', 30]
-            # [1, 'John', 20]
-
-
-            # # 3. Update buffer with new data
-            # if info.data and info.data.data:
-            #     self.buffer.write_data(info.data.table_name, info.data.data[0])
 
             # 4. Check WAL size for checkpoint
             if self.log_manager.is_wal_full():
