@@ -113,10 +113,10 @@ class QueryProcessor:
                 print("DIA MASUK KESINI")
                 print(query_tree.node_type)
                 self.data_retrievals_to_results(query_tree)
-                print("join operations")
-                jo = self.get_join_operations(query_tree)
-                print(jo)
-                print("loligaging")
+                # print("join operations")
+                # jo = self.get_join_operations(query_tree)
+                # print(jo)
+                # print("loligaging")
             
                 if query_tree.node_type == "SELECT":
                     old_rows = self.storage_manager.query_tree_to_data_retrieval(query_tree)
@@ -223,6 +223,7 @@ class QueryProcessor:
     
     def get_table_and_condition(self, qt: QueryTree, tables: list, conditions: list):
         for child in qt.children:
+            print("node type nya", child.node_type)
             if child.node_type == "WHERE":
                 conditions.append(child.val)
             elif child.node_type == "Value1" or child.node_type == "Value2":
@@ -273,7 +274,7 @@ class QueryProcessor:
                     condition_object_temp.append(condition)
             list_of_data_retrievals.append(DataRetrieval(table=[table], column=[], conditions=condition_object_temp))
         
-        return list_of_data_retrievals, table
+        return list_of_data_retrievals, tables
 
     def query_tree_to_data_writes(self, qt: QueryTree):
         tables = []
