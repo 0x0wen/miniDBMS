@@ -26,11 +26,11 @@ class OptimizationEngine:
         self.one_node_constraint = []
         
         # Create a QueryTree from the tokens
-        root = self.__createQueryTree(tokens, test)
+        root = self.__createQueryTree(tokens)
 
         # Return a ParsedQuery object
         return ParsedQuery(query=query, query_tree=root)
-
+    
     def optimizeQuery(self, query: ParsedQuery) -> ParsedQuery:
         """
         Optimizes the parsed query and returns the optimized query.
@@ -91,7 +91,7 @@ class OptimizationEngine:
 
     # Auxiliary Helper Methods
 
-    def __createQueryTree(self, tokens: list, test: dict) -> QueryTree:
+    def __createQueryTree(self, tokens: list) -> QueryTree:
         """
         Helper method to create a complete QueryTree from tokens.
         Handles the full SQL query structure with proper parent-child relationships.
@@ -126,7 +126,7 @@ class OptimizationEngine:
                     raise SyntaxError("Syntax Error: Missing attribute name")
             
             if tokens and (tokens[0].upper()) == "FROM":
-                child = self.__createQueryTree(tokens, test)
+                child = self.__createQueryTree(tokens)
                 if child is not None: 
                     root.children.append(child)
             else:
@@ -246,21 +246,13 @@ class OptimizationEngine:
                                 newRoot.val.append(tokens.pop(0))
                         
                         child.children.append(childOne)
+                        child.children.append(childTwo)
                         
-                        if parent.node_type == "TJOIN":
-                            childTwo.node_type = "value1"
-                            child.children.append(childTwo)
-                            temp = copy.deepcopy(parent)
+                        
+                        if parent.children != []:
                             parent.children.pop()
-                            parent.children.append(child)
-                            child.children.append(temp)
-                            child.children.pop(0)
-                        else:
-                            child.children.append(childTwo)
-                            if parent.children != []:
-                                parent.children.pop()
-                            parent.children.append(child)
                         
+                        parent.children.append(child)
                         
                     # Check if join operation with syntax 'NATURAL JOIN'
                     elif tokens and (tokens[0].upper() == 'NATURAL' and tokens[1].upper() == "JOIN"):
@@ -271,28 +263,15 @@ class OptimizationEngine:
                         if not tokens or (tokens[0].upper() in [",", "NATURAL", "JOIN", "WHERE", "LIMIT", "ORDER"]):
                             raise SyntaxError("Syntax Error: Missing table name")
                         
-                        table1 = None
-                        table2 = None
                         if parent.node_type == "FROM":
                             childOne = QueryTree(node_type="Value1", val=[parent.val[0]])
-                            table1 = parent.val[0]
                         else:
                             childOne = QueryTree(node_type="Value1", val=[parent.children[1].val[0]])
-                            table1 = parent.children[1].val[0]
                             
-                        table2 = tokens.pop(0) 
-                        childTwo = QueryTree(node_type="Value2", val=[table2])
+                        childTwo = QueryTree(node_type="Value2", val=[tokens.pop(0)])
                         child.children.append(childOne)
                         child.children.append(childTwo)
                         
-                        cols1 = test[table1]["cols"]
-                        cols2 = test[table2]["cols"]
-                        
-                        common_cols = set(cols1).intersection(set(cols2))
-                        
-                        if common_cols == set():
-                            print("Error: No common columns found for NATURAL JOIN")
-                            raise SyntaxError("Syntax Error: Invalid syntax")
                         
                         if parent.children != []:
                             parent.children.pop()
@@ -310,7 +289,7 @@ class OptimizationEngine:
             else:
                 if tokens[0].upper() not in ["WHERE", "LIMIT", "ORDER"]:
                     raise SyntaxError("Syntax Error: Invalid syntax")
-                child = self.__createQueryTree(tokens, test)
+                child = self.__createQueryTree(tokens)
                 if child is not None:  # Only append if the child is not None
                     root.children.append(child)  
 
@@ -511,7 +490,7 @@ class OptimizationEngine:
             root = QueryTree(node_type="UNKNOWN", val=[token])
             
         return root
-
+    
     def optimizeQueryTree(self, oldQueryTree: QueryTree, test: dict) -> QueryTree:
         if oldQueryTree and oldQueryTree.query_tree.node_type == "SELECT":
             valSelect = oldQueryTree.query_tree.val
