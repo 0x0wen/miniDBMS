@@ -8,7 +8,7 @@ from StorageManager.manager.IndexManager import IndexManager
 from QueryOptimizer.QueryTree import QueryTree
 from StorageManager.objects.Rows import Rows
 from functools import reduce
-# from FailureRecovery.FailureRecovery import FailureRecovery 
+from FailureRecovery.FailureRecovery import FailureRecovery 
 import os
 
 class StorageManager:
@@ -378,7 +378,7 @@ class StorageManager:
             header = table.header
             buffer_rows =[]
             for row in table.rows:
-                buffer_rows.append(row.convertoStorageManagerRow(header))
+                buffer_rows.append(row.convertoStorageManagerRow())
             
             # get data from physical storage
             data = serializer.readTable(table.table_name)
