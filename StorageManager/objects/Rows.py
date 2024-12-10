@@ -17,6 +17,7 @@ class Rows(list):
             super().append(item)
         else:
             raise ValueError("Item must be a dictionary.")
+        
 
     def getRowsNotMatching(self, conditional_rows : 'Rows') -> 'Rows':
         """

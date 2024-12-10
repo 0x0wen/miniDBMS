@@ -132,6 +132,23 @@ class StorageManager:
         else:
             return table_manager.appendData(table_name, new_data)
         
+    def deleteDataOnStorage(self, dataToDelete : Rows) -> int:  
+        """
+        Delete the dataToDelete from physical storage
+        
+        Args: 
+            data_deletion : objects contains the rows to delet in the storage manager
+        """
+
+    def writeDataOnStorage(self, serializer : TableManager, data_after_delete  : Rows, schema : list[tuple], written_table : str) -> int:
+        """
+        Delete data on Physical Storage
+        """
+        serializer.writeTable(written_table,data_after_delete, schema)
+
+        return data_after_delete.__len__()
+
+        
     def deleteBlock(self, data_deletion : DataDeletion) -> int:
         """
         Returns the number of removed rows
@@ -142,7 +159,8 @@ class StorageManager:
 
         serializer = TableManager()
         index_manager = IndexManager()
-
+        failure_recover = FailureRecovery()
+    
         use_index = False
         
         indexed_rows = []
@@ -168,12 +186,20 @@ class StorageManager:
         else: 
             cond_filtered_data = serializer.applyConditions(data, data_deletion)
 
+        
         # Filtereed table based on condition
         schema = serializer.readSchema(data_deletion.table)
         
         # Create new data that doesn't contain filtered table
         newData = data.getRowsNotMatching(cond_filtered_data)
-        serializer.writeTable(data_deletion.table, newData ,schema)
+
+        FailureRecovery._instance.buffer.deleteData(newData)
+
+        #NOTE - Use this to delete from physical data
+        # delete_num =  self.deleteDataOnStorage(serializer,newData, schema)
+        # index_manager.writeIndex(data_deletion.table, data_deletion.table)
+        # return delete_num
+
         return newData.__len__()
 
 
