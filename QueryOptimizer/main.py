@@ -15,14 +15,14 @@ test = {
     "salary": {"row": 80, "cols": ["salary_id", "user_id", "salary", "date"]},
 }
 # Example SQL query
-query_str = "SELECT users.name, users.age FROM users JOIN office ON users.office_id = office.office_id WHERE users.age > 18 AND office.name = 'Off_1' AND office.name = users.name ORDER BY users.age DESC LIMIT 10"
+# query_str = "SELECT users.name, users.age FROM users JOIN office ON users.office_id = office.office_id WHERE users.age > 18 AND office.name = 'Off_1' AND office.name = users.name ORDER BY users.age DESC LIMIT 10"
 # query_str = "UPDATE users SET age = 20, name = 'ahmed' WHERE age > 20 OR name = 'John'"
 # query_str = "UPDATE users SET age = 20 WHERE name = 'John'"
 # query_str = "users AS u, abc AS a, temp as t" # Testing AS
 # query_str = "ORDER BY name, age LIMIT 1"
 # query_str = "DELETE FROM table WHERE age = 20 AND name = 'John' OR age = 30"
 # query_str = "BEGIN TRANSACTION"
-# query_str = "SELECT users.name, users.age FROM users JOIN salary ON users.salary_id = salary.salary_id JOIN office ON users.office_id = office.office_id JOIN houses ON houses.house_id = office.office_id WHERE users.age > 18 AND office.name = 'Off_1' AND salary.salary >= 1000"
+query_str = "SELECT users.name, users.age FROM users, salary NATURAL JOIN office JOIN houses ON office.house = house.office WHERE users.age > 18 AND office.name = 'Off_1' AND salary.salary >= 1000"
 # Initialize the optimization engine
 engine = OptimizationEngine()
 
@@ -30,7 +30,7 @@ engine = OptimizationEngine()
 try:
     parsed_query = engine.parseQuery(query_str)
     parsed_query = rule8(parsed_query)
-    parsed_query = optimizeWhere(parsed_query)
+    # parsed_query = optimizeWhere(parsed_query)
     # parsed_query = optimizeSortLimit(parsed_query)
 except CustomException as e:
     print(e)

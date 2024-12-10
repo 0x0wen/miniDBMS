@@ -19,7 +19,6 @@ class OptimizationEngine:
         """
         # Tokenize and construct a basic QueryTree for demonstration purposes
         tokens = re.findall(r'[^\s,]+|,', query)
-        print('tokens:',tokens)
 
         # Validate the first token of the query
         if (not self.validateFirstToken(tokens)):
@@ -143,6 +142,8 @@ class OptimizationEngine:
                 raise SyntaxError("Syntax Error: Missing table name")
             
             root.val.append(tokens.pop(0))
+            table = []
+            table.append(root.val[0])
                
             # Check if any join operation is present
             if (tokens and tokens[0].upper() in [",", "JOIN", "NATURAL"]):
@@ -172,12 +173,15 @@ class OptimizationEngine:
                         
                         if parent.node_type == "FROM":
                             childOne = QueryTree(node_type="Value1", val=[parent.val[0]])
+                            table.append(parent.val[0])
                         else:
                             childOne = QueryTree(node_type="Value1", val=[parent.children[1].val[0]])
+                            table.append(parent.children[1].val[0])
                             
                         # Change root if TJOIN is parent
                         if parent.node_type == "TJOIN":
                             childTwo = QueryTree(node_type="Value2", val=[tokens.pop(0)])
+                            table.append(childTwo.val[0])
                             child.children.append(parent)
                             child.children.append(childTwo)
                             
@@ -189,6 +193,7 @@ class OptimizationEngine:
                             
                         else:
                             childTwo = QueryTree(node_type="Value2", val=[tokens.pop(0)])
+                            table.append(childTwo.val[0])
                             child.children.append(childOne)
                             child.children.append(childTwo)
                             
@@ -207,10 +212,13 @@ class OptimizationEngine:
                         
                         if parent.node_type == "FROM":
                             childOne = QueryTree(node_type="Value1", val=[parent.val[0]])
+                            table.append(parent.val[0])
                         else:
                             childOne = QueryTree(node_type="Value1", val=[parent.children[1].val[0]])
+                            table.append(parent.children[1].val[0])
                             
                         childTwo = QueryTree(node_type="Value2", val=[tokens.pop(0)])
+                        table.append(childTwo.val[0])
                         
                         if tokens and tokens[0].upper() != "ON":
                             raise SyntaxError("Syntax Error: Missing ON")
@@ -263,6 +271,21 @@ class OptimizationEngine:
                         tokens.pop(0)
                         tokens.pop(0)
                         child.node_type = "TJOIN"
+                       
+                        seen = set()
+                        uniqueTable = []
+
+                        for item in table:
+                            if item not in seen:
+                                uniqueTable.append(item)
+                                seen.add(item)
+                                
+                        test = {
+                            "users": {"row": 100, "cols": ["user_id", "name", "age", "sibling", "office_id"]},
+                            "office": {"row": 80, "cols": ["office_id", "name", "location"]},
+                            "address": {"row": 80, "cols": ["address_id", "address", "city", "state", "zip"]},
+                            "salary": {"row": 80, "cols": ["salary_id", "user_id", "salary", "date"]},
+                        }
                         
                         if not tokens or (tokens[0].upper() in [",", "NATURAL", "JOIN", "WHERE", "LIMIT", "ORDER"]):
                             raise SyntaxError("Syntax Error: Missing table name")
@@ -276,6 +299,20 @@ class OptimizationEngine:
                         child.children.append(childOne)
                         child.children.append(childTwo)
                         
+                        table_columns = set(test[childTwo.val[0]]['cols']) 
+                        common_columns_all = []
+    
+                        for table_name in table:
+                            current_table_columns = set(test[table_name]['cols'])
+                            common_columns = table_columns.intersection(current_table_columns)
+                            for column in common_columns:
+                                common_columns_all.append(f"{childTwo.val[0]}.{column}")
+                                
+                            for column in common_columns:
+                                common_columns_all.append(f"{table_name}.{column}")
+                                
+                        common_columns_all = list(set(common_columns_all))
+                        child.val = common_columns_all
                         
                         if parent.children != []:
                             parent.children.pop()
