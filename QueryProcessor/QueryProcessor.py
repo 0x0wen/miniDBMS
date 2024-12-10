@@ -6,13 +6,14 @@ from StorageManager.objects.JoinCondition import JoinCondition
 from StorageManager.objects.JoinOperation import JoinOperation
 from StorageManager.objects.DataWrite import DataWrite
 # from FailureRecovery.FailureRecovery import FailureRecovery
+from StorageManager.manager.SchemaManager import SchemaManager 
 from Interface.Rows import Rows
 from Interface.Action import Action
 from typing import List
 from StorageManager.StorageManager import StorageManager
 from datetime import datetime
 from Interface.ExecutionResult import ExecutionResult
-
+from copy import deepcopy
 
 class QueryProcessor:
     _instance = None
@@ -112,8 +113,20 @@ class QueryProcessor:
                 query_tree = query.query_tree
                 print("DIA MASUK KESINI")
                 print(query_tree.node_type)
-                res = self.query_tree_to_results(query_tree)
-                print("ngeprint dari atas", res)
+                if query_tree.node_type == "SELECT":
+                    res = self.query_tree_to_results(query_tree)
+                    print("ngeprint dari atas", res)
+                elif query_tree.node_type == "UPDATE":
+                    old_rows, new_rows, table_name = self.query_tree_to_update_operations(query_tree)
+                    execution_result = ExecutionResult(
+                        transaction_id = transaction_id,
+                        timestamp=datetime.now(),
+                        message="Query executed successfully",
+                        data_before=old_rows,
+                        data_after=new_rows,
+                        table_name=table_name
+                    )
+                    results.append(execution_result)
                 # print("join operations")
                 # jo = self.get_join_operations(query_tree)
                 # print(jo)
@@ -277,64 +290,6 @@ class QueryProcessor:
         
         return list_of_data_retrievals, tables
 
-    def query_tree_to_data_writes(self, qt: QueryTree):
-        tables = []
-        conditions = []
-        self.get_table_and_condition(qt, tables, conditions)
-        
-        # For write operations, we only support single table operations
-        selected_table = tables[0] if tables else None
-        
-        # Get columns from the table
-        columns = []
-        if selected_table:
-            for key, _ in self.storage_manager.readBlock(DataRetrieval(table=[selected_table], column=[], conditions=[]))[0].items():
-                columns.append(key)
-        
-        # Process conditions
-        conditions_objects = []
-        for condition in conditions:
-            if 'or' not in [c.lower() for c in condition]:
-                if condition == conditions[0]:
-                    conditions_objects.append(Condition(column=condition[0], operation=condition[1], operand=condition[2], connector=None))
-                else:
-                    conditions_objects.append(Condition(column=condition[0], operation=condition[1], operand=condition[2], connector="AND"))
-            else:
-                if condition == conditions[0]:
-                    conditions_objects.append(Condition(column=condition[0], operation=condition[1], operand=condition[2], connector=None))
-                    conditions_objects.append(Condition(column=condition[4], operation=condition[5], operand=condition[6], connector="OR"))
-                else:
-                    conditions_objects.append(Condition(column=condition[0], operation=condition[1], operand=condition[2], connector="AND"))
-                    conditions_objects.append(Condition(column=condition[4], operation=condition[5], operand=condition[6], connector="OR"))
-        
-        # Create DataWrite object based on operation type
-        if qt.node_type == "INSERT":
-            return DataWrite(
-                overwrite=False,
-                selected_table=selected_table,
-                column=columns,
-                conditions=[],
-                new_value=qt.val if hasattr(qt, 'val') else None
-            )
-        elif qt.node_type == "UPDATE":
-            # For UPDATE, we expect val to contain [column_name, new_value] pairs
-            update_columns = []
-            update_values = []
-            if hasattr(qt, 'val') and qt.val:
-                for col, val in qt.val:
-                    update_columns.append(col)
-                    update_values.append(val)
-            
-            return DataWrite(
-                overwrite=True,
-                selected_table=selected_table,
-                column=update_columns if update_columns else columns,
-                conditions=conditions_objects,
-                new_value=update_values if update_values else None
-            )
-        
-        return None
-
     def get_join_operations(self, qt: QueryTree):
         print("iterating", qt.node_type)
         print("qt nya", qt)
@@ -392,4 +347,91 @@ class QueryProcessor:
         # for table in tables:
         #     print("hasil akhirnya", results[table])
 
-        return results[table]
+        return results
+
+    def query_tree_to_update_operations(self, qt: QueryTree):
+        """
+        Generate update operations based on the provided QueryTree.
+
+        Args:
+            qt (QueryTree): The QueryTree object representing the update query.
+
+        Returns:
+            old_rows: The original data before the update.
+            new_rows: The updated data after the update.
+            table_name: The name of the table being updated.
+        """
+        # TODO: belom test yang gaada WHERE nya soalnya owen belom update
+        
+        # Pisah qt menjadi qt_set, qt_where
+        table = qt.val[0]
+        qt_set = qt.children[0]
+        qt_where = qt_set.children[0]
+
+        # Ambil operation-nya
+        set_operations = qt_set.val  # ['harga', '=', '15000', ',', 'desk', '=', "'data999'"]
+        where_operation = qt_where.val
+
+        # Read semua data pada table tersebut
+        read_qt_select = QueryTree(node_type="SELECT", val=["*"])
+        read_qt_from = QueryTree(node_type="FROM", val=[table])
+        read_qt_where = QueryTree(node_type="WHERE", val=where_operation)
+        read_qt_select.children.append(read_qt_from)
+        read_qt_from.parent = read_qt_select
+        if where_operation != []:
+            read_qt_select.children.append(read_qt_where)
+            read_qt_where.parent = read_qt_select
+        list_of_data_retrievals, tables = self.query_tree_to_data_retrievals(read_qt_select)
+        results = {}
+        for data_retrieval in list_of_data_retrievals:
+            results[data_retrieval.table[0]] = self.storage_manager.readBlock(data_retrieval)
+
+        # Ambil data lama
+        old_rows = deepcopy(results[table])
+        
+        # Ganti value sesuai set_operations
+        i = 0
+        while i < len(set_operations):
+            if set_operations[i] == ',':
+                i += 1
+                continue
+                
+            column = set_operations[i]
+            value = set_operations[i + 2]
+            print(f"Updating column: {column} with value: {value}")
+            
+            for row in results[table]:
+                for key in row.keys():
+                    if key == column:
+                        # Remove quotes if present in the value
+                        if isinstance(value, str) and value.startswith("'") and value.endswith("'"):
+                            value = value[1:-1]
+                        row[key] = value
+            
+            i += 3
+
+        # Sesuai tipe datanya
+        schema_manager = SchemaManager()
+        check = schema_manager.readSchema(table)
+        data_types = {}
+        for column in check:
+            data_types[column[0]] = column[1]
+        for row in results[table]:
+            for key, value in row.items():
+                if key in data_types:
+                    if data_types[key] == "int":
+                        row[key] = int(value)
+                    elif data_types[key] == "float":
+                        row[key] = float(value)
+                    elif data_types[key] == "char":
+                        row[key] = str(value)
+        
+        # Simpan data baru
+        new_rows = results[table]
+        table_name = table
+
+        # Kalo querynya UPDATE user2 SET harga = 15000, desk = 'data999' WHERE id = 99;
+        print("Old rows:", old_rows) # [{'id': 99, 'umur': 'data99', 'harga': 34.75, 'desk': 'desk99'}]
+        print("New rows:", new_rows) # [{'id': 99, 'umur': 'data99', 'harga': 15000.0, 'desk': 'data999'}]
+        print("Table name:", table_name) # user2
+        return old_rows, new_rows, table_name
