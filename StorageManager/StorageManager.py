@@ -159,8 +159,7 @@ class StorageManager:
 
         serializer = TableManager()
         index_manager = IndexManager()
-        failure_recover = FailureRecovery()
-    
+
         use_index = False
         
         indexed_rows = []
@@ -273,6 +272,14 @@ class StorageManager:
         
         # Buat dan return objek Statistik
         return Statistics(n_r=n_r, b_r=b_r, l_r=l_r, f_r=f_r, V_a_r=V_a_r)
+    
+    def synchronize_stroage(self):
+        #STUB - Panggil checkpoint dari Error recovery
+        #STUB - untuk tiap table di buffer, cek ada datanya atau ga
+        #STUB - baca data table dari physical
+        #STUB - ambil data physical yang alive
+        #STUB - Untuk tiap table ada isinya kita panggil writeTable
+        return None
     
     def query_tree_to_data_retrieval(self, query_tree: QueryTree) -> DataRetrieval:
         """
