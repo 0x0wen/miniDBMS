@@ -1,5 +1,5 @@
 import copy
-from QueryTree import QueryTree
+from QueryOptimizer.QueryTree import QueryTree
 
 def reverseQueryTree(tree):
     if tree.node_type == 'SELECT':
@@ -26,7 +26,10 @@ def reverseQueryTree(tree):
                 newTree = newTree.children[0]
                 
         temp = copy.copy(tree.children[0])
-        tree.children[0] = newTree.children[1]
+        temp.node_type = 'Value2'
+        temp2 = copy.copy(newTree.children[1])
+        temp2.node_type = 'Value1'
+        tree.children[0] = temp2
         tree.children[1] = temp
         newTree.children[1] = tree
         return parent

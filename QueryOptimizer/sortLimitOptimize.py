@@ -1,5 +1,5 @@
-from ParsedQuery import ParsedQuery
-from QueryTree import QueryTree
+from QueryOptimizer.ParsedQuery import ParsedQuery
+from QueryOptimizer.QueryTree import QueryTree
 
 
 def getSortNode(tree: QueryTree):

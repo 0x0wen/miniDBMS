@@ -2,8 +2,10 @@ from QueryOptimizer.OptimizationEngine import OptimizationEngine
 from QueryOptimizer.QueryTree import QueryTree
 from QueryOptimizer.ParsedQuery import ParsedQuery
 from QueryOptimizer.CustomException import CustomException
-from whereOptimize import optimizeWhere
-from sortLimitOptimize import optimizeSortLimit
+from QueryOptimizer.whereOptimize import optimizeWhere
+from QueryOptimizer.sortLimitOptimize import optimizeSortLimit
+from QueryOptimizer.rule8Optimize import rule8
+
 
 
 test = {
@@ -20,14 +22,16 @@ query_str = "SELECT users.name, users.age FROM users JOIN office ON users.office
 # query_str = "ORDER BY name, age LIMIT 1"
 # query_str = "DELETE FROM table WHERE age = 20 AND name = 'John' OR age = 30"
 # query_str = "BEGIN TRANSACTION"
+# query_str = "SELECT users.name, users.age FROM users JOIN salary ON users.salary_id = salary.salary_id JOIN office ON users.office_id = office.office_id JOIN houses ON houses.house_id = office.office_id WHERE users.age > 18 AND office.name = 'Off_1' AND salary.salary >= 1000"
 # Initialize the optimization engine
 engine = OptimizationEngine()
 
 # Parse the query
 try:
     parsed_query = engine.parseQuery(query_str)
+    parsed_query = rule8(parsed_query)
     parsed_query = optimizeWhere(parsed_query)
-    parsed_query = optimizeSortLimit(parsed_query)
+    # parsed_query = optimizeSortLimit(parsed_query)
 except CustomException as e:
     print(e)
     exit(1)
@@ -44,5 +48,5 @@ print(f"{parsed_query.query_tree}")
 #     print("Query contains syntax errors.")
 
 # # Optimize the query
-optimized_query = engine.optimizeQuery(parsed_query)
+# optimized_query = engine.optimizeQuery(parsed_query)
 # print(f"Optimized Query Estimated Cost: {optimized_query.estimated_cost}")

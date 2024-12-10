@@ -5,6 +5,7 @@ from QueryOptimizer.constants import LEGAL_COMMANDS_AFTER_WHERE,LEGAL_COMPARATOR
 from QueryOptimizer.helpers import isAlphanumericWithQuotesAndUnderscoreAndDots
 from QueryOptimizer.CustomException import CustomException
 from StorageManager.StorageManager import StorageManager
+from QueryOptimizer.rule8Optimize import reverseQueryTree
 
 class OptimizationEngine:
     def __init__(self):
@@ -286,14 +287,16 @@ class OptimizationEngine:
                         break
                     
                     grand = parent
-                                  
+                            
             if not tokens:
-                return root
+                tree = reverseQueryTree(root)
+                return tree
             else:
                 if tokens[0].upper() not in ["WHERE", "LIMIT", "ORDER"]:
                     raise SyntaxError("Syntax Error: Invalid syntax")
                 child = self.__createQueryTree(tokens)
                 if child is not None:  # Only append if the child is not None
+                    root = reverseQueryTree(root)
                     root.children.append(child)  
 
         elif token == "AND":
