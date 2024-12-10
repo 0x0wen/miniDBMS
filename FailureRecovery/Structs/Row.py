@@ -76,10 +76,6 @@ class Row:
     def __repr__(self):
         return f"Row({self.data})"
     
-    # def convertoStorageManagerRow(self, header: Header) -> List[str]:
-    #     '''convert row_data ke format yang bisa dipakai oleh storage manager'''
-    #     converted_row = {}
-    #     for i, value in enumerate(self.row_data):
-    #         converted_row[header.names[i]] = value
-            
-    #     return converted_row
+    def convertoStorageManagerRow(self) -> List[str]:
+        '''convert row_data ke format yang bisa dipakai oleh storage manager'''
+        return self.data

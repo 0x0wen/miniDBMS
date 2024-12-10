@@ -56,13 +56,14 @@ timestamp = datetime.now()
 message = "Test log entry"
 data_before = [{"courseid": 41, "year": 2041, "coursename": "Course Name41", "coursedesc": "Course Deskripsion aaaaa41"}]
 data_after = [{"courseid": 41, "year": 3000, "coursename": "AYAMAYAM", "coursedesc": "Course Description baru"}]
-query = DataWrite(
-    overwrite=True,
-    selected_table="course",
-    column=["courseid", "year", "coursename", "coursedesc"],
-    conditions=[Condition(column="courseid", operation="=", operand=41)],
-    new_value=[{"courseid": 41, "year": 3000, "coursename": "AYAMAYAM", "coursedesc": "Course Description baru"}]
-)
+# query = DataWrite(
+#     overwrite=True,
+#     selected_table="course",
+#     column=["courseid", "year", "coursename", "coursedesc"],
+#     conditions=[Condition(column="courseid", operation="=", operand=41)],
+#     new_value=[{"courseid": 41, "year": 3000, "coursename": "AYAMAYAM", "coursedesc": "Course Description baru"}]
+# )
+table_name = "course"
 
 execution_result = ExecutionResult(
     transaction_id=transaction_id,
@@ -70,21 +71,24 @@ execution_result = ExecutionResult(
     message=message,
     data_before=data_before,
     data_after=data_after,
-    query=query
+    table_name=table_name
 )
 
 f = FailureRecovery()
-
 f.write_log(execution_result)
 
 
-from FailureRecovery.Structs.Row import Row
+from FailureRecovery.RecoverCriteria import RecoverCriteria
+f.recover(RecoverCriteria(transaction_id=1))
 
-row1 = Row({"id": "1", "name":"budi", "age":"12"})
-row2 = Row({"id": "1", "name":"budi", "age":"12"})
-row3 = Row({"id": "2", "name":"doni", "age":"12"})
 
-if (row1.isRowEqual(row2)):
-    print("equal row1")
-if (row1.isRowEqual(row3)):
-    print("equal row2")
+# from FailureRecovery.Structs.Row import Row
+
+# row1 = Row({"id": "1", "name":"budi", "age":"12"})
+# row2 = Row({"id": "1", "name":"budi", "age":"12"})
+# row3 = Row({"id": "2", "name":"doni", "age":"12"})
+
+# if (row1.isRowEqual(row2)):
+#     print("equal row1")
+# if (row1.isRowEqual(row3)):
+#     print("equal row2")
