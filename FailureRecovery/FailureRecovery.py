@@ -40,6 +40,9 @@ class FailureRecovery:
                 info.data_before.data if current_data else None, 
                 info.data_after.data if info.data_after else None
             )
+            
+            # 3. Update to buffer using updateData method from Buffer
+            self.buffer.updateData(info.query, info.data_before.data, info.data_after.data)
 
             # 4. Check WAL size for checkpoint
             if self.log_manager.is_wal_full():
