@@ -9,11 +9,9 @@ T = TypeVar('T')
 from StorageManager.objects.DataRetrieval import DataRetrieval, Condition
 
 from StorageManager.objects.Rows import Rows
-from FailureRecovery.Structs.Header import Header
 from FailureRecovery.Structs.Row import Row
-from FailureRecovery.LogManager import LogEntry
 
-
+""" Constants """
 MAX_BUFFER_SIZE = 100
 
 class Buffer:
@@ -22,6 +20,10 @@ class Buffer:
         self.size: int = 0
         
     def addTabble(self, table: Table) -> bool:
+        """
+        Add a table to the buffer
+        """
+
         # if self.size >= MAX_BUFFER_SIZE:
         #     return False
         self.tables.append(table)
@@ -29,21 +31,31 @@ class Buffer:
         return True
 
     def getTable(self, table_name: str) -> Table:
+        """
+        Get a table from the buffer using the table name as the key
+        """
         for table in self.tables:
             if table.table_name == table_name:
                 return table
         return None
     
     def getTables(self) -> List[Table]:
+        """
+        Get all tables in the buffer
+        """
         return self.tables
     
     def clearBuffer(self) -> None:
+        """
+        Clear the buffer / remove all tables in the buffer
+        """
         self.tables = []
         
     def retrieveData(self, data: DataRetrieval) -> List[dict]:
-        
-        print("\n\nInside Buffer.retrieveData()")
-        
+        """
+        Retrieve data from the buffer with the given 
+        conditions on DataRetrieval
+        """
         table = self.getTable(data.table[0])
         
         if table:
@@ -55,39 +67,34 @@ class Buffer:
         return None
   
     def writeData(self, rows: Rows, dataRetrieval: DataRetrieval) -> bool:
-                
+        """
+        Write data new rows to the buffer with the 
+        given table name from DataRetrieval
+
+        """    
         if len(rows) == 0:
             return False
-        
-        print("\n\nInside Buffer.writeData()")
-        print("     Adding data to buffer")
         
         table_name = dataRetrieval.table[0]
         is_table_exist = self.getTable(table_name)
         
         if not is_table_exist:            
             new_table = Table(table_name)
-            # table_header = Header()
-            
-            # for column in rows[0]:
-            #     table_header.addColumn(column, "str")
-                
-            # new_table.setHeader(table_header)
             self.addTabble(new_table)
                 
         table = self.getTable(table_name)
         
         for row in rows:
-            # row_data = []
-            # for column in row:
-            #     row_data.append(row[column])
             table.addRow(Row(row))
             
         print(table)
 
-        print("     Data successfully added to buffer\n")
+        print("Data successfully added to buffer\n")
         
-    def updateData(self, table_name: str, data_before: List[str], data_after: List[str]):
+    def updateData(self, table_name: str, data_before: Rows, data_after: Rows):
+        """
+        Update data in the buffer with the given table name
+        """
         table = self.getTable(table_name)
         
         if table:
@@ -98,30 +105,3 @@ class Buffer:
 
             for row in data_after:
                 table.addRow(row)
-
-                    
-    # def recoverUpdateData(self, log: LogEntry):
-    #     table = self.getTable(log.table)
-        
-    #     if table:
-    #         for data_after_row in log.data_after:
-    #             for row in table.rows[:]:
-    #                 if row == data_after_row:
-    #                     table.rows.remove(row)
-                        
-    #         for data_before_row in log.data_before:
-    #             table.addRow(Row(table.numRows(), data_before_row))            
-                
-    # def recoverDeleteData(self, log: LogEntry):
-    #     table = self.getTable(log.table)
-        
-    #     if table:
-    #         for data_before_row in log.data_before:
-    #             table.addRow(Row(table.numRows(), data_before_row))
-    
-    # def recoverInsertData(self, log: LogEntry):
-    #     table = self.getTable(log.table)
-        
-    #     if table:
-    #         for data_after_row in log.data_after:
-    #             table.rows.remove(data_after_row)
