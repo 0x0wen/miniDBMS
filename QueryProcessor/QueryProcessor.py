@@ -4,6 +4,7 @@ from ConcurrencyControlManager.ConcurrentControlManager import ConcurrentControl
 from StorageManager.objects.DataRetrieval import DataRetrieval, Condition
 from StorageManager.objects.JoinCondition import JoinCondition
 from StorageManager.objects.JoinOperation import JoinOperation
+from StorageManager.objects.DataWrite import DataWrite
 # from FailureRecovery.FailureRecovery import FailureRecovery
 from Interface.Rows import Rows
 from Interface.Action import Action
@@ -272,8 +273,66 @@ class QueryProcessor:
                     condition_object_temp.append(condition)
             list_of_data_retrievals.append(DataRetrieval(table=[table], column=[], conditions=condition_object_temp))
         
-        return list_of_data_retrievals, tables
-    
+        return list_of_data_retrievals, table
+
+    def query_tree_to_data_writes(self, qt: QueryTree):
+        tables = []
+        conditions = []
+        self.get_table_and_condition(qt, tables, conditions)
+        
+        # For write operations, we only support single table operations
+        selected_table = tables[0] if tables else None
+        
+        # Get columns from the table
+        columns = []
+        if selected_table:
+            for key, _ in self.storage_manager.readBlock(DataRetrieval(table=[selected_table], column=[], conditions=[]))[0].items():
+                columns.append(key)
+        
+        # Process conditions
+        conditions_objects = []
+        for condition in conditions:
+            if 'or' not in [c.lower() for c in condition]:
+                if condition == conditions[0]:
+                    conditions_objects.append(Condition(column=condition[0], operation=condition[1], operand=condition[2], connector=None))
+                else:
+                    conditions_objects.append(Condition(column=condition[0], operation=condition[1], operand=condition[2], connector="AND"))
+            else:
+                if condition == conditions[0]:
+                    conditions_objects.append(Condition(column=condition[0], operation=condition[1], operand=condition[2], connector=None))
+                    conditions_objects.append(Condition(column=condition[4], operation=condition[5], operand=condition[6], connector="OR"))
+                else:
+                    conditions_objects.append(Condition(column=condition[0], operation=condition[1], operand=condition[2], connector="AND"))
+                    conditions_objects.append(Condition(column=condition[4], operation=condition[5], operand=condition[6], connector="OR"))
+        
+        # Create DataWrite object based on operation type
+        if qt.node_type == "INSERT":
+            return DataWrite(
+                overwrite=False,
+                selected_table=selected_table,
+                column=columns,
+                conditions=[],
+                new_value=qt.val if hasattr(qt, 'val') else None
+            )
+        elif qt.node_type == "UPDATE":
+            # For UPDATE, we expect val to contain [column_name, new_value] pairs
+            update_columns = []
+            update_values = []
+            if hasattr(qt, 'val') and qt.val:
+                for col, val in qt.val:
+                    update_columns.append(col)
+                    update_values.append(val)
+            
+            return DataWrite(
+                overwrite=True,
+                selected_table=selected_table,
+                column=update_columns if update_columns else columns,
+                conditions=conditions_objects,
+                new_value=update_values if update_values else None
+            )
+        
+        return None
+
     def get_join_operations(self, qt: QueryTree):
         print("iterating", qt.node_type)
         print("qt nya", qt)
