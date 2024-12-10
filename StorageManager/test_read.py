@@ -54,14 +54,14 @@ sm.readBlock(ret4)
 transaction_id = 1
 timestamp = datetime.now()
 message = "Test log entry"
-data_before = Rows([{"courseid": 41, "year": 2041, "coursename": "Course Name41", "coursedesc": "Course Description41"}])
-data_after = Rows([{"courseid": 42, "year": 2042, "coursename": "Course Name42", "coursedesc": "Course Description42"}])
+data_before = [{"courseid": 41, "year": 2041, "coursename": "Course Name41", "coursedesc": "Course Deskripsion aaaaa41"}]
+data_after = [{"courseid": 41, "year": 3000, "coursename": "AYAMAYAM", "coursedesc": "Course Description baru"}]
 query = DataWrite(
     overwrite=True,
     selected_table="course",
     column=["courseid", "year", "coursename", "coursedesc"],
     conditions=[Condition(column="courseid", operation="=", operand=41)],
-    new_value=[{"courseid": 42, "year": 2042, "coursename": "Course Name42", "coursedesc": "Course Description42"}]
+    new_value=[{"courseid": 41, "year": 3000, "coursename": "AYAMAYAM", "coursedesc": "Course Description baru"}]
 )
 
 execution_result = ExecutionResult(
@@ -73,9 +73,9 @@ execution_result = ExecutionResult(
     query=query
 )
 
-# f = FailureRecovery()
+f = FailureRecovery()
 
-# f.write_log(execution_result)
+f.write_log(execution_result)
 
 
 from FailureRecovery.Structs.Row import Row

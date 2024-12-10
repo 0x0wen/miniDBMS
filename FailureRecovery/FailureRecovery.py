@@ -30,19 +30,21 @@ class FailureRecovery:
         """Write-Ahead Logging implementation"""
         try:
             # 1. Get current state from buffer/storage
-            current_data = self.buffer.getTable(info.query.selected_table)
+            # current_data = self.buffer.getTable(info.query.selected_table)
             
             # 2. Write to WAL first
             self.logManager.write_log_entry(
                 info.transaction_id,
                 "UPDATE" if info.query.overwrite else "INSERT",
                 info.query.selected_table,
-                info.data_before.data if current_data else None, 
-                info.data_after.data if info.data_after else None
+                info.data_before, 
+                info.data_after
             )
             
             # 3. Update to buffer using updateData method from Buffer
-            self.buffer.updateData(info.query.selected_table, info.data_before.data, info.data_after.data)
+            self.buffer.updateData(info.query.selected_table, info.data_before, info.data_after)
+            
+            print(self.buffer.getTable(info.query.selected_table))
 
             # 4. Check WAL size for checkpoint
             if self.logManager.is_wal_full():
