@@ -2,12 +2,15 @@ from QueryOptimizer.ParsedQuery import ParsedQuery
 from QueryOptimizer.QueryTree import QueryTree
 import re
 from QueryOptimizer.constants import LEGAL_COMMANDS_AFTER_WHERE,LEGAL_COMPARATORS, LEGAL_COMMANDS_AFTER_UPDATE, LEGAL_COMMANDS_AFTER_SET
-from QueryOptimizer.helpers import isAlphanumericWithQuotes
+from QueryOptimizer.helpers import isAlphanumericWithQuotesAndUnderscoreAndDots
 from QueryOptimizer.CustomException import CustomException
+from StorageManager.StorageManager import StorageManager
+
 class OptimizationEngine:
     def __init__(self):
         self.statistics = {}  # Example: Holds table statistics for cost estimation
         self.one_node_constraint = [] # If there is one-token-only constraint used, add it here
+        self.storage_manager = StorageManager()
 
     def parseQuery(self, query: str) -> ParsedQuery:
         """
@@ -34,6 +37,7 @@ class OptimizationEngine:
         """
         Optimizes the parsed query and returns the optimized query.
         """
+        print(self.storage_manager.getStats())
         # Apply heuristic optimizations (pushdowns, reorderings, etc.)
         self.__applyHeuristicRules(query)
 
