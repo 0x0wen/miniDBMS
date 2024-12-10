@@ -33,7 +33,7 @@ class FailureRecovery:
             current_data = self.buffer.getTable(info.query.selected_table)
             
             # 2. Write to WAL first
-            self.log_manager.write_log_entry(
+            self.logManager.write_log_entry(
                 info.transaction_id,
                 info.query,
                 info.query.selected_table,
@@ -45,7 +45,7 @@ class FailureRecovery:
             self.buffer.updateData(info.query, info.data_before.data, info.data_after.data)
 
             # 4. Check WAL size for checkpoint
-            if self.log_manager.is_wal_full():
+            if self.logManager.is_wal_full():
                 self.save_checkpoint()
 
         except Exception as e:
@@ -72,7 +72,7 @@ class FailureRecovery:
     def recover(self, criteria: RecoverCriteria) -> None:
         """Recover database state using WAL"""
         try:
-            logs = self.log_manager.read_logs(criteria)
+            logs = self.logManager.read_logs(criteria)
             
             # Process logs in reverse order
             for log in reversed(logs):
