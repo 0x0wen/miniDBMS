@@ -1,10 +1,10 @@
 class Response:
-    def __init__(self, status: bool, message: int):
+    def __init__(self, status: bool, message: str):
         self.allowed = status
-        self.transaction_id = message
+        self.message = message
 
     def __str__(self):
-        return f"{self.allowed}: {self.transaction_id}"
+        return f"{self.allowed}: {self.message}"
 
     def __call__(self):
-        return self.allowed, self.transaction_id
+        return self.allowed, self.message
