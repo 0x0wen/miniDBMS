@@ -126,16 +126,8 @@ class QueryProcessor:
                     print("ngeprint dari atas", res)
                 elif query_tree.node_type == "UPDATE":
                     old_rows, new_rows, table_name = self.query_tree_to_update_operations(query_tree)
-                    execution_result = ExecutionResult(
-                        transaction_id = transaction_id,
-                        timestamp=datetime.now(),
-                        message="Query executed successfully",
-                        data_before=old_rows,
-                        data_after=new_rows,
-                        table_name=table_name
-                    )
-                    self.failure_recovery.write_log(execution_result)
-                    results.append(execution_result)
+                    self.send_to_failure_recovery(transaction_id, old_rows, new_rows, table_name)
+                    # results.append(execution_result)
                 # print("join operations")
                 # jo = self.get_join_operations(query_tree)
                 # print(jo)
@@ -198,17 +190,17 @@ class QueryProcessor:
             # TODO: ini harusnya ada abort ato rollback
             return "results"
 
-    def send_to_failure_recovery(self, transaction_id: int, row_string: str, action_type: str, rows: List[str]):
+    def send_to_failure_recovery(self, transaction_id, old_rows, new_rows, table_name):
         """
         Send data to FailureRecovery to store it into the buffer.
         """
         execution_result = ExecutionResult(
-            transaction_id=transaction_id,
+            transaction_id = transaction_id,
             timestamp=datetime.now(),
-            query=row_string,
-            message=f"{action_type.capitalize()} action executed successfully", 
-            data_after=rows.data,
-            data_before=rows.data   
+            message="Query executed successfully",
+            data_before=old_rows,
+            data_after=new_rows,
+            table_name=table_name
         )
         self.failure_recovery.write_log(execution_result)
 
@@ -372,8 +364,11 @@ class QueryProcessor:
                 print(j)
             # print("join table nya", join_operations.tables)
             after_join_result = self.apply_join_operation(join_operations, results)
+            after_select_result = self.apply_select(after_join_result, qt.val)
+            print("isi qt.val itu", qt.val)
+            print("isi join result", after_join_result)
 
-        return after_join_result
+        return after_select_result
     
     def apply_join_operation(self, jo: JoinOperation, results):
         result = []
@@ -408,20 +403,20 @@ class QueryProcessor:
                     # Jika semua kondisi terpenuhi, gabungkan kedua dictionary
                     if match:
                         merged_dict = {
-                            f"dict1.{k}": v for k, v in d1.items()
+                            f"{jo.tables[0]}.{k}": v for k, v in d1.items()
                         }
                         merged_dict.update({
-                            f"dict2.{k}": v for k, v in d2.items()
+                            f"{jo.tables[1]}.{k}": v for k, v in d2.items()
                         })
                         result.append(merged_dict)
         elif jo.join_condition.join_type == "CROSS":
             for d1 in results[jo.tables[0]]:
                 for d2 in results[jo.tables[1]]:
                     merged_dict = {
-                        f"dict1.{k}": v for k, v in d1.items()
+                        f"{jo.tables[0]}.{k}": v for k, v in d1.items()
                     }
                     merged_dict.update({
-                        f"dict2.{k}": v for k, v in d2.items()
+                        f"{jo.tables[1]}.{k}": v for k, v in d2.items()
                     })
                     result.append(merged_dict)    
         elif jo.join_condition.join_type == "NATURAL":
@@ -431,16 +426,23 @@ class QueryProcessor:
                     common_keys = set(d1.keys()).intersection(set(d2.keys()))
                     if common_keys and all(d1[key] == d2[key] for key in common_keys):
                         merged_dict = {
-                            f"dict1.{k}": v for k, v in d1.items() if k not in common_keys
+                            f"{jo.tables[0]}.{k}": v for k, v in d1.items() if k not in common_keys
                         }
                         merged_dict.update({
-                            f"dict2.{k}": v for k, v in d2.items() if k not in common_keys
+                            f"{jo.tables[1]}.{k}": v for k, v in d2.items() if k not in common_keys
                         })
                         for key in common_keys:
                             merged_dict[key] = d1[key]
                         result.append(merged_dict)                   
 
         return result
+
+    def apply_select(self, result, select_attributes):
+        filtered_result = []
+        for row in result:
+            filtered_row = {key: value for key, value in row.items() if key in select_attributes}
+            filtered_result.append(filtered_row)
+        return filtered_result
 
     def query_tree_to_update_operations(self, qt: QueryTree):
         """
