@@ -112,7 +112,8 @@ class QueryProcessor:
                 query_tree = query.query_tree
                 print("DIA MASUK KESINI")
                 print(query_tree.node_type)
-                self.data_retrievals_to_results(query_tree)
+                res = self.query_tree_to_results(query_tree)
+                print("ngeprint dari atas", res)
                 # print("join operations")
                 # jo = self.get_join_operations(query_tree)
                 # print(jo)
@@ -382,13 +383,13 @@ class QueryProcessor:
             return self.get_join_operations(qt.children[0])
 
     
-    def data_retrievals_to_results(self, qt: QueryTree):
+    def query_tree_to_results(self, qt: QueryTree):
         list_of_data_retrievals, tables = self.query_tree_to_data_retrievals(qt)
         results = {}
         for data_retrieval in list_of_data_retrievals:
             results[data_retrieval.table[0]] = self.storage_manager.readBlock(data_retrieval)
 
-        for table in tables:
-            print("hasil akhirnya", results[table])
+        # for table in tables:
+        #     print("hasil akhirnya", results[table])
 
-    
+        return results[table]
