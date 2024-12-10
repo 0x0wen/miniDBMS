@@ -403,4 +403,4 @@ class QueryProcessor:
         # for table in tables:
         #     print("hasil akhirnya", results[table])
 
-        return results[table]
+        return results
