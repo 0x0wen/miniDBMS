@@ -1,6 +1,7 @@
 from typing import List, TypeVar
 
 from FailureRecovery.Structs import Header
+from FailureRecovery.Structs.Header import Type, Header
 from StorageManager.objects.Condition import Condition
 T = TypeVar('T')
 
@@ -20,30 +21,54 @@ class Row:
         '''ngecek apakah row_data sesuai dengan header'''
         
         if len(self.row_data) != header.countColumn():
-            raise ValueError("Row data doesn't match header")
+            return False
         
-        for row in self.row_data:
-            if type(row) != header.types[self.row_data.index(row)]:
-                raise ValueError("Row data type doesn't match header")
-        
+        for i, value in enumerate(self.row_data):
+            expected_type = header.typeOfColumnByIndex(i)
+            if expected_type == Type.INT and not isinstance(value, int):
+                return False
+            elif expected_type == Type.STR and not isinstance(value, str):
+                return False
+            elif expected_type == Type.FLOAT and not isinstance(value, float):
+                return False
         return True
     
-    def isRowFullfilngCondition(self, condition: Condition) -> bool:
+    def isRowFullfilingCondition(self, conditions: Condition, header: Header) -> bool:
+        # print("checking condition")
         '''ngecek apakah row_data memenuhi kondisi tertentu'''
+        all_conditions_passed = True
         
-        '''ini nama methodnya jelek sih bisa diganti, intinya dipakai buat ngecek apakah row ini memenuhi kondisi tertentu'''
-        if condition.operation == '=':
-            return self.row_data[condition.column] == condition.operand
-        elif condition.operation == '!=':
-            return self.row_data[condition.column] != condition.operand
-        elif condition.operation == '<':
-            return self.row_data[condition.column] < condition.operand
-        elif condition.operation == '>':
-            return self.row_data[condition.column] > condition.operand
-        elif condition.operation == '<=':
-            return self.row_data[condition.column] <= condition.operand
-        elif condition.operation == '>=':
-            return self.row_data[condition.column] >= condition.operand
-        else:
-            raise ValueError(f"Unsupported operator: {condition.operation}")
+        for i, condition in enumerate(conditions):
+            
+            data = str(self.row_data[header.indexOfColumn(condition.column)])
+            operand = condition.operand        
+        
+            '''ini nama methodnya jelek sih bisa diganti, intinya dipakai buat ngecek apakah row ini memenuhi kondisi tertentu'''
+            if condition.operation == '=':
+                all_conditions_passed = data == operand
+            elif condition.operation == '!=':
+                all_conditions_passed = data != operand
+            elif condition.operation == '<':
+                all_conditions_passed = data < operand
+            elif condition.operation == '>':
+                all_conditions_passed = data > operand
+            elif condition.operation == '<=':
+                all_conditions_passed = data <= operand
+            elif condition.operation == '>=':
+                all_conditions_passed = data >= operand
+        # else:
+        #     raise ValueError(f"Unsupported operator: {condition.operation}")
+        
+        return all_conditions_passed
 
+    # print repr
+    def __repr__(self):
+        return f"Row({self.row_id}, {self.row_data})"
+    
+    def convertoStorageManagerRow(self, header: Header) -> List[str]:
+        '''convert row_data ke format yang bisa dipakai oleh storage manager'''
+        converted_row = {}
+        for i, value in enumerate(self.row_data):
+            converted_row[header.names[i]] = value
+            
+        return converted_row
