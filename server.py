@@ -32,9 +32,9 @@ class Server:
                     optimized_query = self.query_processor.execute_query(queries)
 
                     # kirim hasil ke client
-                    send_to_client = ""
-                    for q in optimized_query:
-                        send_to_client += (f"Optimized Query Tree: {q.query_tree}\n")
+                    send_to_client = "test"
+                    # for q in optimized_query:
+                    #     send_to_client += (f"Optimized Query Tree: {q.query_tree}\n")
                     client_socket.send(send_to_client.encode("utf-8"))
 
                 except Exception as e:

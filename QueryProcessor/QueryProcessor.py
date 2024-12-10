@@ -5,7 +5,7 @@ from StorageManager.objects.DataRetrieval import DataRetrieval, Condition
 from StorageManager.objects.JoinCondition import JoinCondition
 from StorageManager.objects.JoinOperation import JoinOperation
 from StorageManager.objects.DataWrite import DataWrite
-# from FailureRecovery.FailureRecovery import FailureRecovery
+from FailureRecovery.FailureRecovery import FailureRecovery
 from StorageManager.manager.SchemaManager import SchemaManager 
 from Interface.Rows import Rows
 from Interface.Action import Action
@@ -30,7 +30,7 @@ class QueryProcessor:
         if not hasattr(self, "initialized"):  # Ensure __init__ is called only once
             self.concurrent_manager = ConcurrentControlManager()
             self.optimization_engine = OptimizationEngine()
-            # self.failure_recovery = FailureRecovery()
+            self.failure_recovery = FailureRecovery()
             self.storage_manager = StorageManager()
             self.initialized = True
 
@@ -41,20 +41,27 @@ class QueryProcessor:
 
         while i < len(tokens):
             if tokens[i].upper() == 'AS':
-                alias = tokens[i + 1]
+                alias_without_comma = tokens[i + 1].split(',')[0]
+                alias =alias_without_comma
+                alias.removesuffix(',')
                 original = tokens[i - 1]
                 alias_map[alias] = original
-                tokens.pop(i)  # remove 'AS'
-                tokens.pop(i)  # remove alias
-                i -= 1
-            i += 1
+                tokens.pop(i)  # Remove 'AS'
+                tokens.pop(i)  # Remove alias
+                tokens.insert(i, ',')
+                i+=1
+            elif tokens[i].upper() == 'FROM':
+                tokens.pop(i-1)
+                break
+            else:
+                i += 1
 
-        # replace aliases
         for j in range(len(tokens)):
-            if tokens[j] in alias_map:
-                tokens[j] = alias_map[tokens[j]]
-
-        return ' '.join(tokens)
+            if tokens[j].split('.')[0] in alias_map:
+                tokens[j] = alias_map[tokens[j].split('.')[0]] + '.' + tokens[j].split('.')[1]
+            
+        print(' '.join(tokens))
+        return ' '.join(tokens), alias_map
 
     def execute_query(self, query: List[str]) -> List:
         results = []
@@ -62,9 +69,7 @@ class QueryProcessor:
         # BEGIN OPTIMIZING
         optimized_query = []
         for q in query:
-            query_without_aliases = self.remove_aliases(q)
-            print("query without alias ini outputnya")
-            print(query_without_aliases)
+            query_without_aliases, alias_map = self.remove_aliases(q)
             optimized_query.append(
                 self.optimization_engine.optimizeQuery(self.optimization_engine.parseQuery(q)))
                 # self.optimization_engine.optimizeQuery(self.optimization_engine.parseQuery(query_without_aliases)))
@@ -128,6 +133,7 @@ class QueryProcessor:
                         data_after=new_rows,
                         table_name=table_name
                     )
+                    self.failure_recovery.write_log(execution_result)
                     results.append(execution_result)
                 # print("join operations")
                 # jo = self.get_join_operations(query_tree)
@@ -394,7 +400,8 @@ class QueryProcessor:
             results[data_retrieval.table[0]] = self.storage_manager.readBlock(data_retrieval)
 
         # Ambil data lama
-        old_rows = deepcopy(results[table])
+        old_rows = results[table]
+        new_rows = deepcopy(results[table])
         
         # Ganti value sesuai set_operations
         i = 0
@@ -407,7 +414,7 @@ class QueryProcessor:
             value = set_operations[i + 2]
             print(f"Updating column: {column} with value: {value}")
             
-            for row in results[table]:
+            for row in new_rows:
                 for key in row.keys():
                     if key == column:
                         # Remove quotes if present in the value
@@ -423,7 +430,7 @@ class QueryProcessor:
         data_types = {}
         for column in check:
             data_types[column[0]] = column[1]
-        for row in results[table]:
+        for row in new_rows:
             for key, value in row.items():
                 if key in data_types:
                     if data_types[key] == "int":
@@ -434,7 +441,6 @@ class QueryProcessor:
                         row[key] = str(value)
         
         # Simpan data baru
-        new_rows = results[table]
         table_name = table
 
         # Kalo querynya UPDATE user2 SET harga = 15000, desk = 'data999' WHERE id = 99;

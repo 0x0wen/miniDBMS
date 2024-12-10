@@ -33,7 +33,7 @@ class FailureRecovery:
             # current_data = self.buffer.getTable(info.query.selected_table)
             print("writing log")
             print("old buffer")        
-            print(self.buffer.getTable('course'))    
+            print(self.buffer.getTable('user2'))    
             # 2. Write to WAL first
             self.logManager.write_log_entry(
                 info.transaction_id,
@@ -78,7 +78,7 @@ class FailureRecovery:
         """Recover database state using WAL"""
         print("try to recover")
         print("before recover")
-        print(self.buffer.getTable('course'))
+        # print(self.buffer.getTable('course'))
         try:
             filtered_logs: List[LogEntry] = self.logManager.read_logs(criteria)
             
@@ -99,7 +99,7 @@ class FailureRecovery:
                 # else:
                 #     raise ValueError(f"Invalid operation: {log.operation}")
             print("afterr recover")  
-            print(self.buffer.getTable('course'))
+            # print(self.buffer.getTable('course'))
 
         except Exception as e:
             raise Exception(f"Recovery failed: {e}")
