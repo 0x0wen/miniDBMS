@@ -1,6 +1,5 @@
 from Interface.Response import Response
 from Interface.Action import Action
-from Interface.Queue import Queue
 from Interface.Rows import Rows
 from ConcurrencyControlManager.Algorithms.AbstractAlgorithm import AbstractAlgorithm
 
@@ -15,8 +14,8 @@ class TwoPhaseLock(AbstractAlgorithm):
         self.lock_s_table = []
         self.lock_x_table = []
 
-        # Checked transaction message format: "[Code]: [Message]", ex: "OK: Transaction 1 can write", "WA: Transaction 1 is queued", "WO: Transaction 1 wound transaction 2", "FA: Transaction 1 fails to lock-X A", ...
-        self.checked_transaction_message = ""
+        # Save response for when validate is called
+        self.response = None
 
         ### End of method ###
 
@@ -165,13 +164,6 @@ class TwoPhaseLock(AbstractAlgorithm):
         return valid
         ### End of method ###
 
-    def handleCommit(self, transaction_id: int) -> bool:
-        # print(f"Transaction {transaction_id} commits")
-        self.end(transaction_id)
-
-        return True
-        ### End of method ###
-
     def isLockedByOlderTransaction(self, transaction_id: int, data_item: str) -> bool:
         for lock in self.lock_s_table:
             if (lock[0] < transaction_id) and (lock[1] == data_item):
@@ -196,9 +188,10 @@ class TwoPhaseLock(AbstractAlgorithm):
         return -1
         ### End of method ###
 
-    def woundOrWait(self, transaction_id: int, data_item: str) -> str:
+    def woundOrWait(self, transaction_id: int, data_item: str) -> tuple[str, int]:
         if self.isLockedByOlderTransaction(transaction_id, data_item):
-            return "WAIT"
+            transaction_to_wait = self.getTransactionIdOfLock(data_item)
+            return ("WAIT", transaction_to_wait)
 
         else:
             transaction_to_wound = self.getTransactionIdOfLock(data_item)
@@ -206,9 +199,7 @@ class TwoPhaseLock(AbstractAlgorithm):
             self.unlockAllS(transaction_to_wound)
             self.unlockAllX(transaction_to_wound)
 
-            # TODO: somehow notify the transaction_to_wound to abort
-
-            return f"WOUND {transaction_to_wound}"
+            return ("WOUND", transaction_to_wound)
 
         ### End of method ###
 
@@ -219,67 +210,26 @@ class TwoPhaseLock(AbstractAlgorithm):
             valid = self.handleLockXRequest(transaction_id, parsed_db_object[2])
 
             if (not valid):
-                # print(f"Transaction {transaction_id} failed to lock-X {parsed_db_object[2]}")
-
                 to_do = self.woundOrWait(transaction_id, parsed_db_object[2])
+                self.response = Response(to_do[0], transaction_id, to_do[1])
 
-                if (to_do == "WAIT"):
-                    # print(f"Transaction {transaction_id} is queued")
-                    self.checked_transaction_message = f"WA: Transaction {transaction_id} is queued"
-
-                else:
-                    # print(f"Transaction {transaction_id} wound other transaction")
-                    valid = self.lockX(transaction_id, parsed_db_object[2])
-                    self.checked_transaction_message = f"WO: Transaction {transaction_id} wound transaction {to_do.split(' ')[1]}"
             else:
-                self.checked_transaction_message = f"OK: Transaction {transaction_id} can write"
-
-            # if (valid):
-            #     print(f"Transaction {transaction_id} writes {parsed_db_object[2]}")
+                self.response = Response("ALLOW", transaction_id, transaction_id)
         
         elif parsed_db_object[0] == "R":
             valid = self.handleLockSRequest(transaction_id, parsed_db_object[2])
 
             if not (valid):
-                # print(f"Transaction {transaction_id} failed to lock-S {parsed_db_object[2]}")
-                
                 to_do = self.woundOrWait(transaction_id, parsed_db_object[2])
+                self.response = Response(to_do[0], transaction_id, to_do[1])
 
-                if (to_do == "WAIT"):
-                    # print(f"Transaction {transaction_id} is queued")
-                    self.checked_transaction_message = f"WA: Transaction {transaction_id} is queued"
-
-                else:
-                    # print(f"Transaction {transaction_id} wound other transaction")
-                    valid = self.lockS(transaction_id, parsed_db_object[2])
-                    self.checked_transaction_message = f"WO: Transaction {transaction_id} wound transaction {to_do.split(' ')[1]}"
             else:
-                self.checked_transaction_message = f"OK: Transaction {transaction_id} can read"
-
-            # if (valid):
-            #     print(f"Transaction {transaction_id} reads {parsed_db_object[2]}")
-        
-        elif parsed_db_object[0] == "C":
-            valid = self.handleCommit(transaction_id)
-            self.checked_transaction_message = f"OK: Transaction {transaction_id} can commit"
+                self.response = Response("ALLOW", transaction_id, transaction_id)
 
         ### End of method ###
 
     def validate(self, db_object: Rows, transaction_id: int, action: Action) -> Response:
-        actionType = action.action[0].name
-        parsed_db_object = self.parseRows(db_object)
-
-        if (actionType == "WRITE"):
-            response = Response(self.isLockedXBySelf(transaction_id, parsed_db_object[2]), self.checked_transaction_message)
-        
-        elif (actionType == "READ"):
-            response = Response(self.isLockedSBySelf(transaction_id, parsed_db_object[2]), self.checked_transaction_message)
-        
-        else:
-            response = Response(True, self.checked_transaction_message)
-    
-        self.checked_transaction_message = ""
-        return response
+        return self.response
 
         ### End of method ###
 
