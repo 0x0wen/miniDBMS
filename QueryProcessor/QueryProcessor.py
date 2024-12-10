@@ -88,7 +88,7 @@ class QueryProcessor:
             row_string = single_row.data[0]
             action_type = "read" if row_string[0] == 'R' else "write"
             action = Action([action_type])
-
+            self.concurrent_manager.logObject(single_row, transaction_id)
             validate = self.concurrent_manager.validateObject(single_row, transaction_id, action)
             print(f"Validation result: {validate.allowed}")
             if validate.allowed:
@@ -96,7 +96,7 @@ class QueryProcessor:
 
                 # Log the single row
                 print(f"Logging single-row: {single_row.data}")
-                self.concurrent_manager.logObject(single_row, transaction_id)
+
 
                 # Send data to FailureRecovery
                 # self.send_to_failure_recovery(transaction_id, row_string, action_type, single_row)
