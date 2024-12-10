@@ -90,17 +90,15 @@ class FailureRecovery:
     def recover(self, criteria: RecoverCriteria) -> None:
         """Recover database state using WAL"""
         try:
-            logs = self.log_manager.read_logs(criteria)
+            logs = self.logManager.read_logs(criteria)
+            reversed_logs = logs[::-1]  
             
-            # Process logs in reverse order
-            for log in reversed(logs):
-                if log["data_before"]:
-                    # Generate recovery query
-                    set_clause = ", ".join(f"{k}={v}" for k, v in log["data_before"].items())
-                    recovery_query = f"UPDATE {log['table']} SET {set_clause}"
-                    
-                    # Execute recovery through QueryProcessor
-                    self.query_processor.execute_query(recovery_query)
+            for log in reversed_logs:  
+                print(log.data_before, log.data_after)
+                # replace_data(log.data_after, log.data_before)
                     
         except Exception as e:
             raise Exception(f"Recovery failed: {e}")
+        
+        
+        

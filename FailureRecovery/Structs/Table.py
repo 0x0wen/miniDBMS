@@ -40,27 +40,29 @@ class Table:
                 return row
         return None
     
-    def findRows(self, condition: Condition) -> List[Row]:
-        '''mencari banyak row dengan kondisi tertentu
+    def findRows(self, condition: Condition) -> List['Row']:
+        matching_rows = []
         
-           konsep condition juga perlu dipikir lagi,
-           apakah mau niru prinsip storage manager atau gmn'''
-        return [row for row in self.rows if row.isRowFullfilngCondition(condition)]
+        for row in self.rows:
+            if row.isRowFullfilingCondition(condition, self.header):
+                matching_rows.append(row.convertoStorageManagerRow(self.header))
+        
+        if len(matching_rows) == 0:
+            return None
+        else:
+            return matching_rows   
 
     def findRow(self, condition: Condition) -> Row:
-        '''mencari 1 row dengan kondisi tertentu'''
         for row in self.rows:
-            if row.isRowFullfilngCondition(condition):
+            if row.isRowFullfilngCondition(condition, self.header):
                 return row
         return None
     
     def deleteRows(self, condition: Condition) -> None:
-        '''menghapus banyak row dengan kondisi tertentu'''
         self.rows = [row for row in self.rows if not row.isRowFullfilngCondition(condition)]
         pass    
     
     def deleteRow(self, condition: Condition) -> None:
-        '''menghapus row dengan kondisi tertentu'''
         for row in self.rows:
             if row.isRowFullfilngCondition(condition):
                 self.rows.remove(row)
