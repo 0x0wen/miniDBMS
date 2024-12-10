@@ -118,35 +118,35 @@ class QueryProcessor:
                 # print(jo)
                 # print("loligaging")
             
-                if query_tree.node_type == "SELECT":
-                    old_rows = self.storage_manager.query_tree_to_data_retrieval(query_tree)
-                    result_rows = self.storage_manager.readBlock(old_rows)
-                    print("query tree ", query_tree)
-                    print("old rows ", old_rows)
-                    print("result rows ", result_rows)
-                    result = ExecutionResult(
-                        transaction_id = transaction_id,
-                        timestamp=datetime.now(),
-                        message="Query executed successfully",
-                        data_before=result_rows,
-                        data_after=result_rows,
-                        query=query.query # udah string kan harusnya
-                    )
+                # if query_tree.node_type == "SELECT":
+                #     old_rows = self.storage_manager.query_tree_to_data_retrieval(query_tree)
+                #     result_rows = self.storage_manager.readBlock(old_rows)
+                #     print("query tree ", query_tree)
+                #     print("old rows ", old_rows)
+                #     print("result rows ", result_rows)
+                #     result = ExecutionResult(
+                #         transaction_id = transaction_id,
+                #         timestamp=datetime.now(),
+                #         message="Query executed successfully",
+                #         data_before=result_rows,
+                #         data_after=result_rows,
+                #         query=query.query # udah string kan harusnya
+                #     )
 
-                elif query_tree.node_type == "UPDATE":
-                    old_rows = self.storage_manager.query_tree_to_data_retrieval(query_tree)
-                    print("query tree ", query_tree)
-                    result_rows = self.storage_manager.writeBlock(old_rows)
-                    print("old rows ", old_rows)
-                    print("result rows ", result_rows)
-                    result = ExecutionResult(
-                        transaction_id = transaction_id,
-                        timestamp=datetime.now(),
-                        message="Query executed successfully",
-                        data_before=old_rows,
-                        data_after=result_rows,
-                        query=query.query # udah string kan harusnya
-                    )
+                # elif query_tree.node_type == "UPDATE":
+                #     old_rows = self.storage_manager.query_tree_to_data_retrieval(query_tree)
+                #     print("query tree ", query_tree)
+                #     result_rows = self.storage_manager.writeBlock(old_rows)
+                #     print("old rows ", old_rows)
+                #     print("result rows ", result_rows)
+                #     result = ExecutionResult(
+                #         transaction_id = transaction_id,
+                #         timestamp=datetime.now(),
+                #         message="Query executed successfully",
+                #         data_before=old_rows,
+                #         data_after=result_rows,
+                #         query=query.query # udah string kan harusnya
+                #     )
 
                 # masih bingung isi data_beforenya gimana
                 # elif query_tree.node_type == "DELETE":
@@ -164,16 +164,16 @@ class QueryProcessor:
                 #         query=query.query # udah string kan harusnya
                 #     )
 
-                results.append(result)
-                print("hasilnya adalah ", result.data_after)
+                # results.append(result)
+                # print("hasilnya adalah ", result.data_after)
         
-            self.concurrent_manager.endTransaction(transaction_id)
+            # self.concurrent_manager.endTransaction(transaction_id)
 
-            return results
+            return "results"
 
         except Exception as e:
             # TODO: ini harusnya ada abort ato rollback
-            return results
+            return "results"
 
     def send_to_failure_recovery(self, transaction_id: int, row_string: str, action_type: str, rows: List[str]):
         """
@@ -226,7 +226,7 @@ class QueryProcessor:
             print("node type nya", child.node_type)
             if child.node_type == "WHERE":
                 conditions.append(child.val)
-            elif child.node_type == "Value1" or child.node_type == "Value2":
+            elif child.node_type == "Value1" or child.node_type == "Value2" or child.node_type == "FROM":
                 tables.append(child.val[0])
             self.get_table_and_condition(child, tables, conditions)
 
