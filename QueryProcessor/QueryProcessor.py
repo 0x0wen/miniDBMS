@@ -63,6 +63,8 @@ class QueryProcessor:
         optimized_query = []
         for q in query:
             query_without_aliases = self.remove_aliases(q)
+            print("query without alias ini outputnya")
+            print(query_without_aliases)
             optimized_query.append(
                 self.optimization_engine.optimizeQuery(self.optimization_engine.parseQuery(q)))
                 # self.optimization_engine.optimizeQuery(self.optimization_engine.parseQuery(query_without_aliases)))
@@ -293,7 +295,7 @@ class QueryProcessor:
     def get_join_operations(self, qt: QueryTree):
         print("iterating", qt.node_type)
         print("qt nya", qt)
-        if qt.node_type == "Value1" or qt.node_type == "Value2":
+        if qt.node_type == "Value1" or qt.node_type == "Value2" or qt.node_type == "FROM":
             print("masuk 1")
             print("return", qt.val[0])
             return qt.val[0]
@@ -339,13 +341,18 @@ class QueryProcessor:
 
     
     def query_tree_to_results(self, qt: QueryTree):
-        list_of_data_retrievals, tables = self.query_tree_to_data_retrievals(qt)
-        results = {}
-        for data_retrieval in list_of_data_retrievals:
-            results[data_retrieval.table[0]] = self.storage_manager.readBlock(data_retrieval)
+        if qt.node_type == "SELECT":
+            list_of_data_retrievals, tables = self.query_tree_to_data_retrievals(qt)
+            print("list of data", list_of_data_retrievals)
+            print("table", tables)
+            # join_condition = self.get_join_operations(qt)
+            results = {}
+            for data_retrieval in list_of_data_retrievals:
+                results[data_retrieval.table[0]] = self.storage_manager.readBlock(data_retrieval)
 
-        # for table in tables:
-        #     print("hasil akhirnya", results[table])
+            for table in tables:
+                print("hasil akhirnya", results[table])
+            # print("join condition nya", join_condition)
 
         return results
 
