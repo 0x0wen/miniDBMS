@@ -117,6 +117,7 @@ class QueryProcessor:
         # BEGIN STORAGE MANAGER
         try:
             for query in optimized_query:
+                print("optimized querynya", query)
                 query_tree = query.query_tree
                 print("DIA MASUK KESINI")
                 print(query_tree.node_type)
@@ -299,6 +300,12 @@ class QueryProcessor:
         return list_of_data_retrievals, tables
 
     def get_join_operations(self, qt: QueryTree):
+        def iterate_join_on(qt: QueryTree, cond):
+            print("masuk fungsi ganteng")
+            cond.append(qt.val)
+            if len(qt.children) == 1:
+                iterate_join_on(qt.children[0], cond)
+            
         print("iterating", qt.node_type)
         print("qt nya", qt)
         if qt.node_type == "Value1" or qt.node_type == "Value2" or qt.node_type == "FROM":
@@ -308,10 +315,10 @@ class QueryProcessor:
         if qt.node_type == "JOIN": # cross join 
             print("masuk 2")
             return JoinOperation([self.get_join_operations(qt.children[0]), self.get_join_operations(qt.children[1])], JoinCondition("CROSS", []))
-        elif qt.node_type == "TJOIN" and len(qt.children) == 2 and len(qt.children) == 0: # natural join
+        elif qt.node_type == "TJOIN" and (len(qt.val) == 0): # natural join
             print("masuk 3")
             return JoinOperation([self.get_join_operations(qt.children[0]), self.get_join_operations(qt.children[1])], JoinCondition("NATURAL", []))
-        elif qt.node_type == "TJOIN":
+        elif qt.node_type == "TJOIN": # join on
             cond = [qt.val]
             val1 = str()
             val2 = str()
@@ -321,10 +328,11 @@ class QueryProcessor:
                     val1 = child.val[0]
                 elif child.node_type == "Value2":
                     val2 = child.val[0]
-                elif child.node_type == "TJOIN" and len(child.children) == 0:
-                    print("condnya sblm", cond)
-                    cond.append(child.val)
-                    print("condnya sesudah", cond)
+                elif child.node_type == "TJOIN" and len(child.children) <= 1:
+                    # print("condnya sblm", cond)
+                    # cond.append(child.val)
+                    # print("condnya sesudah", cond)
+                    iterate_join_on(child, cond)
                 elif "JOIN" in child.node_type:
                     new_tree = child
             print("val 1", val1)
@@ -351,16 +359,94 @@ class QueryProcessor:
             list_of_data_retrievals, tables = self.query_tree_to_data_retrievals(qt)
             print("list of data", list_of_data_retrievals)
             print("table", tables)
-            # join_condition = self.get_join_operations(qt)
+            join_operations = self.get_join_operations(qt)
             results = {}
             for data_retrieval in list_of_data_retrievals:
                 results[data_retrieval.table[0]] = self.storage_manager.readBlock(data_retrieval)
 
-            for table in tables:
-                print("hasil akhirnya", results[table])
-            # print("join condition nya", join_condition)
+            # for table in tables:
+            #     print("hasil akhirnya", results[table])
+            print("join operation nya", join_operations)
+            print("print satu satu")
+            for j in join_operations.join_condition.condition:
+                print(j)
+            # print("join table nya", join_operations.tables)
+            after_join_result = self.apply_join_operation(join_operations, results)
 
-        return results
+        return after_join_result
+    
+    def apply_join_operation(self, jo: JoinOperation, results):
+        result = []
+        if jo.join_condition.join_type == "ON":
+            for d1 in results[jo.tables[0]]:
+                for d2 in results[jo.tables[1]]:
+                    match = True
+
+                    # Cek setiap kondisi
+                    for condition in jo.join_condition.condition:
+                        if len(condition) == 3:
+                            key1, operator, key2 = condition
+                            if operator == "=":
+                                if d1.get(key1) != d2.get(key2):
+                                    match = False
+                                    break
+                        else:
+                            match = False
+                            or_condition = []
+                            for el in condition:
+                                or_condition.append(el)
+                                if el.upper() == "OR":
+                                    or_condition = []
+                                elif len(or_condition) != 3:
+                                    continue
+                                elif len(or_condition) == 3:
+                                    key1, operator, key2 = or_condition
+                                    if operator == "=":
+                                        if d1.get(key1) == d2.get(key2):
+                                            match = True
+                                            break
+
+
+
+                    # Jika semua kondisi terpenuhi, gabungkan kedua dictionary
+                    if match:
+                        merged_dict = {
+                            f"dict1.{k}": v for k, v in d1.items()
+                        }
+                        merged_dict.update({
+                            f"dict2.{k}": v for k, v in d2.items()
+                        })
+                        result.append(merged_dict)
+        elif jo.join_condition.join_type == "CROSS":
+            for d1 in results[jo.tables[0]]:
+                for d2 in results[jo.tables[1]]:
+                    merged_dict = {
+                        f"dict1.{k}": v for k, v in d1.items()
+                    }
+                    merged_dict.update({
+                        f"dict2.{k}": v for k, v in d2.items()
+                    })
+                    result.append(merged_dict)    
+        elif jo.join_condition.join_type == "NATURAL":
+            for d1 in results[jo.tables[0]]:
+                for d2 in results[jo.tables[1]]:
+                    # Cari atribut yang sama di kedua dictionary
+                    common_keys = set(d1.keys()).intersection(set(d2.keys()))
+                    print("common keys nya", common_keys)
+                    print("d1 keys nya", d1.keys())
+                    print("d2 keys nya", d2.keys())
+                    if all(d1[key] == d2[key] for key in common_keys):
+                        merged_dict = {
+                            f"dict1.{k}": v for k, v in d1.items() if k not in common_keys
+                        }
+                        merged_dict.update({
+                            f"dict2.{k}": v for k, v in d2.items() if k not in common_keys
+                        })
+                        for key in common_keys:
+                            merged_dict[key] = d1[key]
+                        result.append(merged_dict)                    
+
+        return result
 
     def query_tree_to_update_operations(self, qt: QueryTree):
         """

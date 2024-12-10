@@ -35,7 +35,7 @@ class StorageManager:
         print("Inside StorageManager.readblock()")
         
         if rows is not None:
-            print("     Rows from buffer: ", rows)
+            # print("     Rows from buffer: ", rows)
             return rows
         else:
             print("     Rows from buffer is empty\n")

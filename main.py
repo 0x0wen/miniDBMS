@@ -65,9 +65,17 @@ from QueryProcessor.QueryProcessor import QueryProcessor
 qp = QueryProcessor()
 qo = OptimizationEngine()
 # query = input("masukin query\n")
+
+# try: 
 query_tree = qo.optimizeQuery(qo.parseQuery(input("masukin query\n"))).query_tree
 print("qt nya ini\n", query_tree)
 
+results = qp.query_tree_to_results(query_tree)
 print("coba results")
-print(qp.query_tree_to_results(query_tree))
-# qp.query_tree_to_results(query_tree)
+print(results)
+
+
+    # qp.query_tree_to_results(query_tree)
+
+# except Exception as e:
+    # print(e)
