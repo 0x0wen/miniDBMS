@@ -1,9 +1,9 @@
 from datetime import datetime
-from typing import Any, Optional, Dict
+from typing import Any, Optional, Dict, List
 
 # Importing modules in Failure Recovery
 from FailureRecovery.Structs.Buffer import Buffer
-from FailureRecovery.LogManager import LogManager
+from FailureRecovery.LogManager import LogManager, LogEntry
 from FailureRecovery.RecoverCriteria import RecoverCriteria
 
 # Importing modules from the Interface
@@ -72,17 +72,20 @@ class FailureRecovery:
     def recover(self, criteria: RecoverCriteria) -> None:
         """Recover database state using WAL"""
         try:
-            logs = self.log_manager.read_logs(criteria)
+            filtered_logs: List[LogEntry] = self.logManager.read_logs(criteria)
             
-            # Process logs in reverse order
-            for log in reversed(logs):
-                if log["data_before"]:
-                    # Generate recovery query
-                    set_clause = ", ".join(f"{k}={v}" for k, v in log["data_before"].items())
-                    recovery_query = f"UPDATE {log['table']} SET {set_clause}"
-                    
-                    # Execute recovery through QueryProcessor
-                    self.query_processor.execute_query(recovery_query)
-                    
+            for log in reversed(filtered_logs):
+                if log.operation == "INSERT":
+                    self.buffer.recoverInsertData(log)
+                    pass
+                elif log.operation == "UPDATE":
+                    self.buffer.recoverUpdateData(log)
+                    pass
+                elif log.operation == "DELETE":
+                    self.buffer.recoverDeleteData(log)
+                    pass
+                else:
+                    raise ValueError(f"Invalid operation: {log.operation}")
+
         except Exception as e:
             raise Exception(f"Recovery failed: {e}")
