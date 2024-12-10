@@ -29,7 +29,7 @@ class BlocksManager(SchemaManager):
 
         blocks = self.readBlocks(table_name)
         offset, num_rows = blocks[block_index]
-        print(f"Membaca blok ke-{block_index + 1}, Offset: {offset}, Jumlah baris: {num_rows}")
+        print(f"Membaca blok ke-{block_index }, Offset: {offset}, Jumlah baris: {num_rows}")
 
         block_data = []
         try:

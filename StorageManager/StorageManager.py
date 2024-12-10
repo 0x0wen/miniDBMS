@@ -6,10 +6,9 @@ from StorageManager.objects.Statistics import Statistics
 from StorageManager.manager.TableManager import TableManager
 from StorageManager.manager.IndexManager import IndexManager
 from QueryOptimizer.QueryTree import QueryTree
-# from Serializer import *
 from StorageManager.objects.Rows import Rows
-
-from FailureRecovery.FailureRecovery import FailureRecovery 
+from functools import reduce
+# from FailureRecovery.FailureRecovery import FailureRecovery 
 import os
 
 class StorageManager:
@@ -24,64 +23,133 @@ class StorageManager:
         Args:
             data_retrieval: Object containing data to help determine which data to be retrieved from hard disk.
         """
-    
-        
+
+
+        #Fungsi bantu index ranging
+        def process_ranges_with_column(conditions): 
+            from functools import reduce
+
+            def generate_range(start, end, operator):
+                """Menghasilkan range berdasarkan operator."""
+                if operator == '>' or operator == '>=':
+                    return list(range(start , end + 1)) 
+                elif operator == '<' or operator == '<=':
+                    return list(range(0, start + 1))  
+                else:
+                    raise ValueError(f"Operator {operator} tidak valid")
+
+            column_groups = {}
+            for start, end, operator, column in conditions:
+                if column not in column_groups:
+                    column_groups[column] = []
+                column_groups[column].append(generate_range(start, end, operator))
+
+            result = {}
+            for column, ranges in column_groups.items():
+                if ranges:
+                    intersect_result = sorted(reduce(lambda x, y: list(set(x) & set(y)), ranges))
+                    if intersect_result:
+                        result[column] = intersect_result  
+                    else:
+                        result[column] = sorted(list(set().union(*ranges)))
+
+            return result        
         """
         tolong di adjust sama mekanisme kalian -rafi
         """
-        failureRecovery = FailureRecovery()
-        rows = failureRecovery.buffer.retrieveData(data_retrieval)
-
-        print("Inside StorageManager.readblock()")
+        # failureRecovery = FailureRecovery()
+        # rows = failureRecovery.buffer.retrieveData(data_retrieval)
+        # print("Inside StorageManager.readblock()")
         
-        if rows is not None:
-            print("     Rows from buffer: ", rows)
-            return rows
-        else:
-            print("     Rows from buffer is empty\n")
+        # if rows is not None:
+        #     print("     Rows from buffer: ", rows)
+        #     return rows
+        # else:
+        #     print("     Rows from buffer is empty\n")
     
         
                 
         serializer = TableManager()
         index_manager = IndexManager()
         all_filtered_data: Rows = []
+        table_name = data_retrieval.table[0] # 1 tabel aja , tak ada join disini
+        indexed_rows = []
+        use_index = True
 
-        for table_name in data_retrieval.table:  # (support for join in the future)
-            indexed_rows = []
-            use_index = False
+        #sebenernya gk butuh ini karena semua operator udh bisa diindex, anjay
+        indexable_conditions = [
+            condition for condition in data_retrieval.conditions if condition.operation  in ["=", ">","<",'<=','>=']
+        ]
 
-            indexable_conditions = [
-                condition for condition in data_retrieval.conditions if condition.operation  in ["=", ">","<"]
-            ]
+        #Cek dulu, ada gk condisi yang pake column yang gk ada index
+        for cond in data_retrieval.conditions:
+            index = index_manager.readIndex(table_name, cond.column)
+            if(not index):
+                use_index = False
+                break
 
-            for condition in indexable_conditions:
-                index = index_manager.readIndex(table_name, condition.column)
-                if index:  # Use index if available
-                    block_id = index.search(condition.operand)
-                    if block_id is not None:
-                        block_data = serializer.readBlockIndex(table_name, block_id)
+
+        if(use_index):
+            #Indexed row untuk EQUAL operation
+            for i,condition in enumerate(indexable_conditions):
+                if(condition.operation == "="):
+                    print(f"-=-=-=--=-=-=Condition-{i} yaitu {condition}--=-=-=-=-=-=-=-=--==" )
+                    print("Operasi EQUAL ditemukan")
+                    index = index_manager.readIndex(table_name, condition.column)
+                    if index:  # Use index if available
+                        block_id = index.search(condition.operand)
+                        print("Block Id: ", block_id )
+                        if block_id is not None:
+                            block_data = serializer.readBlockIndex(table_name, block_id)
+                            # print("Block Data: ", block_data)
+                            indexed_rows.extend(block_data)
+                    else:
+                        print(f"Tidak ditemukan index di colomn{condition.column}")
+
+            #Indexed row untuk RANGE operation
+            ranged_indexed_id = []
+            for i,condition in enumerate(indexable_conditions):
+                if(condition.operation in ['>','<','>=','<=']):
+                    print(f"-=-=-=--=-=-=Condition-{i} yaitu {condition}--=-=-=-=-=-=-=-=--==" )
+                    print("Operasi RANGE ditemukan")
+                    index = index_manager.readIndex(table_name, condition.column)
+                    if index:  
+                        block_id = index.search(condition.operand)
+                        ranged_indexed_id.append([block_id,len(index),condition.operation,condition.column])
+                        if block_id is not None:
+                            block_data = serializer.readBlockIndex(table_name, block_id)
+                    else:
+                        print(f"Tidak ditemukan index di colomn {condition.column}")
+
+
+            #ranged indexed id pasti punya index di column itu, udah di filter
+            ranged_indexed_id = process_ranges_with_column(ranged_indexed_id)
+            for column in ranged_indexed_id:
+                if(ranged_indexed_id[column]):
+                    for i in ranged_indexed_id[column]:
+                        block_data = serializer.readBlockIndex(table_name,i)
+                        # print("Block Data: ", block_data)
                         indexed_rows.extend(block_data)
-                        use_index = True
 
-            if use_index and indexed_rows: 
-                print("Pencarian menggunakan index")
-                cond_filtered_data = serializer.applyConditions(indexed_rows, data_retrieval)
-    
-            else: 
-                print("Pencarian tidak menggunakan index,baca semua blok")
-                data = serializer.readTable(table_name)
-                cond_filtered_data = serializer.applyConditions(data, data_retrieval)
-    
-           
-            column_filtered_data = serializer.filterColumns(cond_filtered_data, data_retrieval.column)
-            # print("\n\nFrom StorageManager: column_filtered_data", column_filtered_data)
-            all_filtered_data.extend(column_filtered_data)
-            
-        print("all filtered data", all_filtered_data)
-            
+
+       
+        # print(indexed_rows)
+        if use_index and indexed_rows:  #cek (indexed_rows) harus ada hasil, antisipasi bener bener index digunakan pada column tidak cocok
+            print("Pencarian menggunakan index")
+            cond_filtered_data = serializer.applyConditions(indexed_rows, data_retrieval)
+
+        else: 
+            print("Pencarian tidak menggunakan index,baca semua blok")
+            data = serializer.readTable(table_name)
+            cond_filtered_data = serializer.applyConditions(data, data_retrieval)
+
         
+        column_filtered_data = serializer.filterColumns(cond_filtered_data, data_retrieval.column)
+        # print("\n\nFrom StorageManager: column_filtered_data", column_filtered_data)
+        all_filtered_data.extend(column_filtered_data)
+        print("all filtered data", all_filtered_data)
         # write to buffer in failureRecovery
-        failureRecovery.buffer.writeData(rows=cond_filtered_data, dataRetrieval=data_retrieval)
+        # failureRecovery.buffer.writeData(rows=cond_filtered_data, dataRetrieval=data_retrieval)
         
         return all_filtered_data
 

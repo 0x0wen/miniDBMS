@@ -122,36 +122,38 @@ class TableManager(DataManager):
                 return value <= operand
             return False
 
-        # Fungsi untuk mencari dengan menggunakan indeks jika kondisi sesuai
-        def searchWithIndex(action_object) -> list[dict]:
-            indexed_conditions = [cond for cond in action_object.conditions if cond.operation == "="]
-            filtered_rows = []
+        #Tak terpakai, udah dihandle
+        # # Fungsi untuk mencari dengan menggunakan indeks jika kondisi sesuai
+        # def searchWithIndex(action_object) -> list[dict]:
+        #     indexed_conditions = [cond for cond in action_object.conditions if cond.operation == "="]
+        #     filtered_rows = []
 
-            for condition in indexed_conditions:
-                index_manager = IndexManager()
-                try:
-                    hashedbucket = index_manager.readIndex(action_object.table[0], condition.column)
-                    if hashedbucket:
-                        # Mencari blok yang sesuai dengan nilai operand dalam kondisi
-                        block_id = hashedbucket.search(condition.operand)
-                        if block_id is not None:
-                            # Mengambil data dari blok yang ditemukan
-                            block_data = self.readBlockIndex(action_object.table[0], block_id)
-                            filtered_rows.extend(block_data)
-                except ValueError:
-                    # Tidak ada indeks untuk kolom tertentu
-                    continue
+        #     for condition in indexed_conditions:
+        #         index_manager = IndexManager()
+        #         try:
+        #             hashedbucket = index_manager.readIndex(action_object.table[0], condition.column)
+        #             if hashedbucket:
+        #                 # Mencari blok yang sesuai dengan nilai operand dalam kondisi
+        #                 block_id = hashedbucket.search(condition.operand)
+        #                 if block_id is not None:
+        #                     # Mengambil data dari blok yang ditemukan
+        #                     block_data = self.readBlockIndex(action_object.table[0], block_id)
+        #                     filtered_rows.extend(block_data)
+        #         except ValueError:
+        #             # Tidak ada indeks untuk kolom tertentu
+        #             continue
 
-            return filtered_rows
+        #     return filtered_rows
 
-        # Mencari dengan menggunakan indeks terlebih dahulu jika memungkinkan
-        indexed_rows = searchWithIndex(action_object)
+        # # Mencari dengan menggunakan indeks terlebih dahulu jika memungkinkan
+        # indexed_rows = searchWithIndex(action_object)
 
-        # Cek semua kondisi pada hasil dari indexed_rows jika tersedia
+        # # Cek semua kondisi pada hasil dari indexed_rows jika tersedia
+        # rows_to_filter = indexed_rows if indexed_rows else rows
+
+
         filtered_rows = []
-        rows_to_filter = indexed_rows if indexed_rows else rows
-
-        for row in rows_to_filter:
+        for row in rows:
             if any(all(satisfies(row, cond) for cond in group) for group in grouped_conditions):
                 filtered_rows.append(row)
 
