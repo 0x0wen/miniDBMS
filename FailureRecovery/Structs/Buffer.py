@@ -11,6 +11,8 @@ from StorageManager.objects.DataRetrieval import DataRetrieval, Condition
 from StorageManager.objects.Rows import Rows
 from FailureRecovery.Structs.Header import Header
 from FailureRecovery.Structs.Row import Row
+from FailureRecovery.LogManager import LogEntry
+
 
 
 '''
@@ -170,10 +172,34 @@ class Buffer:
     
     def updateData(self, data: DataWrite, databefore: List[str], dataafter: List[str]):
         table = self.getTable(data.selected_table)
-        
         if table:
             for row in table.rows:
                 if row == databefore:
                     table.rows.remove(row)
                     table.addRow(Row(table.numRows(), dataafter))
+                    
+    def recoverUpdateData(self, log: LogEntry):
+        table = self.getTable(log.table)
         
+        if table:
+            for data_after_row in log.data_after:
+                for row in table.rows[:]:
+                    if row == data_after_row:
+                        table.rows.remove(row)
+                        
+            for data_before_row in log.data_before:
+                table.addRow(Row(table.numRows(), data_before_row))            
+                
+    def recoverDeleteData(self, log: LogEntry):
+        table = self.getTable(log.table)
+        
+        if table:
+            for data_before_row in log.data_before:
+                table.addRow(Row(table.numRows(), data_before_row))
+    
+    def recoverInsertData(self, log: LogEntry):
+        table = self.getTable(log.table)
+        
+        if table:
+            for data_after_row in log.data_after:
+                table.rows.remove(data_after_row)
