@@ -117,7 +117,7 @@ class TwoPhaseLock(AbstractAlgorithm):
         Returns a list of string, int, string.
         
         Example:
-        ["W", 1, "A"] or ["R", 2, "B"] or ["C", 1, ""] or ["A", 2, ""]
+        ["W", 1, "A"] or ["R", 2, "B"] or ["C", 1, ""]
         """
         parsed_rows = []
         for row in db_object.data:
@@ -162,15 +162,6 @@ class TwoPhaseLock(AbstractAlgorithm):
     def handleCommit(self, transaction_id: int) -> bool:
         # print(f"Transaction {transaction_id} commits")
         self.end(transaction_id)
-
-        return True
-        ### End of method ###
-    
-    def handleAbort(self, transaction_id: int) -> bool:
-        # print(f"Transaction {transaction_id} aborts")
-        self.end(transaction_id)
-
-        #TODO: communicate with other components
 
         return True
         ### End of method ###
@@ -265,10 +256,6 @@ class TwoPhaseLock(AbstractAlgorithm):
         elif parsed_db_object[0] == "C":
             valid = self.handleCommit(transaction_id)
             self.checked_transaction_message = f"OK: Transaction {transaction_id} can commit"
-        
-        elif parsed_db_object[0] == "A":
-            valid = self.handleAbort(transaction_id)
-            self.checked_transaction_message = f"OK: Transaction {transaction_id} can abort"
 
         ### End of method ###
 
