@@ -405,9 +405,6 @@ class QueryProcessor:
                                         if d1.get(key1) == d2.get(key2):
                                             match = True
                                             break
-
-
-
                     # Jika semua kondisi terpenuhi, gabungkan kedua dictionary
                     if match:
                         merged_dict = {
@@ -432,10 +429,7 @@ class QueryProcessor:
                 for d2 in results[jo.tables[1]]:
                     # Cari atribut yang sama di kedua dictionary
                     common_keys = set(d1.keys()).intersection(set(d2.keys()))
-                    print("common keys nya", common_keys)
-                    print("d1 keys nya", d1.keys())
-                    print("d2 keys nya", d2.keys())
-                    if all(d1[key] == d2[key] for key in common_keys):
+                    if common_keys and all(d1[key] == d2[key] for key in common_keys):
                         merged_dict = {
                             f"dict1.{k}": v for k, v in d1.items() if k not in common_keys
                         }
@@ -444,7 +438,7 @@ class QueryProcessor:
                         })
                         for key in common_keys:
                             merged_dict[key] = d1[key]
-                        result.append(merged_dict)                    
+                        result.append(merged_dict)                   
 
         return result
 
