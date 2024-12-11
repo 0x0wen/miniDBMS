@@ -78,7 +78,7 @@ f = FailureRecovery()
 f.write_log(execution_result)
 
 
-from FailureRecovery.RecoverCriteria import RecoverCriteria
+from FailureRecovery.Structs.RecoverCriteria import RecoverCriteria
 f.recover(RecoverCriteria(transaction_id=1))
 
 

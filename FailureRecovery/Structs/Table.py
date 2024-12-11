@@ -1,8 +1,7 @@
-from typing import List, TypeVar
 from StorageManager.objects.Condition import Condition
 from FailureRecovery.Structs.Row import Row
-from StorageManager.objects.Rows import Rows
 
+from typing import List, TypeVar
 T = TypeVar('T')
 
 class Table:
@@ -13,11 +12,17 @@ class Table:
         self.num_rows = 0
         
     def addRow(self, row: Row) -> None:
+        """
+        Add a row to the table
+        """
 
         self.rows.append(row)
         self.num_rows += 1
     
-    def findRows(self, condition: Condition) -> List['Row']:
+    def findRows(self, condition: Condition) -> List[Row]:
+        """
+        Finds all rows that match given condition.
+        """
         matching_rows = []
         
         for row in self.rows:
@@ -30,15 +35,18 @@ class Table:
             return matching_rows   
 
     def numRows(self) -> int:
+        """ 
+        Returns the number of rows in the table 
+        """
         return self.num_rows
     
-    def __str__(self):
+    def __repr__(self):
         
-        print("Table name:", self.table_name)
+        print("Table name:")
+        print(" ", self.table_name)
         
-        print("Rows")
+        print("Rows:")
         for row in self.rows:
-            print(row)
+            print(" ", row)
             
-        return ""
-    
+        return ""    
