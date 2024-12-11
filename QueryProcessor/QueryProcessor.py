@@ -129,59 +129,6 @@ class QueryProcessor:
                     send_to_client += "UPDATED"
                     old_rows, new_rows, table_name = self.query_tree_to_update_operations(query_tree)
                     self.send_to_failure_recovery(transaction_id, old_rows, new_rows, table_name, results)
-                # print("join operations")
-                # jo = self.get_join_operations(query_tree)
-                # print(jo)
-                # print("loligaging")
-            
-                # if query_tree.node_type == "SELECT":
-                #     old_rows = self.storage_manager.query_tree_to_data_retrieval(query_tree)
-                #     result_rows = self.storage_manager.readBlock(old_rows)
-                #     print("query tree ", query_tree)
-                #     print("old rows ", old_rows)
-                #     print("result rows ", result_rows)
-                #     result = ExecutionResult(
-                #         transaction_id = transaction_id,
-                #         timestamp=datetime.now(),
-                #         message="Query executed successfully",
-                #         data_before=result_rows,
-                #         data_after=result_rows,
-                #         query=query.query # udah string kan harusnya
-                #     )
-
-                # elif query_tree.node_type == "UPDATE":
-                #     old_rows = self.storage_manager.query_tree_to_data_retrieval(query_tree)
-                #     print("query tree ", query_tree)
-                #     result_rows = self.storage_manager.writeBlock(old_rows)
-                #     print("old rows ", old_rows)
-                #     print("result rows ", result_rows)
-                #     result = ExecutionResult(
-                #         transaction_id = transaction_id,
-                #         timestamp=datetime.now(),
-                #         message="Query executed successfully",
-                #         data_before=old_rows,
-                #         data_after=result_rows,
-                #         query=query.query # udah string kan harusnya
-                #     )
-
-                # masih bingung isi data_beforenya gimana
-                # elif query_tree.node_type == "DELETE":
-                #     old_rows = self.storage_manager.__query_tree_to_data_retrieval(query_tree)
-                #     result_rows = self.storage_manager.deleteBlock(old_rows)
-                #     print("query tree ", query_tree)
-                #     print("old rows ", old_rows)
-                #     print("result rows ", result_rows)
-                #     result = ExecutionResult(
-                #         transaction_id = transaction_id,
-                #         timestamp=datetime.now(),
-                #         message="Query executed successfully",
-                #         data_before=old_rows,
-                #         data_after=None,
-                #         query=query.query # udah string kan harusnya
-                #     )
-
-                # results.append(result)
-                # print("hasilnya adalah ", result.data_after)
         
             # self.concurrent_manager.endTransaction(transaction_id)
             # print("ini yg dikirim ke klien")
