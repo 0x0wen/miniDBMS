@@ -1,7 +1,7 @@
 import socket
 
 class Client:
-    def __init__(self, host="localhost", port=1234):
+    def __init__(self, host="localhost", port=1235):
         self.host = host
         self.port = port
         self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -26,6 +26,7 @@ class Client:
         return query_input.strip()
 
     def receive_message(self, timeout_ms=50):
+        print("masok")
         """Receive a message from the server, ensuring full message retrieval."""
         try:
             # Set timeout for the socket
@@ -61,11 +62,16 @@ class Client:
 
         print(f"Connecting to {self.host} on port {self.port}...")
         self.client_socket.connect((self.host, self.port))
+        first = True
 
         try:
             while True:
                 # Receive and print messages from server
-                server_message = self.receive_message()
+                if first:
+                    server_message = self.receive_message()
+                    first = False
+                else:
+                    server_message = self.receive_message(10000)
                 if server_message:
                     print(f"{server_message}", end="")
 

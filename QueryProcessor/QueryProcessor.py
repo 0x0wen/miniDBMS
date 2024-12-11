@@ -184,8 +184,8 @@ class QueryProcessor:
                 # print("hasilnya adalah ", result.data_after)
         
             # self.concurrent_manager.endTransaction(transaction_id)
-            print("ini yg dikirim ke klien")
-            print(send_to_client)
+            # print("ini yg dikirim ke klien")
+            # print(send_to_client)
             return send_to_client, results
 
         except Exception as e:
