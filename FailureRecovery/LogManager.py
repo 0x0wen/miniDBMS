@@ -4,9 +4,10 @@ import os
 import json
 import shutil
 from FailureRecovery.RecoverCriteria import RecoverCriteria
+from FailureRecovery.Structs import Row
 
 class LogEntry:
-    def __init__(self, transaction_id: int, timestamp: str, operation: str, table: str, data_before: Any, data_after: Any):
+    def __init__(self, transaction_id: int, timestamp: datetime, operation: str, table: str, data_before: Row, data_after: Row):
         self.transaction_id = transaction_id
         self.timestamp = timestamp
         self.operation = operation

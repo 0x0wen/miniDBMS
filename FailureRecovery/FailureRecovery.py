@@ -1,9 +1,9 @@
 from datetime import datetime
-from typing import Any, Optional, Dict
+from typing import Any, Optional, Dict, List
 
 # Importing modules in Failure Recovery
 from FailureRecovery.Structs.Buffer import Buffer
-from FailureRecovery.LogManager import LogManager
+from FailureRecovery.LogManager import LogManager, LogEntry
 from FailureRecovery.RecoverCriteria import RecoverCriteria
 
 # Importing modules from the Interface
@@ -30,40 +30,27 @@ class FailureRecovery:
         """Write-Ahead Logging implementation"""
         try:
             # 1. Get current state from buffer/storage
-            current_data = self.buffer.read_data(info.data.table_name)
-            
+            # current_data = self.buffer.getTable(info.query.selected_table)
+            print("writing log")
+            print("old buffer")        
+            print(self.buffer.getTable('user2'))    
             # 2. Write to WAL first
-            self.log_manager.write_log_entry(
+            self.logManager.write_log_entry(
                 info.transaction_id,
-                info.query,
-                info.data.table_name,
-                current_data[0] if current_data else None,
-                info.data.data[0] if info.data and info.data.data else None
+                "UPDATE",
+                info.table_name,
+                info.data_before, 
+                info.data_after
             )
-
-            # Data Before yang didapet dari Execution Result: 
-            # [0, 'Santi', 21]
-            # [2, 'Doe', 30]
-            # [1, 'John', 20]
-
-            # Data After yang didapet dari Execution Result:
-            # ['table' = course, 'id' = 0, 'name' = 'Santi', 10]
-            # [2, 'Budi', 20]
-            # [1, 'Doe', 30]
-
-            # Rows di tabel buffer
-            # [0, 'Santi', 21]
-            # [2, 'Doe', 30]
-            # [1, 'John', 20]
-
-            # Apus dulu rows yang ada di tabel buffer
-
-            # 3. Update buffer with new data
-            if info.data and info.data.data:
-                self.buffer.write_data(info.data.table_name, info.data.data[0])
+            
+            # 3. Update to buffer using updateData method from Buffer
+            self.buffer.updateData(info.table_name, info.data_before, info.data_after)
+            
+            print("new buffer")
+            print(self.buffer.getTable(info.table_name))
 
             # 4. Check WAL size for checkpoint
-            if self.log_manager.is_wal_full():
+            if self.logManager.is_wal_full():
                 self.save_checkpoint()
 
         except Exception as e:
@@ -89,18 +76,33 @@ class FailureRecovery:
 
     def recover(self, criteria: RecoverCriteria) -> None:
         """Recover database state using WAL"""
+        print("try to recover")
+        print("before recover")
+        # print(self.buffer.getTable('course'))
         try:
-            logs = self.log_manager.read_logs(criteria)
+            filtered_logs: List[LogEntry] = self.logManager.read_logs(criteria)
             
-            # Process logs in reverse order
-            for log in reversed(logs):
-                if log["data_before"]:
-                    # Generate recovery query
-                    set_clause = ", ".join(f"{k}={v}" for k, v in log["data_before"].items())
-                    recovery_query = f"UPDATE {log['table']} SET {set_clause}"
-                    
-                    # Execute recovery through QueryProcessor
-                    self.query_processor.execute_query(recovery_query)
-                    
+            for log in reversed(filtered_logs):
+                # print("data before")
+                # for row in log.data_before:
+                #     print(row)
+                self.buffer.updateData(log.table, log.data_after, log.data_before)
+                # if log.operation == "INSERT":
+                #     # self.buffer.recoverInsertData(log)
+                #     pass
+                # elif log.operation == "UPDATE":
+                    # self.buffer.recoverUpdateData(log)
+                #     pass
+                # elif log.operation == "DELETE":
+                #     # self.buffer.recoverDeleteData(log)
+                #     pass
+                # else:
+                #     raise ValueError(f"Invalid operation: {log.operation}")
+            print("afterr recover")  
+            # print(self.buffer.getTable('course'))
+
         except Exception as e:
             raise Exception(f"Recovery failed: {e}")
+        
+        
+        

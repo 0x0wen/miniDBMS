@@ -5,7 +5,8 @@ from StorageManager.objects.DataRetrieval import DataRetrieval, Condition
 from StorageManager.objects.JoinCondition import JoinCondition
 from StorageManager.objects.JoinOperation import JoinOperation
 from StorageManager.objects.DataWrite import DataWrite
-# from FailureRecovery.FailureRecovery import FailureRecovery
+from FailureRecovery.FailureRecovery import FailureRecovery
+from StorageManager.manager.SchemaManager import SchemaManager 
 from Interface.Rows import Rows
 from Interface.Action import Action
 from typing import List
@@ -13,6 +14,7 @@ from StorageManager.StorageManager import StorageManager
 from datetime import datetime
 from Interface.ExecutionResult import ExecutionResult
 import time
+from copy import deepcopy
 
 class QueryProcessor:
     _instance = None
@@ -29,7 +31,7 @@ class QueryProcessor:
         if not hasattr(self, "initialized"):  # Ensure __init__ is called only once
             self.concurrent_manager = ConcurrentControlManager()
             self.optimization_engine = OptimizationEngine()
-            # self.failure_recovery = FailureRecovery()
+            self.failure_recovery = FailureRecovery()
             self.storage_manager = StorageManager()
             self.initialized = True
 
@@ -40,19 +42,26 @@ class QueryProcessor:
 
         while i < len(tokens):
             if tokens[i].upper() == 'AS':
-                alias = tokens[i + 1]
+                alias_without_comma = tokens[i + 1].split(',')[0]
+                alias =alias_without_comma
+                alias.removesuffix(',')
                 original = tokens[i - 1]
-                alias_map[original] = alias
-                tokens.pop(i)  # remove 'AS'
-                tokens.pop(i)  # remove alias
+                alias_map[alias] = original
+                tokens.pop(i)  # Remove 'AS'
+                tokens.pop(i)  # Remove alias
                 tokens.insert(i, ',')
-                i -= 1
-
+                i+=1
             elif tokens[i].upper() == 'FROM':
                 tokens.pop(i-1)
                 break
-            i+=1
-        
+            else:
+                i += 1
+
+        for j in range(len(tokens)):
+            if tokens[j].split('.')[0] in alias_map:
+                tokens[j] = alias_map[tokens[j].split('.')[0]] + '.' + tokens[j].split('.')[1]
+            
+        print(' '.join(tokens))
         return ' '.join(tokens), alias_map
 
     def execute_query(self, query: List[str]) -> List:
@@ -109,11 +118,17 @@ class QueryProcessor:
         # BEGIN STORAGE MANAGER
         try:
             for query in optimized_query:
+                print("optimized querynya", query)
                 query_tree = query.query_tree
                 print("DIA MASUK KESINI")
                 print(query_tree.node_type)
-                res = self.query_tree_to_results(query_tree)
-                print("ngeprint dari atas", res)
+                if query_tree.node_type == "SELECT":
+                    res = self.query_tree_to_results(query_tree)
+                    print("ngeprint dari atas", res)
+                elif query_tree.node_type == "UPDATE":
+                    old_rows, new_rows, table_name = self.query_tree_to_update_operations(query_tree)
+                    self.send_to_failure_recovery(transaction_id, old_rows, new_rows, table_name)
+                    # results.append(execution_result)
                 # print("join operations")
                 # jo = self.get_join_operations(query_tree)
                 # print(jo)
@@ -176,17 +191,17 @@ class QueryProcessor:
             # TODO: ini harusnya ada abort ato rollback
             return "results"
 
-    def send_to_failure_recovery(self, transaction_id: int, row_string: str, action_type: str, rows: List[str]):
+    def send_to_failure_recovery(self, transaction_id, old_rows, new_rows, table_name):
         """
         Send data to FailureRecovery to store it into the buffer.
         """
         execution_result = ExecutionResult(
-            transaction_id=transaction_id,
+            transaction_id = transaction_id,
             timestamp=datetime.now(),
-            query=row_string,
-            message=f"{action_type.capitalize()} action executed successfully", 
-            data_after=rows.data,
-            data_before=rows.data   
+            message="Query executed successfully",
+            data_before=old_rows,
+            data_after=new_rows,
+            table_name=table_name
         )
         self.failure_recovery.write_log(execution_result)
 
@@ -277,78 +292,26 @@ class QueryProcessor:
         
         return list_of_data_retrievals, tables
 
-    def query_tree_to_data_writes(self, qt: QueryTree):
-        tables = []
-        conditions = []
-        self.get_table_and_condition(qt, tables, conditions)
-        
-        # For write operations, we only support single table operations
-        selected_table = tables[0] if tables else None
-        
-        # Get columns from the table
-        columns = []
-        if selected_table:
-            for key, _ in self.storage_manager.readBlock(DataRetrieval(table=[selected_table], column=[], conditions=[]))[0].items():
-                columns.append(key)
-        
-        # Process conditions
-        conditions_objects = []
-        for condition in conditions:
-            if 'or' not in [c.lower() for c in condition]:
-                if condition == conditions[0]:
-                    conditions_objects.append(Condition(column=condition[0], operation=condition[1], operand=condition[2], connector=None))
-                else:
-                    conditions_objects.append(Condition(column=condition[0], operation=condition[1], operand=condition[2], connector="AND"))
-            else:
-                if condition == conditions[0]:
-                    conditions_objects.append(Condition(column=condition[0], operation=condition[1], operand=condition[2], connector=None))
-                    conditions_objects.append(Condition(column=condition[4], operation=condition[5], operand=condition[6], connector="OR"))
-                else:
-                    conditions_objects.append(Condition(column=condition[0], operation=condition[1], operand=condition[2], connector="AND"))
-                    conditions_objects.append(Condition(column=condition[4], operation=condition[5], operand=condition[6], connector="OR"))
-        
-        # Create DataWrite object based on operation type
-        if qt.node_type == "INSERT":
-            return DataWrite(
-                overwrite=False,
-                selected_table=selected_table,
-                column=columns,
-                conditions=[],
-                new_value=qt.val if hasattr(qt, 'val') else None
-            )
-        elif qt.node_type == "UPDATE":
-            # For UPDATE, we expect val to contain [column_name, new_value] pairs
-            update_columns = []
-            update_values = []
-            if hasattr(qt, 'val') and qt.val:
-                for col, val in qt.val:
-                    update_columns.append(col)
-                    update_values.append(val)
-            
-            return DataWrite(
-                overwrite=True,
-                selected_table=selected_table,
-                column=update_columns if update_columns else columns,
-                conditions=conditions_objects,
-                new_value=update_values if update_values else None
-            )
-        
-        return None
-
     def get_join_operations(self, qt: QueryTree):
+        def iterate_join_on(qt: QueryTree, cond):
+            print("masuk fungsi ganteng")
+            cond.append(qt.val)
+            if len(qt.children) == 1:
+                iterate_join_on(qt.children[0], cond)
+            
         print("iterating", qt.node_type)
         print("qt nya", qt)
-        if qt.node_type == "Value1" or qt.node_type == "Value2":
+        if qt.node_type == "Value1" or qt.node_type == "Value2" or qt.node_type == "FROM":
             print("masuk 1")
             print("return", qt.val[0])
             return qt.val[0]
         if qt.node_type == "JOIN": # cross join 
             print("masuk 2")
             return JoinOperation([self.get_join_operations(qt.children[0]), self.get_join_operations(qt.children[1])], JoinCondition("CROSS", []))
-        elif qt.node_type == "TJOIN" and len(qt.children) == 2 and len(qt.children) == 0: # natural join
+        elif qt.node_type == "TJOIN" and (len(qt.val) == 0): # natural join
             print("masuk 3")
             return JoinOperation([self.get_join_operations(qt.children[0]), self.get_join_operations(qt.children[1])], JoinCondition("NATURAL", []))
-        elif qt.node_type == "TJOIN":
+        elif qt.node_type == "TJOIN": # join on
             cond = [qt.val]
             val1 = str()
             val2 = str()
@@ -358,10 +321,11 @@ class QueryProcessor:
                     val1 = child.val[0]
                 elif child.node_type == "Value2":
                     val2 = child.val[0]
-                elif child.node_type == "TJOIN" and len(child.children) == 0:
-                    print("condnya sblm", cond)
-                    cond.append(child.val)
-                    print("condnya sesudah", cond)
+                elif child.node_type == "TJOIN" and len(child.children) <= 1:
+                    # print("condnya sblm", cond)
+                    # cond.append(child.val)
+                    # print("condnya sesudah", cond)
+                    iterate_join_on(child, cond)
                 elif "JOIN" in child.node_type:
                     new_tree = child
             print("val 1", val1)
@@ -419,16 +383,201 @@ class QueryProcessor:
         
 
     def query_tree_to_results(self, qt: QueryTree):
-        list_of_data_retrievals, tables = self.query_tree_to_data_retrievals(qt)
+        if qt.node_type == "SELECT":
+            list_of_data_retrievals, tables = self.query_tree_to_data_retrievals(qt)
+            print("list of data", list_of_data_retrievals)
+            print("table", tables)
+            join_operations = self.get_join_operations(qt)
+            results = {}
+            for data_retrieval in list_of_data_retrievals:
+                results[data_retrieval.table[0]] = self.storage_manager.readBlock(data_retrieval)
+
+            # for table in tables:
+            #     print("hasil akhirnya", results[table])
+            print("join operation nya", join_operations)
+            # print("join conditionnya nya", join_operations.join_condition)
+            print("print satu satu")
+            # for j in join_operations.join_condition.condition:
+            #     print(j)
+            # print("join table nya", join_operations.tables)
+            print("tipenya", type(join_operations))
+            if (qt.children[0].node_type != "FROM"):
+                print("masuk atas")
+                after_join = self.apply_join_operation(join_operations, results)
+            else:
+                print("masuk bawah")
+                after_join = results[qt.children[0].val[0]]
+            print("mau ngecek selectnya, ini isi setelah apply join operation")
+            print(after_join)
+
+            if qt.val[0] == "*":
+                all_column = list(after_join[0].keys())
+                after_select = self.apply_select(after_join, all_column)
+            else:
+                after_select = self.apply_select(after_join, qt.val)
+            print("isi qt.val itu", qt.val)
+
+        return after_select
+    
+    def apply_join_operation(self, jo: JoinOperation, results):
+        result = []
+        if jo.join_condition.join_type == "ON":
+            for d1 in results[jo.tables[0]]:
+                for d2 in results[jo.tables[1]]:
+                    match = True
+
+                    # Cek setiap kondisi
+                    for condition in jo.join_condition.condition:
+                        if len(condition) == 3:
+                            key1, operator, key2 = condition
+                            if operator == "=":
+                                if d1.get(key1) != d2.get(key2):
+                                    match = False
+                                    break
+                        else:
+                            match = False
+                            or_condition = []
+                            for el in condition:
+                                or_condition.append(el)
+                                if el.upper() == "OR":
+                                    or_condition = []
+                                elif len(or_condition) != 3:
+                                    continue
+                                elif len(or_condition) == 3:
+                                    key1, operator, key2 = or_condition
+                                    if operator == "=":
+                                        if d1.get(key1) == d2.get(key2):
+                                            match = True
+                                            break
+                    # Jika semua kondisi terpenuhi, gabungkan kedua dictionary
+                    if match:
+                        merged_dict = {
+                            f"{jo.tables[0]}.{k}": v for k, v in d1.items()
+                        }
+                        merged_dict.update({
+                            f"{jo.tables[1]}.{k}": v for k, v in d2.items()
+                        })
+                        result.append(merged_dict)
+        elif jo.join_condition.join_type == "CROSS":
+            for d1 in results[jo.tables[0]]:
+                for d2 in results[jo.tables[1]]:
+                    merged_dict = {
+                        f"{jo.tables[0]}.{k}": v for k, v in d1.items()
+                    }
+                    merged_dict.update({
+                        f"{jo.tables[1]}.{k}": v for k, v in d2.items()
+                    })
+                    result.append(merged_dict)    
+        elif jo.join_condition.join_type == "NATURAL":
+            for d1 in results[jo.tables[0]]:
+                for d2 in results[jo.tables[1]]:
+                    # Cari atribut yang sama di kedua dictionary
+                    common_keys = set(d1.keys()).intersection(set(d2.keys()))
+                    if common_keys and all(d1[key] == d2[key] for key in common_keys):
+                        merged_dict = {
+                            f"{jo.tables[0]}.{k}": v for k, v in d1.items() if k not in common_keys
+                        }
+                        merged_dict.update({
+                            f"{jo.tables[1]}.{k}": v for k, v in d2.items() if k not in common_keys
+                        })
+                        for key in common_keys:
+                            merged_dict[key] = d1[key]
+                        result.append(merged_dict)                   
+
+        return result
+
+    def apply_select(self, result, select_attributes):
+        filtered_result = []
+        print("isi result tuh")
+        print(result)
+        for row in result:
+            filtered_row = {key: value for key, value in row.items() if key in select_attributes}
+            filtered_result.append(filtered_row)
+        return filtered_result
+
+    def query_tree_to_update_operations(self, qt: QueryTree):
+        """
+        Generate update operations based on the provided QueryTree.
+
+        Args:
+            qt (QueryTree): The QueryTree object representing the update query.
+
+        Returns:
+            old_rows: The original data before the update.
+            new_rows: The updated data after the update.
+            table_name: The name of the table being updated.
+        """
+        # TODO: belom test yang gaada WHERE nya soalnya owen belom update
+        
+        # Pisah qt menjadi qt_set, qt_where
+        table = qt.val[0]
+        qt_set = qt.children[0]
+        qt_where = qt_set.children[0]
+
+        # Ambil operation-nya
+        set_operations = qt_set.val  # ['harga', '=', '15000', ',', 'desk', '=', "'data999'"]
+        where_operation = qt_where.val
+
+        # Read semua data pada table tersebut
+        read_qt_select = QueryTree(node_type="SELECT", val=["*"])
+        read_qt_from = QueryTree(node_type="FROM", val=[table])
+        read_qt_where = QueryTree(node_type="WHERE", val=where_operation)
+        read_qt_select.children.append(read_qt_from)
+        read_qt_from.parent = read_qt_select
+        if where_operation != []:
+            read_qt_select.children.append(read_qt_where)
+            read_qt_where.parent = read_qt_select
+        list_of_data_retrievals, tables = self.query_tree_to_data_retrievals(read_qt_select)
         results = {}
         for data_retrieval in list_of_data_retrievals:
             results[data_retrieval.table[0]] = self.storage_manager.readBlock(data_retrieval)
-            
-        # for table in tables:
-        #     print("hasil akhirnya", results[table])
-        formatted_results = QueryProcessor.format_results_as_table(results)
-        print(formatted_results)
 
-        return results
-    
-    
+        # Ambil data lama
+        old_rows = results[table]
+        new_rows = deepcopy(results[table])
+        
+        # Ganti value sesuai set_operations
+        i = 0
+        while i < len(set_operations):
+            if set_operations[i] == ',':
+                i += 1
+                continue
+                
+            column = set_operations[i]
+            value = set_operations[i + 2]
+            print(f"Updating column: {column} with value: {value}")
+            
+            for row in new_rows:
+                for key in row.keys():
+                    if key == column:
+                        # Remove quotes if present in the value
+                        if isinstance(value, str) and value.startswith("'") and value.endswith("'"):
+                            value = value[1:-1]
+                        row[key] = value
+            
+            i += 3
+
+        # Sesuai tipe datanya
+        schema_manager = SchemaManager()
+        check = schema_manager.readSchema(table)
+        data_types = {}
+        for column in check:
+            data_types[column[0]] = column[1]
+        for row in new_rows:
+            for key, value in row.items():
+                if key in data_types:
+                    if data_types[key] == "int":
+                        row[key] = int(value)
+                    elif data_types[key] == "float":
+                        row[key] = float(value)
+                    elif data_types[key] == "char":
+                        row[key] = str(value)
+        
+        # Simpan data baru
+        table_name = table
+
+        # Kalo querynya UPDATE user2 SET harga = 15000, desk = 'data999' WHERE id = 99;
+        print("Old rows:", old_rows) # [{'id': 99, 'umur': 'data99', 'harga': 34.75, 'desk': 'desk99'}]
+        print("New rows:", new_rows) # [{'id': 99, 'umur': 'data99', 'harga': 15000.0, 'desk': 'data999'}]
+        print("Table name:", table_name) # user2
+        return old_rows, new_rows, table_name
