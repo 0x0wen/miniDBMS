@@ -9,7 +9,7 @@ T = TypeVar('T')
 from StorageManager.objects.DataRetrieval import DataRetrieval, Condition
 
 from StorageManager.objects.Rows import Rows
-from FailureRecovery.Structs.Header import Header
+from FailureRecovery.unused.Header import Header
 from FailureRecovery.Structs.Row import Row
 from FailureRecovery.LogManager import LogEntry
 
@@ -67,20 +67,11 @@ class Buffer:
         
         if not is_table_exist:            
             new_table = Table(table_name)
-            # table_header = Header()
-            
-            # for column in rows[0]:
-            #     table_header.addColumn(column, "str")
-                
-            # new_table.setHeader(table_header)
             self.addTabble(new_table)
                 
         table = self.getTable(table_name)
         
         for row in rows:
-            # row_data = []
-            # for column in row:
-            #     row_data.append(row[column])
             table.addRow(Row(row))
             
         print(table)
@@ -99,29 +90,4 @@ class Buffer:
             for row in data_after:
                 table.addRow(row)
 
-                    
-    # def recoverUpdateData(self, log: LogEntry):
-    #     table = self.getTable(log.table)
-        
-    #     if table:
-    #         for data_after_row in log.data_after:
-    #             for row in table.rows[:]:
-    #                 if row == data_after_row:
-    #                     table.rows.remove(row)
-                        
-    #         for data_before_row in log.data_before:
-    #             table.addRow(Row(table.numRows(), data_before_row))            
-                
-    # def recoverDeleteData(self, log: LogEntry):
-    #     table = self.getTable(log.table)
-        
-    #     if table:
-    #         for data_before_row in log.data_before:
-    #             table.addRow(Row(table.numRows(), data_before_row))
     
-    # def recoverInsertData(self, log: LogEntry):
-    #     table = self.getTable(log.table)
-        
-    #     if table:
-    #         for data_after_row in log.data_after:
-    #             table.rows.remove(data_after_row)
