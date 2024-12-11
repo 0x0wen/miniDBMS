@@ -131,6 +131,23 @@ class TwoPhaseLock(AbstractAlgorithm):
             return [row[0], int(row[1]), ""]
         ### End of method ###
 
+    def validate(self, db_object: int, transaction_id: int, action: Action) -> Response:
+        data_item = db_object 
+
+        if action == "read":
+            if self.isLockedX(data_item):
+                return Response(status= False, message= transaction_id)
+            if not self.lockS(transaction_id, data_item):
+                return Response(status= False, message= transaction_id)
+            return Response(status= True, message= transaction_id)
+
+        elif action == "write":
+            if self.isLockedS(data_item) or self.isLockedX(data_item):
+                return Response(status= False, message= transaction_id)
+            if not self.lockX(transaction_id, data_item):
+                return Response(status= False, message= transaction_id)
+            return Response(status= True, message= transaction_id)
+
     def handleLockXRequest(self, transaction_id: int, data_item: str) -> bool:
         valid = False
 
@@ -324,10 +341,6 @@ class TwoPhaseLock(AbstractAlgorithm):
                 valid = self.handleAbort(transaction_id)
 
         self.handleQueuedTransactions()
-        ### End of method ###
-
-    def validate(self, db_object: Rows, transaction_id: int, action: Action) -> Response:
-        pass
         ### End of method ###
 
     def end(self, transaction_id: int) -> bool:
