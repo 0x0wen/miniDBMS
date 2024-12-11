@@ -359,16 +359,29 @@ class QueryProcessor:
             # for table in tables:
             #     print("hasil akhirnya", results[table])
             print("join operation nya", join_operations)
+            # print("join conditionnya nya", join_operations.join_condition)
             print("print satu satu")
-            for j in join_operations.join_condition.condition:
-                print(j)
+            # for j in join_operations.join_condition.condition:
+            #     print(j)
             # print("join table nya", join_operations.tables)
-            after_join_result = self.apply_join_operation(join_operations, results)
-            after_select_result = self.apply_select(after_join_result, qt.val)
-            print("isi qt.val itu", qt.val)
-            print("isi join result", after_join_result)
+            print("tipenya", type(join_operations))
+            if (qt.children[0].node_type != "FROM"):
+                print("masuk atas")
+                after_join = self.apply_join_operation(join_operations, results)
+            else:
+                print("masuk bawah")
+                after_join = results[qt.children[0].val[0]]
+            print("mau ngecek selectnya, ini isi setelah apply join operation")
+            print(after_join)
 
-        return after_select_result
+            if qt.val[0] == "*":
+                all_column = list(after_join[0].keys())
+                after_select = self.apply_select(after_join, all_column)
+            else:
+                after_select = self.apply_select(after_join, qt.val)
+            print("isi qt.val itu", qt.val)
+
+        return after_select
     
     def apply_join_operation(self, jo: JoinOperation, results):
         result = []
@@ -439,6 +452,8 @@ class QueryProcessor:
 
     def apply_select(self, result, select_attributes):
         filtered_result = []
+        print("isi result tuh")
+        print(result)
         for row in result:
             filtered_row = {key: value for key, value in row.items() if key in select_attributes}
             filtered_result.append(filtered_row)
