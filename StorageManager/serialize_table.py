@@ -7,6 +7,8 @@ of creating a table as given in specs which is student and course
 import random
 from faker import Faker
 from StorageManager.manager.TableManager import TableManager
+from StorageManager.manager.IndexManager import IndexManager
+
 
 fake = Faker()
 
@@ -53,11 +55,15 @@ data_course = [
 ]
 
 serializer = TableManager()
+indexmanager = IndexManager()
 student_table = "student"
 course_table = "course"
 
 serializer.writeTable(student_table,data_student ,student)
 serializer.writeTable(course_table,data_course ,course)
+indexmanager.writeIndex(course_table,'courseid')
+indexmanager.writeIndex(student_table,'studentid')
+
 
 
 data_with_schema = serializer.readTable(course_table)

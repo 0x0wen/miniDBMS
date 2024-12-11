@@ -31,16 +31,23 @@ ret4 = DataRetrieval(table=["course"], column=[], conditions=[
    {'year': 2097}, {'year': 2098}, {'year': 2099}]
 Amount :  38
 """
-cond1 = Condition(column="studentid", operation="=", operand='40', connector=None),
+cond1 = Condition(column="studentid", operation="=", operand='31', connector=None)
 
 retrieval = DataRetrieval(
     table=["student"],
-    column=[],
-    conditions=[cond1]
+    column=['studentid'],
+    conditions=[]
 )
 sm = StorageManager()
 
+testdel = DataRetrieval(
+    table=['course'],
+    column=[],
+    conditions=[
+        # Condition(column='courseid',operation='=',operand='30',connector=None)
+    ]
+)
 
 print("---Second read with ret4-----")
-sm.readBlock(retrieval)
+sm.readBlock(testdel)
 

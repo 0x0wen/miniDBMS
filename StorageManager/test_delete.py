@@ -3,7 +3,7 @@ from StorageManager.objects.DataDeletion import DataDeletion
 from StorageManager.objects.Condition import Condition
 from StorageManager.StorageManager import StorageManager
 
-cond1 = Condition("courseid", '=', 30)
+cond1 = Condition("courseid", '<', '15')
 
 
 deleted = DataDeletion(

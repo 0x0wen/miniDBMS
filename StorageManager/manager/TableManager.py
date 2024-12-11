@@ -163,11 +163,11 @@ class TableManager(DataManager):
 
 
 
-    def filterColumns(self,rows: list[dict], columns: list[str]) -> list[dict]:
+    def filterColumns(self,rows: list[dict], columns: list[str]) -> Rows:
         
         if columns:
             return [{col: row[col] for col in columns if col in row} for row in rows]
-        return rows
+        return Rows(rows)
     
     def readTable(self, file_name) -> Rows:
         """ Read both schema and data from files """
