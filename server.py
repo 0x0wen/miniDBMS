@@ -10,6 +10,7 @@ class Server:
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.query_processor = QueryProcessor()
         self.is_running = False
+        self.timer_event = threading.Event()
 
     def send_with_header(self, client_socket, message):
         """Send a message with a header indicating its length."""
@@ -44,6 +45,10 @@ class Server:
                     send_to_client += (f"\nExecution Time: {execution_time:.3f} ms\n")
                     self.send_with_header(client_socket, send_to_client)
 
+                    if self.query_processor.failure_recovery.logManager.is_wal_full():
+                        self.query_processor.storage_manager.synchronize_storage()
+                        self.timer_event.set() # restart timer 300 detik
+
                 except Exception as e:
                     # Handle query errors without disconnecting the client
                     error_message = f"Error processing query: {e}\n"
@@ -53,11 +58,25 @@ class Server:
         finally:
             client_socket.close()
 
+    def start_timer(self):
+        def timer_task():
+            while self.is_running:
+                self.timer_event.clear()  
+                is_set = self.timer_event.wait(timeout=300)
+                if not is_set: # kalo dah 5 menit panggil fungsi sync storage
+                    self.query_processor.storage_manager.synchronize_storage()
+
+        timer_thread = threading.Thread(target=timer_task, daemon=True)
+        timer_thread.start()
+
     def start(self):
         self.server_socket.bind((self.host, self.port))
         self.server_socket.listen(5)
         self.is_running = True
         print(f"Server running on {self.host}:{self.port}")
+
+        self.start_timer()
+
         try:
             while self.is_running:
                 client_socket, client_address = self.server_socket.accept()
@@ -73,6 +92,7 @@ class Server:
 
     def stop(self):
         self.is_running = False
+        self.timer_event.set() 
         self.server_socket.close()
         print("Server has been stopped.")
 

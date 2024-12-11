@@ -124,17 +124,14 @@ class QueryProcessor:
                 if query_tree.node_type == "SELECT":
                     send_to_client += self.format_results_as_table(self.query_tree_to_results(query_tree))
                     print("isi send to client\n", send_to_client)
-                    self.send_to_failure_recovery(transaction_id, None, None, None, results)
                 elif query_tree.node_type == "UPDATE":
                     old_rows, new_rows, table_name = self.query_tree_to_update_operations(query_tree)
-                    # send_to_client = send_to_client + ("UPDATED", len(new_rows), "ROWS")
                     send_to_client = send_to_client + "UPDATED " + str(len(new_rows)) + " ROWS"
                     self.send_to_failure_recovery(transaction_id, old_rows, new_rows, table_name, results)
         
             # self.concurrent_manager.endTransaction(transaction_id)
             # print("ini yg dikirim ke klien")
             # print(send_to_client)
-            self.failure_recovery.logManager.is_wal_full()
             return send_to_client, results
 
         except Exception as e:
