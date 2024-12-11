@@ -128,7 +128,7 @@ class StorageManager:
             column_filtered_data = serializer.filterColumns(data, data_retrieval.column)
             #NOTE - Delete this
             # print(column_filtered_data)
-            return column_filtered_data
+            return Rows(column_filtered_data)
 
             
 
@@ -153,8 +153,7 @@ class StorageManager:
         if  indexed_rows:  #cek (indexed_rows) harus ada hasil, antisipasi bener bener index digunakan pada column tidak cocok
             #NOTE - Delete this
             # print("Pencarian menggunakan index")
-            
-            cond_filtered_data = indexed_rows
+            cond_filtered_data = serializer.applyConditions(indexed_rows,data_retrieval)
 
         else: 
             #NOTE - Delete this
