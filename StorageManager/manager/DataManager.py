@@ -9,7 +9,6 @@ class DataManager(BlocksManager):
         schema = self.readSchema(file_name)
         data_file_name = file_name + '_data.dat'
         blocks_file_name = file_name + '_blocks.dat'  
-        blocks = []
         with open(self.path_name + data_file_name, 'rb+') as data_file, open(self.path_name + blocks_file_name, 'rb+') as blocks_file:
             blocks_file.seek(0)
             num_existing_blocks = struct.unpack('i', blocks_file.read(4))[0]
@@ -79,7 +78,10 @@ class DataManager(BlocksManager):
 
         return rows_in_last_block + num_rows
     
-    def overwriteData(self, file_name, data) -> int:        
+    def overwriteData(self, file_name, data) -> int:
+        schema = self.readSchema(file_name)
+        current_data = self.readData(file_name, schema)
+        
         return 0
 
     def readBlockByOffset(self, table_name : str , block_id : int, schema : list[tuple], offset : int, num_rows) -> tuple[list, int]:
