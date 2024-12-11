@@ -4,13 +4,15 @@ import threading
 from QueryProcessor.QueryProcessor import QueryProcessor
 
 class Server:
-    def __init__(self, host="localhost", port=1235):
+    def __init__(self, host="localhost", port=1234):
         self.host = host
         self.port = port
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.query_processor = QueryProcessor()
         self.is_running = False
         self.timer_event = threading.Event()
+        self.client_id_counter = 1
+        self.clients = {}  # Store client ID and address
 
     def send_with_header(self, client_socket, message):
         """Send a message with a header indicating its length."""
@@ -19,8 +21,9 @@ class Server:
         header = message_length.to_bytes(4, byteorder="big")
         client_socket.sendall(header + message_bytes)
 
-    def handle_client(self, client_socket):
+    def handle_client(self, client_socket, client_id):
         try:
+            # self.send_with_header(client_socket, f"Welcome! Your client ID is {client_id}\n")
             while True:
                 query_input = client_socket.recv(1024).decode("utf-8").strip()
 
@@ -47,23 +50,25 @@ class Server:
 
                     if self.query_processor.failure_recovery.logManager.is_wal_full():
                         self.query_processor.storage_manager.synchronize_storage()
-                        self.timer_event.set() # restart timer 300 detik
+                        self.timer_event.set()  # restart timer 300 detik
 
                 except Exception as e:
                     # Handle query errors without disconnecting the client
                     error_message = f"Error processing query: {e}\n"
                     self.send_with_header(client_socket, error_message)
         except Exception as e:
-            print(f"Error handling client: {e}")
+            print(f"Error handling client {client_id}: {e}")
         finally:
+            print(f"Client {client_id} disconnected.")
             client_socket.close()
+            del self.clients[client_id]
 
     def start_timer(self):
         def timer_task():
             while self.is_running:
-                self.timer_event.clear()  
+                self.timer_event.clear()
                 is_set = self.timer_event.wait(timeout=300)
-                if not is_set: # kalo dah 5 menit panggil fungsi sync storage
+                if not is_set:  # If 5 minutes pass, call sync storage
                     self.query_processor.storage_manager.synchronize_storage()
 
         timer_thread = threading.Thread(target=timer_task, daemon=True)
@@ -80,8 +85,12 @@ class Server:
         try:
             while self.is_running:
                 client_socket, client_address = self.server_socket.accept()
-                print(f"Client connected: {client_address}")
-                client_thread = threading.Thread(target=self.handle_client, args=(client_socket,))
+                client_id = self.client_id_counter
+                self.clients[client_id] = client_address
+                self.client_id_counter += 1
+
+                print(f"Client {client_id} connected: {client_address}")
+                client_thread = threading.Thread(target=self.handle_client, args=(client_socket, client_id))
                 client_thread.start()
         except KeyboardInterrupt:
             print("\nKeyboardInterrupt received. Shutting down the server...")
@@ -92,7 +101,7 @@ class Server:
 
     def stop(self):
         self.is_running = False
-        self.timer_event.set() 
+        self.timer_event.set()
         self.server_socket.close()
         print("Server has been stopped.")
 
