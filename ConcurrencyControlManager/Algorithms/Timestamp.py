@@ -156,7 +156,6 @@ class TimestampBasedProtocol(AbstractAlgorithm, ABC):
             self.unlock(transactionId, item)
         return True
 
-
 if __name__ == "__main__":
     # Test cases
     db_object_1 = Rows(["W1(A)"])
@@ -202,3 +201,4 @@ if __name__ == "__main__":
     # Transaction 2 commits.
     # Transaction 1 write-lock acquired on A.
     # Transaction 2 fail, because there's a lock
+
