@@ -24,10 +24,16 @@ query_str = "SELECT users.name, users.age FROM users JOIN salary ON users.salary
 query_str = "SELECT users.name, users.age FROM users, salary NATURAL JOIN office JOIN houses ON office.house = house.office WHERE users.age > 18 AND office.name = 'Off_1' AND salary.salary >= 1000"
 # Initialize the optimization engine
 engine = OptimizationEngine()
+statistic = {
+    'users': Statistics(n_r=100, b_r=10, l_r=72, f_r=10, V_a_r={'id': 100, 'name': 100, 'age': 100, 'salary_id': 100, 'office_id': 100}),
+    'salary': Statistics(n_r=200, b_r=15, l_r=80, f_r=12, V_a_r={'salary_id': 200, 'amount': 200, 'type': 200}),
+    'office': Statistics(n_r=300, b_r=20, l_r=90, f_r=15, V_a_r={'office_id': 300, 'name': 300, 'location': 300}),
+    'houses': Statistics(n_r=400, b_r=25, l_r=100, f_r=16, V_a_r={'house_id': 400, 'address': 400, 'value': 400})
+}
 
 # Parse the query
 try:
-    parsed_query = engine.parseQuery(query_str)
+    parsed_query = engine.parseQuery(query_str, statistic)
     # parsed_query = optimizeWhere(parsed_query)
     # parsed_query = optimizeSortLimit(parsed_query)
 except CustomException as e:
@@ -38,6 +44,8 @@ except Exception as e:
     exit(1)
 
 print(f"{parsed_query.query_tree}")
+print('-----------------------')
+
 # is_valid = engine.validateParsedQuery(parsed_query.query_tree)
 # if is_valid:
 #     print("Query is valid and ready for optimize.")
@@ -45,13 +53,7 @@ print(f"{parsed_query.query_tree}")
 #     print("Query contains syntax errors.")
 
 # # Optimize the query
-statistic = {
-    'users': Statistics(n_r=100, b_r=10, l_r=72, f_r=10, V_a_r={'id': 100, 'name': 100, 'age': 100, 'salary_id': 100, 'office_id': 100}),
-    'salary': Statistics(n_r=200, b_r=15, l_r=80, f_r=12, V_a_r={'salary_id': 200, 'amount': 200, 'type': 200}),
-    'office': Statistics(n_r=300, b_r=20, l_r=90, f_r=15, V_a_r={'office_id': 300, 'name': 300, 'location': 300}),
-    'houses': Statistics(n_r=400, b_r=25, l_r=100, f_r=16, V_a_r={'house_id': 400, 'address': 400, 'value': 400})
-}
 # print(f"Statistics: {statistic}")
 optimized_query = engine.optimizeQuery(parsed_query,statistic)
-print("Optimized Query:", optimized_query)  
+print("Optimized Query:", optimized_query)
 # print(f"Optimized Query Estimated Cost: {optimized_query.estimated_cost}")
