@@ -106,7 +106,11 @@ class IndexManager(DataManager):
                 column_length = struct.unpack('i', column_length_data)[0]
 
                 # Read column name
-                column_name_data  = index_file.read(column_length).decode()
+                column_name_data = index_file.read(column_length)
+                try:
+                    column_name = column_name_data.decode('utf-8')
+                except UnicodeDecodeError:
+                    continue
 
                 # Check if column matches
                 if column.__eq__(column_name_data):
@@ -114,5 +118,14 @@ class IndexManager(DataManager):
                 
         # No matching column is found
         return False
-    
-    
+    def deleteIndex(self, table_name):
+        """
+        Delete a already defined index, raise error if try delete a not defined index
+        """
+        index_filename  = table_name + "_index.dat"
+        full_path = self.path_name + index_filename
+        
+        if not os.path.exists(full_path):
+            raise ValueError("Index is not given")
+        os.remove(full_path)
+        

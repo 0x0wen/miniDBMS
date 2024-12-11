@@ -8,7 +8,7 @@ from StorageManager.objects.DataRetrieval import DataRetrieval
 class TestDeleteBlock(unittest.TestCase):
     def setUp(self):
         """"
-        Set up strage manager and mock dependencies
+        Set up storage manager and mock dependencies
         """
         self.sm = StorageManager()
         self.table_creator = TableCreator(120)
