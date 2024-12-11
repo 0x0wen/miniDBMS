@@ -1,74 +1,67 @@
-from typing import List, TypeVar
-
-from FailureRecovery.Structs import Header
-from FailureRecovery.Structs.Header import Type, Header
+from typing import TypeVar, Dict
 from StorageManager.objects.Condition import Condition
+
 T = TypeVar('T')
 
-'''
-row_data itu tuple of data (tapi kita gatau tipe data dan nama atributnya, itu disimpan di header)
-contoh:
-    self.row_id = 1 ---> ini untuk identifier aja sih, mungkin gk diperlukan
-    row_data = [1, 'John', 20]
-'''
-
 class Row:
-    def __init__(self, row_id, row_data):
-        self.row_id = row_id
-        self.row_data : List[T]  = row_data
+    def __init__(self, data):
+        self.data : Dict[str, T]  = data
         
-    def isRowValid(self, header: Header) -> bool:
-        '''ngecek apakah row_data sesuai dengan header'''
-        
-        if len(self.row_data) != header.countColumn():
+    def isRowFullfilingCondition(self, conditions: list[Condition]) -> bool:
+        """
+        Checks if a row fulfills a given condition.
+        """
+        for condition in conditions:
+            data = str(self.data[condition.column])
+            operand = str(condition.operand)
+
+            if condition.operation == '=':
+                if data != operand:
+                    return False
+            elif condition.operation == '!=':
+                if data == operand:
+                    return False
+            elif condition.operation == '<':
+                if not data < operand:
+                    return False
+            elif condition.operation == '>':
+                if not data > operand:
+                    return False
+            elif condition.operation == '<=':
+                if not data <= operand:
+                    return False
+            elif condition.operation == '>=':
+                if not data >= operand:
+                    return False
+
+        return True
+
+    
+    def isRowEqual(self, other: 'Row') -> bool:
+        """
+        Checks if two rows are identical.
+        """
+        if self.data.keys() != other.data.keys():
             return False
-        
-        for i, value in enumerate(self.row_data):
-            expected_type = header.typeOfColumnByIndex(i)
-            if expected_type == Type.INT and not isinstance(value, int):
+    
+        for key in self.data.keys():
+            if self.data[key] != other.data[key]:
                 return False
-            elif expected_type == Type.STR and not isinstance(value, str):
-                return False
-            elif expected_type == Type.FLOAT and not isinstance(value, float):
-                return False
+    
         return True
     
-    def isRowFullfilingCondition(self, conditions: Condition, header: Header) -> bool:
-        # print("checking condition")
-        '''ngecek apakah row_data memenuhi kondisi tertentu'''
-        all_conditions_passed = True
-        
-        for i, condition in enumerate(conditions):
-            
-            data = str(self.row_data[header.indexOfColumn(condition.column)])
-            operand = condition.operand        
-        
-            '''ini nama methodnya jelek sih bisa diganti, intinya dipakai buat ngecek apakah row ini memenuhi kondisi tertentu'''
-            if condition.operation == '=':
-                all_conditions_passed = data == operand
-            elif condition.operation == '!=':
-                all_conditions_passed = data != operand
-            elif condition.operation == '<':
-                all_conditions_passed = data < operand
-            elif condition.operation == '>':
-                all_conditions_passed = data > operand
-            elif condition.operation == '<=':
-                all_conditions_passed = data <= operand
-            elif condition.operation == '>=':
-                all_conditions_passed = data >= operand
-        # else:
-        #     raise ValueError(f"Unsupported operator: {condition.operation}")
-        
-        return all_conditions_passed
-
-    # print repr
-    def __repr__(self):
-        return f"Row({self.row_id}, {self.row_data})"
+    def convertoStorageManagerRow(self) -> Dict[str, T]:
+        """
+        Because the data is already in the correct format,
+        this function simply returns the data.
+        """
+        return self.data
     
-    def convertoStorageManagerRow(self, header: Header) -> List[str]:
-        '''convert row_data ke format yang bisa dipakai oleh storage manager'''
-        converted_row = {}
-        for i, value in enumerate(self.row_data):
-            converted_row[header.names[i]] = value
-            
-        return converted_row
+    def transferData(self, Other : 'Row') -> Dict[str, T]:
+        """
+        Transfer data from one row to another
+        """
+        self.data = Other.data
+
+    def __repr__(self):
+        return f"Row({self.data})"

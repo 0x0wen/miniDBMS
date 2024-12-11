@@ -24,3 +24,7 @@ Developed by Amazing RDS, a team of 25.
      - query_str = "SELECT name , age FROM a, b JOIN c ON b.id = c.id AND b.city != c.city, d, e"
      - ![image](https://github.com/user-attachments/assets/6f31923f-dc21-4755-9afa-e9d239146c80)
      - i hope u can understand hehe
+
+## Known Bug
+
+- Can't join more than two tables

@@ -1,22 +1,18 @@
-from datetime import datetime
-from typing import Any, Optional, Dict
+from typing import List
 
-# Importing modules in Failure Recovery
 from FailureRecovery.Structs.Buffer import Buffer
-from FailureRecovery.LogManager import LogManager
-from FailureRecovery.RecoverCriteria import RecoverCriteria
+from FailureRecovery.LogManager import LogManager, LogEntry
+from FailureRecovery.Structs.RecoverCriteria import RecoverCriteria
 
-# Importing modules from the Interface
 from Interface.ExecutionResult import ExecutionResult
-# from StorageManager.objects.DataWrite import DataWrite
 
 class FailureRecovery:
     _instance = None
 
+    """Singleton class for Failure Recovery"""
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
-            
         
         return cls._instance
 
@@ -27,59 +23,32 @@ class FailureRecovery:
             self.initialized = True
 
     def write_log(self, info: ExecutionResult) -> None:
-        """Write-Ahead Logging implementation"""
-        try:
-            # 1. Get current state from buffer/storage
-            current_data = self.buffer.read_data(info.data.table_name)
-            
-            # 2. Write to WAL first
-            self.log_manager.write_log_entry(
+        """
+        Write a log entry to the log manager.
+        """
+        try:   
+            self.logManager.write_log_entry(
                 info.transaction_id,
-                info.query,
-                info.data.table_name,
-                current_data[0] if current_data else None,
-                info.data.data[0] if info.data and info.data.data else None
+                "UPDATE",
+                info.table_name,
+                info.data_before, 
+                info.data_after
             )
-
-            # Data Before yang didapet dari Execution Result: 
-            # [0, 'Santi', 21]
-            # [2, 'Doe', 30]
-            # [1, 'John', 20]
-
-            # Data After yang didapet dari Execution Result:
-            # ['table' = course, 'id' = 0, 'name' = 'Santi', 10]
-            # [2, 'Budi', 20]
-            # [1, 'Doe', 30]
-
-            # Rows di tabel buffer
-            # [0, 'Santi', 21]
-            # [2, 'Doe', 30]
-            # [1, 'John', 20]
-
-            # Apus dulu rows yang ada di tabel buffer
-
-            # 3. Update buffer with new data
-            if info.data and info.data.data:
-                self.buffer.write_data(info.data.table_name, info.data.data[0])
-
-            # 4. Check WAL size for checkpoint
-            if self.log_manager.is_wal_full():
+            
+            self.buffer.updateData(info.table_name, info.data_before, info.data_after)
+            
+            if self.logManager.is_wal_full():
                 self.save_checkpoint()
 
         except Exception as e:
             raise Exception(f"Write log failed: {e}")
 
     def save_checkpoint(self) -> None:
-        """Synchronize WAL entries with physical storage"""
+        """
+        Save a checkpoint to the log manager.
+        """
         try:
-            # The Schema of checkpoint
-
-            #1 Storage Manager checks if the wal is full
-
-            #2 If it is full, then we firstly get the entries of the wal. Then we clear the WAL
             entries = self.logManager.get_entries()
-
-            # 3. Then we empty the buffer
             self.buffer.clearBuffer()
             
             return entries
@@ -88,19 +57,17 @@ class FailureRecovery:
             raise Exception(f"Checkpoint failed: {e}")
 
     def recover(self, criteria: RecoverCriteria) -> None:
-        """Recover database state using WAL"""
+        """
+        Recover the database to a given point in time.
+        """
         try:
-            logs = self.log_manager.read_logs(criteria)
+            filtered_logs: List[LogEntry] = self.logManager.read_logs(criteria)
             
-            # Process logs in reverse order
-            for log in reversed(logs):
-                if log["data_before"]:
-                    # Generate recovery query
-                    set_clause = ", ".join(f"{k}={v}" for k, v in log["data_before"].items())
-                    recovery_query = f"UPDATE {log['table']} SET {set_clause}"
-                    
-                    # Execute recovery through QueryProcessor
-                    self.query_processor.execute_query(recovery_query)
-                    
+            for log in reversed(filtered_logs):
+                self.buffer.updateData(log.table, log.data_after, log.data_before)
+
         except Exception as e:
             raise Exception(f"Recovery failed: {e}")
+        
+        
+        
