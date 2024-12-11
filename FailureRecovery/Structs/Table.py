@@ -27,7 +27,7 @@ class Table:
         
         for row in self.rows:
             if row.isRowFullfilingCondition(condition):
-                print("Row found: ", row.data)
+                # print("Row found: ", row.data)
                 matching_rows.append(row)
         
         if len(matching_rows) == 0:
@@ -40,6 +40,20 @@ class Table:
         Returns the number of rows in the table 
         """
         return self.num_rows
+    
+    def existsRowPrimaryKey(self, row: Row, primaryKey : List[str]) -> bool:
+        """
+        Checks if a row with same primary key exists in the table
+        """
+        row_atrs = row.keys()
+        if not all(atr in row_atrs for atr in primaryKey):
+            return False
+        
+        for table_row in self.rows:
+            if all(table_row.data[key] == row[key] for key in primaryKey):
+                return True
+
+        return False
     
     def __repr__(self):
         
