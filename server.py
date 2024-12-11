@@ -4,7 +4,7 @@ import threading
 from QueryProcessor.QueryProcessor import QueryProcessor
 
 class Server:
-    def __init__(self, host="localhost", port=1234):
+    def __init__(self, host="localhost", port=1235):
         self.host = host
         self.port = port
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -12,7 +12,7 @@ class Server:
         self.is_running = False
         self.timer_event = threading.Event()
         self.client_id_counter = 1
-        self.clients = {}  # Store client ID and address
+        self.clients = {}  # Store client ID and (address, socket)
 
     def send_with_header(self, client_socket, message):
         """Send a message with a header indicating its length."""
@@ -21,9 +21,19 @@ class Server:
         header = message_length.to_bytes(4, byteorder="big")
         client_socket.sendall(header + message_bytes)
 
+    def send_to_client_by_id(self, client_id, message):
+        """Send a message to a specific client by ID."""
+        if client_id in self.clients:
+            _, client_socket = self.clients[client_id]
+            try:
+                self.send_with_header(client_socket, message)
+            except Exception as e:
+                print(f"Error sending to client {client_id}: {e}")
+        else:
+            print(f"Client ID {client_id} not found.")
+
     def handle_client(self, client_socket, client_id):
         try:
-            # self.send_with_header(client_socket, f"Welcome! Your client ID is {client_id}\n")
             while True:
                 query_input = client_socket.recv(1024).decode("utf-8").strip()
 
@@ -86,7 +96,7 @@ class Server:
             while self.is_running:
                 client_socket, client_address = self.server_socket.accept()
                 client_id = self.client_id_counter
-                self.clients[client_id] = client_address
+                self.clients[client_id] = (client_address, client_socket)
                 self.client_id_counter += 1
 
                 print(f"Client {client_id} connected: {client_address}")
