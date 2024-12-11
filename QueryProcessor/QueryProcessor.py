@@ -57,9 +57,9 @@ class QueryProcessor:
             else:
                 i += 1
 
-        for j in range(len(tokens)):
-            if tokens[j].split('.')[0] in alias_map:
-                tokens[j] = alias_map[tokens[j].split('.')[0]] + '.' + tokens[j].split('.')[1]
+        # for j in range(len(tokens)):
+        #     if tokens[j].split('.')[0] in alias_map:
+        #         tokens[j] = alias_map[tokens[j].split('.')[0]] + '.' + tokens[j].split('.')[1]
             
         print(' '.join(tokens))
         return ' '.join(tokens), alias_map
@@ -99,20 +99,20 @@ class QueryProcessor:
             action = Action([action_type])
             self.concurrent_manager.logObject(single_row, transaction_id)
             validate = self.concurrent_manager.validateObject(single_row, transaction_id, action)
-            print(f"Validation result: {validate.allowed}")
-            if validate.allowed:
-                # TODO : Implement Query Execution to Storage Manager Here
+            # print(f"Validation result: {validate.allowed}")
+            # if validate.allowed:
+            #     # TODO : Implement Query Execution to Storage Manager Here
 
-                # Log the single row
-                print(f"Logging single-row: {single_row.data}")
+            #     # Log the single row
+            #     print(f"Logging single-row: {single_row.data}")
 
 
-                # Send data to FailureRecovery
-                # self.send_to_failure_recovery(transaction_id, row_string, action_type, single_row)
+            #     # Send data to FailureRecovery
+            #     # self.send_to_failure_recovery(transaction_id, row_string, action_type, single_row)
 
-            else:
-                # Abort the transaction (when validation fails, concurrent control manager abort the transaction)
-                break
+            # else:
+            #     # Abort the transaction (when validation fails, concurrent control manager abort the transaction)
+            #     break
         # END CONCURRENCY CONTROL
 
         # BEGIN STORAGE MANAGER
@@ -124,10 +124,9 @@ class QueryProcessor:
                 if query_tree.node_type == "SELECT":
                     send_to_client += self.format_results_as_table(self.query_tree_to_results(query_tree))
                     print("isi send to client\n", send_to_client)
-                    self.send_to_failure_recovery(transaction_id, None, None, None, results)
                 elif query_tree.node_type == "UPDATE":
-                    send_to_client += "UPDATED"
                     old_rows, new_rows, table_name = self.query_tree_to_update_operations(query_tree)
+                    send_to_client = send_to_client + "UPDATED " + str(len(new_rows)) + " ROWS"
                     self.send_to_failure_recovery(transaction_id, old_rows, new_rows, table_name, results)
         
             # self.concurrent_manager.endTransaction(transaction_id)
@@ -302,9 +301,9 @@ class QueryProcessor:
                 output.append(row_line)
 
             # save number of results
-            output.append(f"\n({len(results)} rows)")
+            output.append(f"\n({len(results)} rows)\n")
         else:
-            output.append("(No data available)")
+            output.append("(No data available)\n")
 
         # execution_time = time.time() - start_time
         # output.append(f"\nQuery Execution Time: {execution_time:.3f} ms")

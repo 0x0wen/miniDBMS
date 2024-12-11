@@ -79,7 +79,6 @@ class TimestampBasedProtocol(AbstractAlgorithm, ABC):
         return True
 
     def starvationHandling(self, transactionId: int, dataItem: str) -> bool:
-        currentTimestamp = self.getTimestamp(transactionId)
         if transactionId in self.transactionQueue:
             print(f"Transaction {transactionId} is starving, attempting to acquire {dataItem}.")
             return True
@@ -124,9 +123,8 @@ class TimestampBasedProtocol(AbstractAlgorithm, ABC):
             print(f"Transaction {transactionId} commits.")
             self.end(transactionId)
             return
-
+    
     def validate(self, dbObject: Rows, transactionId: int, action: Action) -> Response:
-
         actionType = action.action[0].name
         item = dbObject.data[0].split("(")[1].split(")")[0] # Extract item from dbObject
 
@@ -137,29 +135,24 @@ class TimestampBasedProtocol(AbstractAlgorithm, ABC):
         if actionType == "WRITE":
             # Validate write action
             if lastReadTimestamp > currentTimestamp or lastWriteTimestamp > currentTimestamp:
-                return Response(status=False, message=transactionId)
+                return Response(response_action="WAIT", current_t_id=transactionId, related_t_id=self.locks.get(item, -1))
             if item in self.locks and self.locks[item] != transactionId:
-                return Response(status=False,
-                                message=transactionId)
+                return Response(response_action="WOUND", current_t_id=transactionId, related_t_id=self.locks[item])
+            return Response(response_action="ALLOW", current_t_id=transactionId, related_t_id=transactionId)
 
         elif actionType == "READ":
             # Validate read action
             if lastWriteTimestamp > currentTimestamp:
-                return Response(status=False,
-                                message=transactionId)
+                return Response(response_action="WAIT", current_t_id=transactionId, related_t_id=self.locks.get(item, -1))
             if item in self.locks and self.locks[item] != transactionId:
-                return Response(status=False,
-                                message=transactionId)
-
-        return Response(status=True,
-                        message=transactionId)
+                return Response(response_action="WOUND", current_t_id=transactionId, related_t_id=self.locks[item])
+            return Response(response_action="ALLOW", current_t_id=transactionId, related_t_id=transactionId)
 
     def end(self, transactionId: int) -> bool:
         itemsToUnlock = [item for item, tid in self.locks.items() if tid == transactionId]
         for item in itemsToUnlock:
             self.unlock(transactionId, item)
         return True
-
 
 if __name__ == "__main__":
     # Test cases
@@ -170,28 +163,28 @@ if __name__ == "__main__":
 
     timestamp_protocol = TimestampBasedProtocol()
     trans1 = timestamp_protocol.validate(db_object_1, 1, Action(["write"]))
-    if trans1.allowed:
+    if trans1.response_action == "ALLOW":
         print("Transaction 1 allowed")
         timestamp_protocol.logObject(db_object_1, 1)
     else:
         print("Transaction 1 denied")
 
     trans2 = timestamp_protocol.validate(db_object_2, 2, Action(["write"]))
-    if trans2.allowed:
+    if trans1.response_action == "ALLOW":
         print("Transaction 2 allowed")
         timestamp_protocol.logObject(db_object_2, 2)
     else:
         print("Transaction 2 denied")
 
     trans3 = timestamp_protocol.validate(db_object_3, 1, Action(["commit"]))
-    if trans3.allowed:
+    if trans1.response_action == "ALLOW":
         print("Transaction 3 allowed")
         timestamp_protocol.logObject(db_object_3, 1)
     else:
         print("Transaction 3 denied")
 
     trans4 = timestamp_protocol.validate(db_object_4, 2, Action(["write"]))
-    if trans4.allowed:
+    if trans1.response_action == "ALLOW":
         print("Transaction 4 allowed")
         timestamp_protocol.logObject(db_object_4, 2)
     else:
@@ -206,3 +199,4 @@ if __name__ == "__main__":
     # Transaction 2 commits.
     # Transaction 1 write-lock acquired on A.
     # Transaction 2 fail, because there's a lock
+

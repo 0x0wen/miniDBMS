@@ -59,7 +59,7 @@ class ConcurrentControlManager:
             return self.abstract_algorithm.validate(db_object, transaction_id, action)
         except Exception as e:
             print(f"Exception: {e}")
-            return Response(False, -1)
+            return Response(response_action="WOUND", current_t_id=transaction_id, related_t_id=0)
 
     def endTransaction(self, transaction_id: int) -> bool:
         """

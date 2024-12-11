@@ -26,7 +26,7 @@ class Client:
         return query_input.strip()
 
     def receive_message(self, timeout_ms=50):
-        print("masok")
+        # print("masok")
         """Receive a message from the server, ensuring full message retrieval."""
         try:
             # Set timeout for the socket

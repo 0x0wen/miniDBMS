@@ -42,6 +42,9 @@ Developing this query processor has been a challenging task, but we aim to go be
 ## 🧑‍⚖️ Workload Distribution
 To ensure efficient development and collaboration, we have strategically distributed the workload among team members, as detailed [here](./docs/workload-distribution.md).
 
+## 🏭 Class Diagram of Query Processor
+The class diagram of the Query Processor provides a comprehensive overview of its structure, showcasing the key components, their relationships, and interactions that drive the query processing workflow [here](./docs/ClassDiagram.md).
+
 ## 🗼 Program Structure
 ```bash
 QueryProcessor
