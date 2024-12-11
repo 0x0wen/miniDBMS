@@ -52,8 +52,10 @@ class Server:
                                 break
 
                     # Process query results
+                    returned_optimized_query, returned_client_id, returned_transaction_id, returned_response = self.query_processor.check_transaction_course(queries, client_id)
+                    # TODO: check returned response before proceeding
                     start_time = time.time()
-                    send_to_client, execution_results = self.query_processor.execute_query(queries)
+                    send_to_client, execution_results = self.query_processor.execute_query(returned_optimized_query, returned_client_id, returned_transaction_id)
                     execution_time = time.time() - start_time
                     send_to_client += (f"\nExecution Time: {execution_time:.3f} ms\n")
                     self.send_with_header(client_socket, send_to_client)
