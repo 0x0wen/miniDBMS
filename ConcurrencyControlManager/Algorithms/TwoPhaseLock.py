@@ -133,8 +133,32 @@ class TwoPhaseLock(AbstractAlgorithm):
                 parsed_rows.append(row[0])
                 parsed_rows.append(row[1])
                 parsed_rows.append("")
-        
+
         return parsed_rows
+        ### End of method ###
+
+    def validate(self, db_object: Rows, transaction_id: int, action: Action) -> Response:
+        data_item = db_object.data[0][3]
+        actionType = action.action[0].name
+
+        if actionType == "READ":
+            if self.isLockedSBySelf(transaction_id, data_item) or self.isLockedXBySelf(transaction_id, data_item):
+                return Response("ALLOW", transaction_id, transaction_id)
+            if not self.handleLockSRequest(transaction_id, data_item):
+                to_do = self.woundOrWait(transaction_id, data_item)
+                return Response(to_do[0], transaction_id, to_do[1])
+            return Response("ALLOW", transaction_id, transaction_id)
+
+        elif actionType == "WRITE":
+            if self.isLockedXBySelf(transaction_id, data_item):
+                return Response("ALLOW", transaction_id, transaction_id)
+            if not self.handleLockXRequest(transaction_id, data_item):
+                to_do = self.woundOrWait(transaction_id, data_item)
+                return Response(to_do[0], transaction_id, to_do[1])
+            return Response("ALLOW", transaction_id, transaction_id)
+
+        return Response("ALLOW", transaction_id, transaction_id) # Commit
+
         ### End of method ###
 
     def handleLockXRequest(self, transaction_id: int, data_item: str) -> bool:
@@ -195,7 +219,7 @@ class TwoPhaseLock(AbstractAlgorithm):
 
         else:
             transaction_to_wound = self.getTransactionIdOfLock(data_item)
-            
+
             self.unlockAllS(transaction_to_wound)
             self.unlockAllX(transaction_to_wound)
 
@@ -215,7 +239,7 @@ class TwoPhaseLock(AbstractAlgorithm):
 
             else:
                 self.response = Response("ALLOW", transaction_id, transaction_id)
-        
+
         elif parsed_db_object[0] == "R":
             valid = self.handleLockSRequest(transaction_id, parsed_db_object[2])
 
@@ -228,12 +252,33 @@ class TwoPhaseLock(AbstractAlgorithm):
 
         ### End of method ###
 
-    def validate(self, db_object: Rows, transaction_id: int, action: Action) -> Response:
-        return self.response
-
-        ### End of method ###
-
     def end(self, transaction_id: int) -> bool:
-
         return (self.unlockAllS(transaction_id) and self.unlockAllX(transaction_id))
+        
         ### End of method ###
+
+
+if __name__ == "__main__":
+    db_object_1 = Rows(["W1(A)"])
+    db_object_2 = Rows(["W2(A)"])
+    db_object_3 = Rows(["C1(A)"])
+    db_object_4 = Rows(["W2(A)"])
+
+    two_phase = TwoPhaseLock()
+    two_phase.logObject(db_object_1, 1)
+    trans_1 = two_phase.validate(db_object_1, 1, Action(["write"]))
+
+    two_phase.logObject(db_object_2, 2)
+    trans_2 = two_phase.validate(db_object_2, 2, Action(["write"]))
+
+    two_phase.logObject(db_object_3, 1)
+    trans_3 = two_phase.validate(db_object_2, 1, Action(["commit"]))
+    two_phase.end(1)
+
+    two_phase.logObject(db_object_4, 2)
+    trans_4 = two_phase.validate(db_object_2, 2, Action(["write"]))
+
+    print(trans_1)
+    print(trans_2)
+    print(trans_3)
+    print(trans_4)

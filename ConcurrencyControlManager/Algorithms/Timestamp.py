@@ -79,7 +79,6 @@ class TimestampBasedProtocol(AbstractAlgorithm, ABC):
         return True
 
     def starvationHandling(self, transactionId: int, dataItem: str) -> bool:
-        currentTimestamp = self.getTimestamp(transactionId)
         if transactionId in self.transactionQueue:
             print(f"Transaction {transactionId} is starving, attempting to acquire {dataItem}.")
             return True
@@ -170,28 +169,28 @@ if __name__ == "__main__":
 
     timestamp_protocol = TimestampBasedProtocol()
     trans1 = timestamp_protocol.validate(db_object_1, 1, Action(["write"]))
-    if trans1.allowed:
+    if trans1.response_action == "ALLOW":
         print("Transaction 1 allowed")
         timestamp_protocol.logObject(db_object_1, 1)
     else:
         print("Transaction 1 denied")
 
     trans2 = timestamp_protocol.validate(db_object_2, 2, Action(["write"]))
-    if trans2.allowed:
+    if trans1.response_action == "ALLOW":
         print("Transaction 2 allowed")
         timestamp_protocol.logObject(db_object_2, 2)
     else:
         print("Transaction 2 denied")
 
     trans3 = timestamp_protocol.validate(db_object_3, 1, Action(["commit"]))
-    if trans3.allowed:
+    if trans1.response_action == "ALLOW":
         print("Transaction 3 allowed")
         timestamp_protocol.logObject(db_object_3, 1)
     else:
         print("Transaction 3 denied")
 
     trans4 = timestamp_protocol.validate(db_object_4, 2, Action(["write"]))
-    if trans4.allowed:
+    if trans1.response_action == "ALLOW":
         print("Transaction 4 allowed")
         timestamp_protocol.logObject(db_object_4, 2)
     else:
