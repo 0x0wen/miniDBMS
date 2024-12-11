@@ -117,18 +117,18 @@ class QueryProcessor:
 
         # BEGIN STORAGE MANAGER
         try:
+            send_to_client = ""
             for query in optimized_query:
-                print("optimized querynya", query)
+                # print("optimized querynya", query)
                 query_tree = query.query_tree
-                print("DIA MASUK KESINI")
-                print(query_tree.node_type)
                 if query_tree.node_type == "SELECT":
-                    res = self.query_tree_to_results(query_tree)
-                    print("ngeprint dari atas", res)
+                    send_to_client += self.format_results_as_table(self.query_tree_to_results(query_tree))
+                    print("isi send to client\n", send_to_client)
+                    self.send_to_failure_recovery(transaction_id, None, None, None, results)
                 elif query_tree.node_type == "UPDATE":
+                    send_to_client += "UPDATED"
                     old_rows, new_rows, table_name = self.query_tree_to_update_operations(query_tree)
-                    self.send_to_failure_recovery(transaction_id, old_rows, new_rows, table_name)
-                    # results.append(execution_result)
+                    self.send_to_failure_recovery(transaction_id, old_rows, new_rows, table_name, results)
                 # print("join operations")
                 # jo = self.get_join_operations(query_tree)
                 # print(jo)
@@ -184,14 +184,15 @@ class QueryProcessor:
                 # print("hasilnya adalah ", result.data_after)
         
             # self.concurrent_manager.endTransaction(transaction_id)
-
-            return "results"
+            print("ini yg dikirim ke klien")
+            print(send_to_client)
+            return send_to_client, results
 
         except Exception as e:
             # TODO: ini harusnya ada abort ato rollback
             return "results"
 
-    def send_to_failure_recovery(self, transaction_id, old_rows, new_rows, table_name):
+    def send_to_failure_recovery(self, transaction_id, old_rows, new_rows, table_name, results):
         """
         Send data to FailureRecovery to store it into the buffer.
         """
@@ -203,6 +204,7 @@ class QueryProcessor:
             data_after=new_rows,
             table_name=table_name
         )
+        results.append(execution_result)
         self.failure_recovery.write_log(execution_result)
 
     def generate_rows_from_query_tree(self, optimized_query: List, transaction_id: int) -> Rows:
@@ -294,22 +296,14 @@ class QueryProcessor:
 
     def get_join_operations(self, qt: QueryTree):
         def iterate_join_on(qt: QueryTree, cond):
-            print("masuk fungsi ganteng")
             cond.append(qt.val)
             if len(qt.children) == 1:
                 iterate_join_on(qt.children[0], cond)
-            
-        print("iterating", qt.node_type)
-        print("qt nya", qt)
         if qt.node_type == "Value1" or qt.node_type == "Value2" or qt.node_type == "FROM":
-            print("masuk 1")
-            print("return", qt.val[0])
             return qt.val[0]
         if qt.node_type == "JOIN": # cross join 
-            print("masuk 2")
             return JoinOperation([self.get_join_operations(qt.children[0]), self.get_join_operations(qt.children[1])], JoinCondition("CROSS", []))
         elif qt.node_type == "TJOIN" and (len(qt.val) == 0): # natural join
-            print("masuk 3")
             return JoinOperation([self.get_join_operations(qt.children[0]), self.get_join_operations(qt.children[1])], JoinCondition("NATURAL", []))
         elif qt.node_type == "TJOIN": # join on
             cond = [qt.val]
@@ -322,62 +316,51 @@ class QueryProcessor:
                 elif child.node_type == "Value2":
                     val2 = child.val[0]
                 elif child.node_type == "TJOIN" and len(child.children) <= 1:
-                    # print("condnya sblm", cond)
-                    # cond.append(child.val)
-                    # print("condnya sesudah", cond)
                     iterate_join_on(child, cond)
                 elif "JOIN" in child.node_type:
                     new_tree = child
-            print("val 1", val1)
-            print("val 2", val2)
             if val1 and val2:
-                print("masuk 1.1")
-                print(val1)
-                print(val2)
-                print(cond)
                 return JoinOperation([val1, val2], JoinCondition("ON", cond))
             elif val1:
-                print("masuk 1.2")
                 return JoinOperation([val1, self.get_join_operations(new_tree)], JoinCondition("ON", cond))
             elif val2:
-                print("masuk 1.3")
                 return JoinOperation([self.get_join_operations(new_tree), val2], JoinCondition("ON", cond))
         else:
-            print("masuk 4")
             return self.get_join_operations(qt.children[0])
     
 
-    def format_results_as_table(results):
+    def format_results_as_table(self, results):
+        # print("isi results nya", results[0])
         start_time = time.time() 
         output = []  # Use list for better performance
-        for _, rows in results.items():  # ignore table name
-            if rows:
-                # get headers from the first row
-                headers = rows[0].keys()
+        # for _, rows in results.items():  # ignore table name
+        if results:
+            # get headers from the first row
+            headers = results[0].keys()
 
-                # Calculate column widths
-                column_widths = {header: max(len(header), max(len(str(row[header])) for row in rows)) for header in headers}
+            # Calculate column widths
+            column_widths = {header: max(len(header), max(len(str(row[header])) for row in results)) for header in headers}
 
-                # Generate header and separator lines
-                header_line = " | ".join(f"{header:<{column_widths[header]}}" for header in headers)
-                separator_line = "-+-".join("-" * column_widths[header] for header in headers)
+            # Generate header and separator lines
+            header_line = " | ".join(f"{header:<{column_widths[header]}}" for header in headers)
+            separator_line = "-+-".join("-" * column_widths[header] for header in headers)
 
-                # save header and separator lines
-                output.append(header_line)
-                output.append(separator_line)
+            # save header and separator lines
+            output.append(header_line)
+            output.append(separator_line)
 
-                # save rows
-                for row in rows:
-                    row_line = " | ".join(f"{str(row[col]):<{column_widths[col]}}" for col in headers)
-                    output.append(row_line)
+            # save results
+            for row in results:
+                row_line = " | ".join(f"{str(row[col]):<{column_widths[col]}}" for col in headers)
+                output.append(row_line)
 
-                # save number of rows
-                output.append(f"\n({len(rows)} rows)")
-            else:
-                output.append("(No data available)")
+            # save number of results
+            output.append(f"\n({len(results)} rows)")
+        else:
+            output.append("(No data available)")
 
-        execution_time = time.time() - start_time
-        output.append(f"\nQuery Execution Time: {execution_time:.3f} ms")
+        # execution_time = time.time() - start_time
+        # output.append(f"\nQuery Execution Time: {execution_time:.3f} ms")
 
         return "\n".join(output)
         
@@ -385,29 +368,21 @@ class QueryProcessor:
     def query_tree_to_results(self, qt: QueryTree):
         if qt.node_type == "SELECT":
             list_of_data_retrievals, tables = self.query_tree_to_data_retrievals(qt)
-            print("list of data", list_of_data_retrievals)
-            print("table", tables)
+            # print("list of data", list_of_data_retrievals)
+            # print("table", tables)
             join_operations = self.get_join_operations(qt)
             results = {}
             for data_retrieval in list_of_data_retrievals:
                 results[data_retrieval.table[0]] = self.storage_manager.readBlock(data_retrieval)
-
             # for table in tables:
             #     print("hasil akhirnya", results[table])
-            print("join operation nya", join_operations)
             # print("join conditionnya nya", join_operations.join_condition)
-            print("print satu satu")
             # for j in join_operations.join_condition.condition:
             #     print(j)
-            # print("join table nya", join_operations.tables)
-            print("tipenya", type(join_operations))
             if (qt.children[0].node_type != "FROM"):
-                print("masuk atas")
                 after_join = self.apply_join_operation(join_operations, results)
             else:
-                print("masuk bawah")
                 after_join = results[qt.children[0].val[0]]
-            print("mau ngecek selectnya, ini isi setelah apply join operation")
             print(after_join)
 
             if qt.val[0] == "*":
@@ -415,8 +390,9 @@ class QueryProcessor:
                 after_select = self.apply_select(after_join, all_column)
             else:
                 after_select = self.apply_select(after_join, qt.val)
-            print("isi qt.val itu", qt.val)
+            # print("isi qt.val itu", qt.val)
 
+        print("after select: ", after_select)
         return after_select
     
     def apply_join_operation(self, jo: JoinOperation, results):
@@ -488,7 +464,7 @@ class QueryProcessor:
 
     def apply_select(self, result, select_attributes):
         filtered_result = []
-        print("isi result tuh")
+        # print("isi result tuh")
         print(result)
         for row in result:
             filtered_row = {key: value for key, value in row.items() if key in select_attributes}
