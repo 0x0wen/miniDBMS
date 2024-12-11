@@ -49,13 +49,14 @@ class Buffer:
         
         if table:
             matching_rows = table.findRows(data.conditions)
-            matching_rows = [row.data for row in matching_rows]
-            
-            return matching_rows
+            if matching_rows:
+                matching_rows = [row.data for row in matching_rows]
+                
+                return matching_rows
             
         return None
   
-    def writeData(self, rows: Rows, dataRetrieval: DataRetrieval) -> bool:
+    def writeData(self, rows: Rows, dataRetrieval: DataRetrieval, primaryKey: List[str] = []) -> bool:
         """
         Write data new rows to the buffer with the 
         given table name from DataRetrieval
@@ -74,7 +75,8 @@ class Buffer:
         table = self.getTable(table_name)
         
         for row in rows:
-            table.addRow(Row(row))
+            if (not table.existsRowPrimaryKey(row, primaryKey)):
+                table.addRow(Row(row))
         
     def updateData(self, table_name: str, data_before: Rows, data_after: Rows) -> None:
         """
