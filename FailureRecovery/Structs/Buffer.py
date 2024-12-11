@@ -177,6 +177,3 @@ class Buffer:
                     table.rows.remove(row)
                     table.addRow(Row(table.numRows(), dataafter))
     
-    def deleteData(self, data_to_delete : Rows):
-        #TODO - Create a way to mark teh data as dead
-    None

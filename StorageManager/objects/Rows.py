@@ -1,6 +1,8 @@
 class Rows(list):
     def __init__(self, rows: list[dict]) -> None:
         super().__init__(rows)
+        self.indexed_column = None
+        
     
     # #print 
     # def __repr__(self) -> str:
@@ -41,3 +43,22 @@ class Rows(list):
         """ Converts the rows (list of dicts) into a set of frozensets for efficient lookup. """
         return {frozenset(row.items()) for row in self}
     
+    def setIndex(self, column : str) -> None:
+        """
+        Set column in rows that have index
+        """
+        self.indexed_column = column
+    
+    def isIndexed(self) -> bool:
+        """
+        Is rows having any index
+        """
+        return self.indexed_column != None
+
+    def getIndexColumn(self) -> str:
+        """
+        return the primay column of index
+        """
+        if(self.isIndexed()):
+            return self.indexed_column
+        return "No Index"

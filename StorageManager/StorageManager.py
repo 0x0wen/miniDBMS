@@ -15,6 +15,8 @@ class StorageManager:
 
     def __init__(self) -> None:
         pass
+
+    
     
     def readBlock(self, data_retrieval: DataRetrieval) -> Rows:
         """
@@ -23,8 +25,6 @@ class StorageManager:
         Args:
             data_retrieval: Object containing data to help determine which data to be retrieved from hard disk.
         """
-
-
         #Fungsi bantu index ranging
         def process_ranges_with_column(conditions): 
             from functools import reduce
@@ -54,6 +54,54 @@ class StorageManager:
                         result[column] = sorted(list(set().union(*ranges)))
 
             return result        
+        
+        def retrieve_indexed_data(data_retrieval : DataRetrieval, table_name: str, index_manager : IndexManager, serializer : TableManager):
+            """
+            Helper method to retrieve data using indexes.
+
+            Args:
+                data_retrieval: Object containing the conditions and other data to retrieve.
+                table_name: The name of the table being queried.
+
+            Returns:
+                A list of rows retrieved using indexes.
+            """
+            indexed_rows = []
+            ranged_indexed_id = []
+
+            # Filter indexable conditions
+            indexable_conditions = [
+                condition for condition in data_retrieval.conditions if condition.operation in ["=", ">", "<", "<=", ">="]
+            ]
+
+            for i, condition in enumerate(indexable_conditions):
+                print(f"-=-=-=--=-=-=Condition-{i} yaitu {condition}--=-=-=-=-=-=-=-=--==")
+                index = index_manager.readIndex(table_name, condition.column)
+                if not index:
+                    print(f"Tidak ditemukan index di column {condition.column}")
+                    continue
+
+                if condition.operation == "=":
+                    print("Operasi EQUAL ditemukan")
+                    block_id = index.search(condition.operand)
+                    if block_id is not None:
+                        block_data = serializer.readBlockIndex(table_name, block_id)
+                        indexed_rows.extend(block_data)
+                elif condition.operation in ['>', '<', '>=', '<=']:
+                    print("Operasi RANGE ditemukan")
+                    block_id = index.search(condition.operand)
+                    ranged_indexed_id.append([block_id, len(index), condition.operation, condition.column])
+
+            # Process ranges if applicable
+            ranged_indexed_id = process_ranges_with_column(ranged_indexed_id)
+            for column in ranged_indexed_id:
+                if ranged_indexed_id[column]:
+                    for i in ranged_indexed_id[column]:
+                        block_data = serializer.readBlockIndex(table_name, i)
+                        indexed_rows.extend(block_data)
+
+            return indexed_rows
+    
         """
         tolong di adjust sama mekanisme kalian -rafi
         """
@@ -66,75 +114,27 @@ class StorageManager:
         #     return rows
         # else:
         #     print("     Rows from buffer is empty\n")
-    
-        
                 
         serializer = TableManager()
         index_manager = IndexManager()
-        all_filtered_data: Rows = []
+        all_filtered_data = Rows([])
         table_name = data_retrieval.table[0] # 1 tabel aja , tak ada join disini
         indexed_rows = []
-        use_index = True
-
-        #sebenernya gk butuh ini karena semua operator udh bisa diindex, anjay
-        indexable_conditions = [
-            condition for condition in data_retrieval.conditions if condition.operation  in ["=", ">","<",'<=','>=']
-        ]
 
         #Cek dulu, ada gk condisi yang pake column yang gk ada index
         for cond in data_retrieval.conditions:
             index = index_manager.readIndex(table_name, cond.column)
+            all_filtered_data.setIndex(cond.column)
             if(not index):
-                use_index = False
+                all_filtered_data.setIndex(None)
                 break
+            
+        # Read indexed rows
+        if(all_filtered_data.isIndexed()):
+            indexed_rows = retrieve_indexed_data(data_retrieval, table_name, index_manager, serializer)
 
-
-        if(use_index):
-            #Indexed row untuk EQUAL operation
-            for i,condition in enumerate(indexable_conditions):
-                if(condition.operation == "="):
-                    print(f"-=-=-=--=-=-=Condition-{i} yaitu {condition}--=-=-=-=-=-=-=-=--==" )
-                    print("Operasi EQUAL ditemukan")
-                    index = index_manager.readIndex(table_name, condition.column)
-                    if index:  # Use index if available
-                        block_id = index.search(condition.operand)
-                        print("Block Id: ", block_id )
-                        if block_id is not None:
-                            block_data = serializer.readBlockIndex(table_name, block_id)
-                            # print("Block Data: ", block_data)
-                            indexed_rows.extend(block_data)
-                    else:
-                        print(f"Tidak ditemukan index di colomn{condition.column}")
-
-            #Indexed row untuk RANGE operation
-            ranged_indexed_id = []
-            for i,condition in enumerate(indexable_conditions):
-                if(condition.operation in ['>','<','>=','<=']):
-                    print(f"-=-=-=--=-=-=Condition-{i} yaitu {condition}--=-=-=-=-=-=-=-=--==" )
-                    print("Operasi RANGE ditemukan")
-                    index = index_manager.readIndex(table_name, condition.column)
-                    if index:  
-                        block_id = index.search(condition.operand)
-                        ranged_indexed_id.append([block_id,len(index),condition.operation,condition.column])
-                        if block_id is not None:
-                            block_data = serializer.readBlockIndex(table_name, block_id)
-                    else:
-                        print(f"Tidak ditemukan index di colomn {condition.column}")
-
-
-            #ranged indexed id pasti punya index di column itu, udah di filter
-            ranged_indexed_id = process_ranges_with_column(ranged_indexed_id)
-            for column in ranged_indexed_id:
-                if(ranged_indexed_id[column]):
-                    for i in ranged_indexed_id[column]:
-                        block_data = serializer.readBlockIndex(table_name,i)
-                        # print("Block Data: ", block_data)
-                        indexed_rows.extend(block_data)
-
-
-       
         # print(indexed_rows)
-        if use_index and indexed_rows:  #cek (indexed_rows) harus ada hasil, antisipasi bener bener index digunakan pada column tidak cocok
+        if  indexed_rows:  #cek (indexed_rows) harus ada hasil, antisipasi bener bener index digunakan pada column tidak cocok
             print("Pencarian menggunakan index")
             cond_filtered_data = serializer.applyConditions(indexed_rows, data_retrieval)
 
@@ -154,7 +154,6 @@ class StorageManager:
         return all_filtered_data
 
 
-
     def writeBlock(self ,data_write: DataWrite) -> int:
         """
         Returns the number of affected rows
@@ -167,7 +166,7 @@ class StorageManager:
         table_name = data_write.selected_table
         new_data = data_write.new_value
 
-        def replace_data(self, old_data, new_data, filtered_old_data):
+        def replace_data(old_data, new_data, filtered_old_data):
             if len(new_data) != len(filtered_old_data):
                 raise ValueError("new_data and filtered_old_data must have the same length.")
 
@@ -199,22 +198,6 @@ class StorageManager:
             return new_data.__len__()
         else:
             return table_manager.appendData(table_name, new_data)
-        
-    def deleteDataOnStorage(self, dataToDelete : Rows) -> int:  
-        """
-        Delete the dataToDelete from physical storage
-        
-        Args: 
-            data_deletion : objects contains the rows to delet in the storage manager
-        """
-
-    def writeDataOnStorage(self, serializer : TableManager, data_after_delete  : Rows, schema : list[tuple], written_table : str) -> int:
-        """
-        Delete data on Physical Storage
-        """
-        serializer.writeTable(written_table,data_after_delete, schema)
-
-        return data_after_delete.__len__()
 
         
     def deleteBlock(self, data_deletion : DataDeletion) -> int:
@@ -228,46 +211,40 @@ class StorageManager:
         serializer = TableManager()
         index_manager = IndexManager()
 
-        use_index = False
+        use_index = False # Indexing Flag
+        indexed_column = None # Store column that has index
+
+        cond_filtered_data : Rows= ""
         
-        indexed_rows = []
-        indexable_conditions = [
-            condition for condition in data_deletion.conditions if condition.operation in ["=", ">", "<"]
-        ]
-
-        for condition in indexable_conditions:
-            index = index_manager.readIndex(table_name=data_deletion.table, column=condition.column)
-
-            if index:
-                block_id = index.search(condition.operand)
-                if block_id is not None:
-                    block_data = serializer.readBlockIndex(table_name=data_deletion.table,block_index= block_id)
-                    indexed_rows.extend(block_data)
-                    use_index = True
-        cond_filtered_data = ""
-        data = ""
         data = serializer.readTable(data_deletion.table)
-        if use_index and indexed_rows: 
-            print("Pencarian menggunakan index")
-            cond_filtered_data = serializer.applyConditions(indexed_rows, data_deletion)
-        else: 
-            cond_filtered_data = serializer.applyConditions(data, data_deletion)
 
-        
+        #Cek dulu, ada gk condisi yang pake column yang gk ada index
+        for cond in data_deletion.conditions:
+            index = index_manager.readIndex(data_deletion.table, cond.column)
+            data.setIndex(cond.column)
+            if(not index):
+                data.setIndex(None)
+                break
+
+        data_retrieval = DataRetrieval([data_deletion.table],[],data_deletion.conditions)
+        cond_filtered_data = self.readBlock(data_retrieval)
+
         # Filtereed table based on condition
         schema = serializer.readSchema(data_deletion.table)
         
         # Create new data that doesn't contain filtered table
         newData = data.getRowsNotMatching(cond_filtered_data)
 
-        FailureRecovery._instance.buffer.deleteData(newData)
+        #NOTE - Add this functionality if buffer wanna be used
+        # FailureRecovery._instance.buffer.deleteData(newData)
 
         #NOTE - Use this to delete from physical data
-        # delete_num =  self.deleteDataOnStorage(serializer,newData, schema)
-        # index_manager.writeIndex(data_deletion.table, data_deletion.table)
-        # return delete_num
-
-        return newData.__len__()
+        serializer.writeTable(data_deletion.table, newData, schema)
+        if(use_index):
+            index_manager.writeIndex(data_deletion.table, indexed_column)
+        
+        # get the amount of dat that is deleted
+        return cond_filtered_data.__len__()
 
 
     def setIndex(self, table : str, column : str, index_type : str) -> None:
