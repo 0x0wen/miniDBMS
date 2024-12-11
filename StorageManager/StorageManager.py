@@ -14,7 +14,8 @@ import os
 class StorageManager:
 
     def __init__(self) -> None:
-        pass
+        self.indexinfo = []
+        
 
     
     
@@ -133,6 +134,8 @@ class StorageManager:
         for cond in data_retrieval.conditions:
             print(cond)
             index = index_manager.readIndex(table_name, cond.column)
+            if(index.column not in self.indexinfo):
+                self.indexinfo.append(index.column)
             all_filtered_data.setIndex(cond.column)
             if(not index):
                 all_filtered_data.setIndex(None)
@@ -159,7 +162,10 @@ class StorageManager:
         all_filtered_data.extend(column_filtered_data)
         print("all filtered data", all_filtered_data)
         # write to buffer in failureRecovery
+        print("Index info: ", self.indexinfo)
         failureRecovery.buffer.writeData(rows=cond_filtered_data, dataRetrieval=data_retrieval)
+        # failureRecovery.buffer.writeData(rows=cond_filtered_data, dataRetrieval=data_retrieval,self.indexinfo)
+
 
         return all_filtered_data
 
