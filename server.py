@@ -30,12 +30,12 @@ class Server:
                                 break
 
                     optimized_query = self.query_processor.execute_query(queries)
-
-                    # kirim hasil ke client
+                    result = self.query_processor.query_tree_to_results(optimized_query)
                     send_to_client = ""
-                    for q in optimized_query:
-                        send_to_client += (f"Optimized Query Tree: {q.query_tree}\n")
-                    client_socket.send(send_to_client.encode("utf-8"))
+                    for r in result:
+                        send_to_client += (f"{r}\n")
+                    print(send_to_client)
+                    client_socket.send((send_to_client).encode("utf-8"))
 
                 except Exception as e:
                     # biar ga diskonek kalo query error

@@ -12,7 +12,7 @@ from typing import List
 from StorageManager.StorageManager import StorageManager
 from datetime import datetime
 from Interface.ExecutionResult import ExecutionResult
-
+import time
 
 class QueryProcessor:
     _instance = None
@@ -381,15 +381,54 @@ class QueryProcessor:
         else:
             print("masuk 4")
             return self.get_join_operations(qt.children[0])
-
     
+
+    def format_results_as_table(results):
+        start_time = time.time() 
+        output = []  # Use list for better performance
+        for _, rows in results.items():  # ignore table name
+            if rows:
+                # get headers from the first row
+                headers = rows[0].keys()
+
+                # Calculate column widths
+                column_widths = {header: max(len(header), max(len(str(row[header])) for row in rows)) for header in headers}
+
+                # Generate header and separator lines
+                header_line = " | ".join(f"{header:<{column_widths[header]}}" for header in headers)
+                separator_line = "-+-".join("-" * column_widths[header] for header in headers)
+
+                # save header and separator lines
+                output.append(header_line)
+                output.append(separator_line)
+
+                # save rows
+                for row in rows:
+                    row_line = " | ".join(f"{str(row[col]):<{column_widths[col]}}" for col in headers)
+                    output.append(row_line)
+
+                # save number of rows
+                output.append(f"\n({len(rows)} rows)")
+            else:
+                output.append("(No data available)")
+
+        execution_time = time.time() - start_time
+        output.append(f"\nQuery Execution Time: {execution_time:.3f} ms")
+
+        return "\n".join(output)
+        
+
     def query_tree_to_results(self, qt: QueryTree):
         list_of_data_retrievals, tables = self.query_tree_to_data_retrievals(qt)
         results = {}
         for data_retrieval in list_of_data_retrievals:
             results[data_retrieval.table[0]] = self.storage_manager.readBlock(data_retrieval)
-
+            
         # for table in tables:
         #     print("hasil akhirnya", results[table])
+        formatted_results = QueryProcessor.format_results_as_table(results)
+        print(formatted_results)
 
         return results
+    
+    
