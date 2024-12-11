@@ -152,7 +152,9 @@ class TableManager(DataManager):
         rows_to_filter = indexed_rows if indexed_rows else rows
 
         for row in rows_to_filter:
-            if any(all(satisfies(row, cond) for cond in group) for group in grouped_conditions):
+            if len(action_object.conditions) == 0:
+                filtered_rows.append(row)
+            elif any(all(satisfies(row, cond) for cond in group) for group in grouped_conditions):
                 filtered_rows.append(row)
 
         return Rows(filtered_rows)

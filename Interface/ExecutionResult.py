@@ -5,10 +5,10 @@ from Interface.Rows import Rows  # Import Rows dari file rows.py
 from typing import List
 
 class ExecutionResult:
-    def __init__(self, transaction_id: int, timestamp: datetime, message: str, data_before: list, query: DataWrite | DataDeletion, rows: List[str]):
+    def __init__(self, transaction_id: int, timestamp: datetime, message: str, data_before: Rows, data_after: Rows, table_name):
         self.transaction_id = transaction_id
         self.timestamp = timestamp
         self.message = message
         self.data_before = data_before
-        self.query = query
-        self.rows = rows if rows is not None else []
+        self.data_after = data_after
+        self.table_name = table_name

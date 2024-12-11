@@ -1,78 +1,67 @@
-from typing import List, TypeVar
-
 from StorageManager.objects.Condition import Condition
+from FailureRecovery.Structs.Row import Row
+
+from typing import List, TypeVar
 T = TypeVar('T')
 
-from Row import Row
-from Header import Header
-from Table import Table
-
-'''
-class ini itu untuk nyimpen data tabel, 1 tabel terdiri dari header dan list of rows, 
-contohnhya ada di Buffer.py
-'''
-
 class Table:
-    def __init__(self, table_name: str, header: Header = None, rows: list[Row] = None):
+    def __init__(self, table_name: str):
         
         self.table_name = table_name
-        self.header = header
-        self.rows = rows
-    
-    def setHeader(self, header: Header) -> None:
-        self.header = header
+        self.rows : list[Row] = []
+        self.num_rows = 0
         
     def addRow(self, row: Row) -> None:
-        '''ini kaya perlu verifikasi dlu apakah row yang dimasukin itu,
-           jumlah kolom serta tipe datanya sesuai header atau gk'''
-        if row.isRowValid(self.header):
-            self.rows.append(row)
-        else:
-            raise ValueError("Row data doesn't match header")
-        
-    def getRowByid(self, row_id: int) -> Row:
-        for row in self.rows:
-            if row.row_id == row_id:
-                return row
-        return None
+        """
+        Add a row to the table
+        """
+
+        self.rows.append(row)
+        self.num_rows += 1
     
     def findRows(self, condition: Condition) -> List[Row]:
-        '''mencari banyak row dengan kondisi tertentu
+        """
+        Finds all rows that match given condition.
+        """
+        matching_rows = []
         
-           konsep condition juga perlu dipikir lagi,
-           apakah mau niru prinsip storage manager atau gmn'''
-        return [row for row in self.rows if row.isRowFullfilngCondition(condition)]
+        for row in self.rows:
+            if row.isRowFullfilingCondition(condition):
+                # print("Row found: ", row.data)
+                matching_rows.append(row)
+        
+        if len(matching_rows) == 0:
+            return None
+        else:
+            return matching_rows   
 
-    def findRow(self, condition: Condition) -> Row:
-        '''mencari 1 row dengan kondisi tertentu'''
-        for row in self.rows:
-            if row.isRowFullfilngCondition(condition):
-                return row
-        return None
+    def numRows(self) -> int:
+        """ 
+        Returns the number of rows in the table 
+        """
+        return self.num_rows
     
-    def deleteRows(self, condition: Condition) -> None:
-        '''menghapus banyak row dengan kondisi tertentu'''
-        self.rows = [row for row in self.rows if not row.isRowFullfilngCondition(condition)]
-        pass    
-    
-    def deleteRow(self, condition: Condition) -> None:
-        '''menghapus row dengan kondisi tertentu'''
-        for row in self.rows:
-            if row.isRowFullfilngCondition(condition):
-                self.rows.remove(row)
-    
-    def updateRow(self, condition: str, new_data: List[T]) -> None:
-        for row in self.rows:
-            if row.isRowFullfilngCondition(condition):
-                row.row_data = new_data
+    def existsRowPrimaryKey(self, row: Row, primaryKey : List[str]) -> bool:
+        """
+        Checks if a row with same primary key exists in the table
+        """
+        row_atrs = row.keys()
+        if not all(atr in row_atrs for atr in primaryKey):
+            return False
+        
+        for table_row in self.rows:
+            if all(table_row.data[key] == row[key] for key in primaryKey):
+                return True
 
-    def updateRows(self, condition: str, new_data: List[List[T]]) -> None:
+        return False
+    
+    def __repr__(self):
+        
+        print("Table name:")
+        print(" ", self.table_name)
+        
+        print("Rows:")
         for row in self.rows:
-            if row.isRowFullfilngCondition(condition):
-                row.row_data = new_data
-
-    
-    '''Fungsi CRUD diatas itu gw rada yapping sih perlu dipikir lg implementasinya
-    apakah perlu fungsi lain lg atau tidak'''
-    
-    
+            print(" ", row)
+            
+        return ""    
