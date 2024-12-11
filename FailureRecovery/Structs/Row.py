@@ -7,30 +7,35 @@ class Row:
     def __init__(self, data):
         self.data : Dict[str, T]  = data
         
-    def isRowFullfilingCondition(self, conditions: Condition) -> bool:
+    def isRowFullfilingCondition(self, conditions: list[Condition]) -> bool:
         """
         Checks if a row fulfills a given condition.
         """
-        all_conditions_passed = True
-        
-        for i, condition in enumerate(conditions):
+        for condition in conditions:
             data = str(self.data[condition.column])
-            operand = condition.operand        
-        
+            operand = str(condition.operand)
+
             if condition.operation == '=':
-                all_conditions_passed = data == operand
+                if data != operand:
+                    return False
             elif condition.operation == '!=':
-                all_conditions_passed = data != operand
+                if data == operand:
+                    return False
             elif condition.operation == '<':
-                all_conditions_passed = data < operand
+                if not data < operand:
+                    return False
             elif condition.operation == '>':
-                all_conditions_passed = data > operand
+                if not data > operand:
+                    return False
             elif condition.operation == '<=':
-                all_conditions_passed = data <= operand
+                if not data <= operand:
+                    return False
             elif condition.operation == '>=':
-                all_conditions_passed = data >= operand
-        
-        return all_conditions_passed
+                if not data >= operand:
+                    return False
+
+        return True
+
     
     def isRowEqual(self, other: 'Row') -> bool:
         """

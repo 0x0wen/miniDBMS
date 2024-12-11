@@ -49,9 +49,8 @@ class Buffer:
         
         if table:
             matching_rows = table.findRows(data.conditions)
-            matching_rows = [row.data for row in matching_rows]
-            
-            return matching_rows
+            if matching_rows:
+                matching_rows = [row.data for row in matching_rows]
             
         return None
   
