@@ -57,9 +57,9 @@ class QueryProcessor:
             else:
                 i += 1
 
-        for j in range(len(tokens)):
-            if tokens[j].split('.')[0] in alias_map:
-                tokens[j] = alias_map[tokens[j].split('.')[0]] + '.' + tokens[j].split('.')[1]
+        # for j in range(len(tokens)):
+        #     if tokens[j].split('.')[0] in alias_map:
+        #         tokens[j] = alias_map[tokens[j].split('.')[0]] + '.' + tokens[j].split('.')[1]
             
         print(' '.join(tokens))
         return ' '.join(tokens), alias_map
