@@ -51,6 +51,12 @@ class Row:
         this function simply returns the data.
         """
         return self.data
+    
+    def transferData(self, Other : 'Row') -> Dict[str, T]:
+        """
+        Transfer data from one row to another
+        """
+        self.data = Other.data
 
     def __repr__(self):
         return f"Row({self.data})"

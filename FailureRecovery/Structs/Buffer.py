@@ -85,10 +85,26 @@ class Buffer:
         if table:
             data_before = [Row(row) for row in data_before]
             data_after = [Row(row) for row in data_after]
+                    
+            index = 0
+            num_change = len(data_before)
 
-            table.rows = [row_in_table for row_in_table in table.rows if not any(row_in_table.isRowEqual(row) for row in data_before)]
+            for row in table.rows:
+                if row.isRowEqual(data_before[index]):
+                    row.transferData(data_after[index])
+                    index += 1
+                
+                if index == num_change:
+                    break
+            
 
-            for row in data_after:
-                table.addRow(row)
-
+    def __repr__(self):
+        print("Buffer:")
+        
+        if len(self.tables) == 0:
+            print("Buffer is empty")
+        else:
+            for table in self.tables:
+                print(table)
+        return ""
     

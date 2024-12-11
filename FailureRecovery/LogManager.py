@@ -5,7 +5,7 @@ import json
 import shutil
 from FailureRecovery.Structs.RecoverCriteria import RecoverCriteria
 from FailureRecovery.Structs import Row
-from StorageManager.objects.Rows import Rowss
+from StorageManager.objects.Rows import Rows
 
 class LogEntry:
     def __init__(self, transaction_id: int, timestamp: datetime, operation: str, table: str, data_before: Rows, data_after: Rows):
