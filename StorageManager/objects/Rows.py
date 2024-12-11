@@ -64,3 +64,23 @@ class Rows(list):
         if(self.isIndexed()):
             return self.indexed_column
         return "No Index"
+    
+    def __str__(self):
+        """
+        Return a string representation of the Rows object for display purposes.
+        Includes a tabular format of the rows.
+        """
+        if not self or self.__len__() <= 0:
+            return "Rows: No data available"
+
+        # Get the headers from the keys of the first row
+        headers = self[0].keys()
+        
+        # Format headers and rows as a table
+        header_row = " | ".join(f"{header:^15}" for header in headers)
+        separator = "-+-".join("-" * 15 for _ in headers)
+        data_rows = "\n".join(
+            " | ".join(f"{str(row.get(header, '')):^15}" for header in headers) for row in self
+        )
+        
+        return f"{header_row}\n{separator}\n{data_rows}\nLength : {self.__len__()}"

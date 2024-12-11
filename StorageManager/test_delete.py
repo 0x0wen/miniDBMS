@@ -1,75 +1,94 @@
+import unittest
 from StorageManager.objects.DataDeletion import DataDeletion
-
 from StorageManager.objects.Condition import Condition
 from StorageManager.StorageManager import StorageManager
+from StorageManager.serialize_table import TableCreator
+from StorageManager.objects.DataRetrieval import DataRetrieval
 
-cond1 = Condition("courseid", '<', '15')
+class TestDeleteBlock(unittest.TestCase):
+    def setUp(self):
+        """"
+        Set up strage manager and mock dependencies
+        """
+        self.sm = StorageManager()
+        self.table_creator = TableCreator(120)
 
+    def test_delete_one_course_data(self):
+        """
+        Test that a course record is deleted correctly.
+        """
+        self.table_creator.resetTable()
 
-deleted = DataDeletion(
-    table="course",
-    conditions = [cond1]
-)
+        # Create a condition to delete a course with courseid=30.
+        cond1 = Condition(column="courseid", operation="=", operand=30)
 
-sm = StorageManager()
-print(sm.deleteBlock(deleted))
+        # Set up a DataDeletion object for the 'course' table.
+        data_deletion = DataDeletion(
+            table="course",
+            conditions=[cond1]
+        )
 
-# import unittest
-# from unittest.mock import MagicMock
-# from StorageManager.objects.DataDeletion import DataDeletion
-# from StorageManager.objects.Condition import Condition
-# from StorageManager.StorageManager import StorageManager
-# from StorageManager.objects.DataRetrieval import DataRetrieval
+        # Perform deletion.
+        delete_result = self.sm.deleteBlock(data_deletion)
+        self.assertEqual(delete_result, 1)
+    
+    def test_delete_fifty_student_data(self):
+         """
+         Test that a course record is deleted of 50
+         """
+         self.table_creator.resetTable()
 
-# class TestDeleteBlock(unittest.TestCase):
-#     def setUp(self):
-#         """"
-#         Set up strage manager and mock dependencies
-#         """
-#         self.sm = StorageManager()
+         # Condition that delete 50 first data
+         cond1 = Condition(column='studentid', operation="<=", operand='50')
 
-#         cond1 = Condition(column="courseid", operation="=", operand=30, connector=None)
+         # Set up data deletion for student table
+         data_deletion = DataDeletion(
+             table='student',
+             conditions=[cond1]
+         )
 
-#         data_retrieval = DataRetrieval(['course'] , 'courseid', [cond1],[])
+         delete_result = self.sm.deleteBlock(data_deletion)
+         self.assertEqual(delete_result, 50)
 
-#         self.mock_course_data = self.sm.readBlock(data_retrieval)
+    def test_delete_multiple_condition(self):
+        """
+        Test deleting condition of course that has name of Mathematics and year more than 2000 and under 2020
+         """
+        
+        
+        
+        # Condition of mathematics and 2020 year
+        condYear = Condition(column='year',operation='>=', operand='2000')
+        condYear2 = Condition(column='year', operation='<', operand='2010')
+        condName = Condition(column='coursename', operation='=', operand="Graphic Design")
 
-#     def test_delete_course(self):
-#             """
-#             Test that a course record is deleted correctly.
-#             """
-#             # Create a condition to delete a course with courseid=30.
-#             cond1 = Condition(column="courseid", operation="=", operand=30)
+        data_retrieval_name = DataRetrieval(table=['course'], column=[],conditions=[condName])
+        data_retrieval_year = DataRetrieval(['course'], [],[condYear, condYear2])
 
-#             # Set up a DataDeletion object for the 'course' table.
-#             data_deletion = DataDeletion(
-#                 table="course",
-#                 conditions=[cond1]
-#             )
+        nameDeletion = DataDeletion(table='course',conditions=[condName])
+        yearDeletion = DataDeletion(table='course', conditions=[condYear, condYear2])
 
-#             # Mock the deleteBlock method to simulate deletion.
-#             def mock_delete_block(deletion_request : DataDeletion):
-#                 self.mock_table_data = [
-#                     record for record in self.mock_table_data
-#                     if not (record['courseid'] == deletion_request.conditions[0])
-#                 ]
-#                 return True  # Simulate successful deletion.
+        retrieve_data_name = self.sm.readBlock(data_retrieval_name)
+        retrieve_data_year = self.sm.readBlock(data_retrieval_year)
 
-#             # self.sm.deleteBlock = MagicMock(side_effect=mock_delete_block(data_deletion))
+        print("Before Deletion: ")
+        print("----------Course Name = Graphic Design----------")
+        print(retrieve_data_name.__str__())
+        print("----------Year = 2000 - 2010----------")
+        print(retrieve_data_year.__str__())
 
-#             # Perform deletion.
-#             delete_result = self.sm.deleteBlock(data_deletion)
+        retrieve_data_name = self.sm.readBlock(data_retrieval_name)
+        retrieve_data_year = self.sm.readBlock(data_retrieval_year)
 
-#             # Assert the delete operation was successful.
-#             self.assertTrue(delete_result)
+        print("After Deletion: ")
+        print("----------Course Name = Graphic Design----------")
+        self.sm.deleteBlock(nameDeletion)
+        print(retrieve_data_name.__str__())
 
-#             # Assert the record with courseid=30 is removed.
-#             remaining_records = [record for record in self.mock_course_data if record['courseid'] == 30]
-#             self.assertEqual(len(remaining_records), 0)
+        print("----------Year = 2000 - 2010----------")
+        self.sm.deleteBlock(yearDeletion)
+        print(retrieve_data_year.__str__())
+         
 
-#             # Assert the remaining record is intact.
-#             self.assertEqual(len(self.mock_course_data), 1)
-#             self.assertEqual(self.mock_course_data[0]['courseid'], 31)
-
-# if __name__ == "__main__":
-#     unittest.main()
+if __name__ == "__main__":
+    unittest.main()

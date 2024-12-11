@@ -12,7 +12,10 @@ class Serializer:
     def __init__(self, path_name):
         self.path_name = path_name
     def serializeRow(self, row, schema):
-        print(row)
+
+        #NOTE - Delete this
+        # print(row)
+        
         """ Serialize a single row based on the schema. """
         row_binary = b''
         for value, (_, data_type, size) in zip(row, schema):

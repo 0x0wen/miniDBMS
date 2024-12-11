@@ -75,21 +75,21 @@ class StorageManager:
             ]
 
             for i, condition in enumerate(indexable_conditions):
-                print(f"-=-=-=--=-=-=Condition-{i} yaitu {condition}--=-=-=-=-=-=-=-=--==")
+                # print(f"-=-=-=--=-=-=Condition-{i} yaitu {condition}--=-=-=-=-=-=-=-=--==")
                 index = index_manager.readIndex(table_name, condition.column)
                 if not index:
-                    print(f"Tidak ditemukan index di column {condition.column}")
+                    # print(f"Tidak ditemukan index di column {condition.column}")
                     continue
 
                 if condition.operation == "=":
-                    print("Operasi EQUAL ditemukan")
+                    # print("Operasi EQUAL ditemukan")
                     block_id = index.search(condition.operand)
                     if block_id is not None:
                         block_data = serializer.readBlockIndex(table_name, block_id)
-                        print("BLock data equal" , block_data)
+                        # print("BLock data equal" , block_data)
                         indexed_rows.extend(block_data)
                 elif condition.operation in ['>', '<', '>=', '<=']:
-                    print("Operasi RANGE ditemukan")
+                    # print("Operasi RANGE ditemukan")
                     block_id = index.search(condition.operand)
                     ranged_indexed_id.append([block_id, len(index), condition.operation, condition.column])
 
@@ -106,13 +106,13 @@ class StorageManager:
     
         failureRecovery = FailureRecovery()
         rows = failureRecovery.buffer.retrieveData(data_retrieval)
-        print("Inside StorageManager.readblock()")
+        # print("Inside StorageManager.readblock()")
         
-        if rows is not None:
-            print("     Rows from buffer: ", rows)
-            return rows
-        else:
-            print("     Rows from buffer is empty\n")
+        # if rows is not None:
+        #     # print("     Rows from buffer: ", rows)
+        #     return rows
+        # else:
+            # print("     Rows from buffer is empty\n")
                 
         serializer = TableManager()
         index_manager = IndexManager()
@@ -124,14 +124,16 @@ class StorageManager:
         if(not len(data_retrieval.conditions)):
             data = serializer.readTable(table_name)
             column_filtered_data = serializer.filterColumns(data, data_retrieval.column)
-            print(column_filtered_data)
+            #NOTE - Delete this
+            # print(column_filtered_data)
             return column_filtered_data
 
             
 
         #Cek dulu, ada gk condisi yang pake column yang gk ada index
         for cond in data_retrieval.conditions:
-            print(cond)
+            #NOTE - Delete this
+            # print(cond)
             index = index_manager.readIndex(table_name, cond.column)
             all_filtered_data.setIndex(cond.column)
             if(not index):
@@ -142,14 +144,17 @@ class StorageManager:
         if(all_filtered_data.isIndexed()):
             indexed_rows = retrieve_indexed_data(data_retrieval, table_name, index_manager, serializer)
 
+        #NOTE - Delete this
         # print(indexed_rows)
         if  indexed_rows:  #cek (indexed_rows) harus ada hasil, antisipasi bener bener index digunakan pada column tidak cocok
-            print("Pencarian menggunakan index")
+            #NOTE - Delete this
+            # print("Pencarian menggunakan index")
             
             cond_filtered_data = serializer.applyConditions(indexed_rows, data_retrieval)
 
         else: 
-            print("Pencarian tidak menggunakan index,baca semua blok")
+            #NOTE - Delete this
+            # print("Pencarian tidak menggunakan index,baca semua blok")
             data = serializer.readTable(table_name)
             
             cond_filtered_data = serializer.applyConditions(data, data_retrieval)
@@ -157,7 +162,8 @@ class StorageManager:
         
         column_filtered_data = serializer.filterColumns(cond_filtered_data, data_retrieval.column)
         all_filtered_data.extend(column_filtered_data)
-        print("all filtered data", all_filtered_data)
+        #NOTE - Delete this
+        # print("all filtered data", all_filtered_data)
         # write to buffer in failureRecovery
         failureRecovery.buffer.writeData(rows=cond_filtered_data, dataRetrieval=data_retrieval)
 
@@ -242,9 +248,12 @@ class StorageManager:
         # Filtereed table based on condition
         schema = serializer.readSchema(data_deletion.table)
         
-        print("TEST READ: ")
-        print(cond_filtered_data)
-        print("BLABLABLA")
+        #NOTE - Delete this
+        # print("TEST READ: ")
+        # print(cond_filtered_data)
+        # print("BLABLABLA")
+
+        
         # Create new data that doesn't contain filtered table
         newData = data.getRowsNotMatching(cond_filtered_data)
 
@@ -284,7 +293,9 @@ class StorageManager:
         current_dir = os.path.dirname(os.path.abspath(__file__)) 
         storage_dir = os.path.join(current_dir, path_name) 
         storage_dir = os.path.abspath(storage_dir)  
-        print(storage_dir)
+
+        #NOTE - Delete this
+        # print(storage_dir)
         all_stats = {}
 
         # Check all tables in the directory

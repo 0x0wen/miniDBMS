@@ -60,12 +60,15 @@ class TableManager(DataManager):
         Group conditions based on their connectors, by shifting connectors logic.
         """
         connectors = [condition.connector for condition in conditions]
-        print(" Sebelum Connector: ",connectors)
+        #NOTE - Delete this
+        # print(" Sebelum Connector: ",connectors)
 
         connectors = connectors[1:] + [None]  # shift kiri 1
         grouped_conditions = []
         current_group = []
-        print(" Sesudah Connector: ",connectors)
+
+        #NOTE - Delete this
+        # print(" Sesudah Connector: ",connectors)
 
         for i, condition in enumerate(conditions):
             current_group.append(condition)
@@ -74,8 +77,10 @@ class TableManager(DataManager):
                 grouped_conditions.append(current_group)
                 current_group = []
 
-        for group in grouped_conditions:
-            print("Group: " , group)
+        #NOTE - Delete this
+        # for group in grouped_conditions:
+            # print("Group: " , group)
+            
         return grouped_conditions
 
     def applyConditions(self, rows: list[dict], action_object) -> Rows:
