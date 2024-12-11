@@ -26,12 +26,32 @@ class Client:
         return query_input.strip()
 
     def receive_message(self, timeout_ms=50):
-        self.client_socket.settimeout(timeout_ms / 1000.0)
+        """Receive a message from the server, ensuring full message retrieval."""
         try:
-            return self.client_socket.recv(1024).decode("utf-8")
+            # Set timeout for the socket
+            self.client_socket.settimeout(timeout_ms / 1000.0)
+
+            # Read the message length (4 bytes, big-endian)
+            header = self.client_socket.recv(4)
+            if not header:
+                return ""
+
+            message_length = int.from_bytes(header, byteorder="big")
+
+            # Read the full message based on its length
+            received_data = bytearray()
+            while len(received_data) < message_length:
+                packet = self.client_socket.recv(message_length - len(received_data))
+                if not packet:
+                    break
+                received_data.extend(packet)
+
+            return received_data.decode("utf-8")
         except socket.timeout:
+            # Return empty string on timeout
             return ""
-        except socket.error as e:
+        except socket.error:
+            # Return empty string on other socket errors
             return ""
 
     def start(self):
@@ -44,12 +64,12 @@ class Client:
 
         try:
             while True:
-                # terima dan print pesan dari server
-                server_message = self.receive_message(timeout_ms=50)
+                # Receive and print messages from server
+                server_message = self.receive_message()
                 if server_message:
                     print(f"{server_message}", end="")
 
-                # ngirim query ke server
+                # Send query to server
                 user_input = self.accept_query()
                 while not user_input:
                     user_input = self.accept_query()

@@ -10,6 +10,13 @@ class Server:
         self.query_processor = QueryProcessor()
         self.is_running = False
 
+    def send_with_header(self, client_socket, message):
+        """Send a message with a header indicating its length."""
+        message_bytes = message.encode("utf-8")
+        message_length = len(message_bytes)
+        header = message_length.to_bytes(4, byteorder="big")
+        client_socket.sendall(header + message_bytes)
+
     def handle_client(self, client_socket):
         try:
             while True:
@@ -19,26 +26,25 @@ class Server:
                     continue
 
                 try:
-                    # optimasi query
+                    # Process queries
                     queries = [query_input]
                     if query_input.upper().startswith("BEGIN TRANSACTION"):
                         while True:
-                            client_socket.send("enter COMMIT; if you're done\n".encode("utf-8"))
+                            self.send_with_header(client_socket, "enter COMMIT; if you're done\n")
                             query_input = client_socket.recv(1024).decode("utf-8").strip()
                             queries.append(query_input)
                             if query_input.upper() == "COMMIT":
                                 break
 
-                    # memproses hasil
+                    # Process query results
                     send_to_client, execution_results = self.query_processor.execute_query(queries)
-                    # result = self.query_processor.query_tree_to_results(optimized_query)
-                    # send_to_client = "test"
-                    client_socket.send(send_to_client.encode("utf-8"))
+                    send_to_client += "\n"
+                    self.send_with_header(client_socket, send_to_client)
 
                 except Exception as e:
-                    # biar ga diskonek kalo query error
+                    # Handle query errors without disconnecting the client
                     error_message = f"Error processing query: {e}\n"
-                    client_socket.send((error_message).encode("utf-8"))
+                    self.send_with_header(client_socket, error_message)
         except Exception as e:
             print(f"Error handling client: {e}")
         finally:
