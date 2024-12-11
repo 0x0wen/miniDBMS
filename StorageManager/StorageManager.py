@@ -55,7 +55,7 @@ class StorageManager:
 
             return result        
         
-        def retrieve_indexed_data(data_retrieval : DataRetrieval, table_name: str, index_manager : IndexManager, serializer : TableManager):
+        def retrieve_indexed_data(data_retrieval : DataRetrieval, table_name: str, index_manager : IndexManager, serializer : TableManager) -> Rows:
             """
             Helper method to retrieve data using indexes.
 
@@ -100,7 +100,7 @@ class StorageManager:
                         block_data = serializer.readBlockIndex(table_name, i)
                         indexed_rows.extend(block_data)
 
-            return indexed_rows
+            return Rows(indexed_rows)
     
         """
         tolong di adjust sama mekanisme kalian -rafi
@@ -119,7 +119,7 @@ class StorageManager:
         index_manager = IndexManager()
         all_filtered_data = Rows([])
         table_name = data_retrieval.table[0] # 1 tabel aja , tak ada join disini
-        indexed_rows = []
+        indexed_rows : Rows = []
 
         #Cek dulu, ada gk condisi yang pake column yang gk ada index
         for cond in data_retrieval.conditions:
@@ -136,11 +136,13 @@ class StorageManager:
         # print(indexed_rows)
         if  indexed_rows:  #cek (indexed_rows) harus ada hasil, antisipasi bener bener index digunakan pada column tidak cocok
             print("Pencarian menggunakan index")
+            
             cond_filtered_data = serializer.applyConditions(indexed_rows, data_retrieval)
 
         else: 
             print("Pencarian tidak menggunakan index,baca semua blok")
             data = serializer.readTable(table_name)
+            
             cond_filtered_data = serializer.applyConditions(data, data_retrieval)
 
         
@@ -150,7 +152,7 @@ class StorageManager:
         print("all filtered data", all_filtered_data)
         # write to buffer in failureRecovery
         # failureRecovery.buffer.writeData(rows=cond_filtered_data, dataRetrieval=data_retrieval)
-        
+
         return all_filtered_data
 
 
@@ -217,7 +219,7 @@ class StorageManager:
         cond_filtered_data : Rows= ""
         
         data = serializer.readTable(data_deletion.table)
-
+        
         #Cek dulu, ada gk condisi yang pake column yang gk ada index
         for cond in data_deletion.conditions:
             index = index_manager.readIndex(data_deletion.table, cond.column)
@@ -232,6 +234,9 @@ class StorageManager:
         # Filtereed table based on condition
         schema = serializer.readSchema(data_deletion.table)
         
+        print("TEST READ: ")
+        print(cond_filtered_data)
+        print("BLABLABLA")
         # Create new data that doesn't contain filtered table
         newData = data.getRowsNotMatching(cond_filtered_data)
 

@@ -32,6 +32,8 @@ class Rows(list):
             Rows : data that doesn't match the conditional_rows
         """
         newData : Rows = []
+        if(type(conditional_rows) != Rows):
+            conditional_rows = Rows(conditional_rows)
         conditional_rows = conditional_rows._toSet()
         for row in self:
             if frozenset(row.items()) not in conditional_rows:
