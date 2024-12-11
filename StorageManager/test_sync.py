@@ -6,7 +6,7 @@ from StorageManager.objects.Rows import Rows
 from FailureRecovery.Structs.Table import Table
 from StorageManager.StorageManager import StorageManager
 from StorageManager.objects.Condition import Condition
-from FailureRecovery.Structs.Header import Header
+# from FailureRecovery.Structs.Header import Header
 from FailureRecovery.Structs.Row import Row
 
 
@@ -50,14 +50,9 @@ class TestSynchronizeStorage(unittest.TestCase):
         self.serializer.writeTable(self.table_name, self.physical_storage_data, self.course_schema)
    
      
-        # Set up buffer
-        table_header = Header()
-        for column_name, typee, _ in self.course_schema:
-            table_header.addColumn(column_name, typee if typee != 'varchar' else 'str')
-
-        table = Table(self.table_name, table_header)
+        table = Table(self.table_name)
         for row in self.buffer_data:
-            table.addRow(Row(len(table.rows), row))
+            table.addRow(row)
 
         self.failure_recovery.buffer.addTabble(table)
 

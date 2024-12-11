@@ -337,28 +337,35 @@ class StorageManager:
         # Buat dan return objek Statistik
         return Statistics(n_r=n_r, b_r=b_r, l_r=l_r, f_r=f_r, V_a_r=V_a_r)
     
-    def merge_data(self,buffer_rows, physical_storage, key_column):
+    def merge_data(self, buffer_rows, physical_storage):
         """
-        Menggabungkan data antara buffer dan storage fisik.
-        
+        Menggabungkan data antara buffer dan storage fisik menggunakan atribut pertama sebagai key_column.
+
         Args:
-            buffer_rows (list[dict]): Data yang ada di buffer.
-            physical_storage (list[dict]): Data yang ada di storage fisik.
-            key_column (str): Nama kolom kunci utama untuk perbandingan.
-            
+            buffer_rows (list[list]): Data yang ada di buffer.
+            physical_storage (list[list]): Data yang ada di storage fisik.
+
         Returns:
-            list[dict]: Data terbaru yang telah digabungkan.
+            list[list]: Data terbaru yang telah digabungkan.
         """
+        if not buffer_rows and not physical_storage:
+            raise ValueError("Buffer rows and physical storage cannot both be empty")
+
+        # Gunakan kolom pertama sebagai key_column
+        key_column_index = 0
+
         # Buat dictionary dari physical storage untuk akses cepat berdasarkan key_column
-        storage_dict = {row[key_column]: row for row in physical_storage}
+        storage_dict = {row[key_column_index]: row for row in physical_storage}
 
         # Update dictionary dengan data dari buffer
         for buffer_row in buffer_rows:
-            storage_dict[buffer_row[key_column]] = buffer_row  # Replace atau tambahkan
+            storage_dict[buffer_row[key_column_index]] = buffer_row  # Replace atau tambahkan
 
+        # Konversi dictionary kembali ke list
         merged_data = list(storage_dict.values())
 
         return merged_data
+
         
     def synchronize_storage(self):
         """
@@ -372,23 +379,20 @@ class StorageManager:
         serializer = TableManager()
         for table in tables:
             # get header and rows from buffer
-            header = table.header
             buffer_rows =[]
             for row in table.rows:
-                buffer_rows.append(row.convertoStorageManagerRow(header))
-            
+                buffer_rows.append(row)
+                
             # get data from physical storage
+            schema = serializer.readSchema(table.table_name)
             data = serializer.readTable(table.table_name)
+            data_array = [[row[col[0]] for col in schema] for row in data]
             
             # merge data
-            new_data = self.merge_data(buffer_rows, data, header.names[0])
-            
-            # convert merged data to array
-            schema = serializer.readSchema(table.table_name)
-            new_data_array = [[row[col[0]] for col in schema] for row in new_data]
+            new_data = self.merge_data(buffer_rows, data_array)
             
             # write new data to physical storage
-            serializer.writeTable(table.table_name, new_data_array, schema)
+            serializer.writeTable(table.table_name, new_data, schema)
             
         #Call checkpoint from failure recovery
         failureRecovery.save_checkpoint()
