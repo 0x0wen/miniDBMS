@@ -1,4 +1,5 @@
 import socket
+import time
 import threading
 from QueryProcessor.QueryProcessor import QueryProcessor
 
@@ -37,8 +38,10 @@ class Server:
                                 break
 
                     # Process query results
+                    start_time = time.time()
                     send_to_client, execution_results = self.query_processor.execute_query(queries)
-                    send_to_client += "\n"
+                    execution_time = time.time() - start_time
+                    send_to_client += (f"\nExecution Time: {execution_time:.3f} ms\n")
                     self.send_with_header(client_socket, send_to_client)
 
                 except Exception as e:
