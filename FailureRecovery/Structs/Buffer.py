@@ -1,179 +1,112 @@
-from FailureRecovery.Structs import Row
-from FailureRecovery.Structs.Row import Row
-from StorageManager.objects import DataRetrieval
-from StorageManager.objects.DataWrite import DataWrite
-from .Table import Table
-from typing import List, TypeVar
-T = TypeVar('T')
-
-from StorageManager.objects.DataRetrieval import DataRetrieval, Condition
-
+from StorageManager.objects.DataRetrieval import DataRetrieval
 from StorageManager.objects.Rows import Rows
-from FailureRecovery.Structs.Header import Header
+
 from FailureRecovery.Structs.Row import Row
+from FailureRecovery.Structs.Table import Table 
 
-
-'''
-1) Buffer instance hanya ada 1
-2) Di dalam buffer ada banyak tables
-3) Tables terdiri dari header, dan list of rows
-
-Contoh:
-
-    Buffer
-        self.tables isinya
-            Table1 : "DataNama"
-                Header  : [id, name, age]
-                Rows    : [[1, 'John', 20], 
-                        [2, 'Doe', 30],
-                        [3, 'Jane', 25]]
-            Table2 : "DataKota"
-                Header  : [id, city, country]
-                Rows    : [[1, 'Jakarta', 'Indonesia'],
-                        [2, 'New York', 'USA'],
-                        [3, 'Tokyo', 'Japan']]
-
-'''
-MAX_BUFFER_SIZE = 100
-'''ini valuenya ngasal sih, intinya buffer punya batas maksimal bakal dicek tiap kali ada operasi CRUD'''
+from typing import List, TypeVar, Dict
+T = TypeVar('T')
 
 class Buffer:
     def __init__(self):
-        # print("Buffer initialized")
         self.tables : List[Table] = []
         self.size: int = 0
         
     def addTabble(self, table: Table) -> bool:
-        if self.size >= MAX_BUFFER_SIZE:
-            return False
+        """
+        Add a table to the buffer
+        """
         self.tables.append(table)
-        self.size += 1
         return True
 
     def getTable(self, table_name: str) -> Table:
+        """
+        Get a table from the buffer using the table name as the key
+        """
         for table in self.tables:
             if table.table_name == table_name:
                 return table
         return None
     
     def getTables(self) -> List[Table]:
+        """
+        Get all tables in the buffer
+        """
         return self.tables
     
     def clearBuffer(self) -> None:
+        """
+        Clear the buffer / remove all tables in the buffer
+        """
         self.tables = []
         
-    def retrieveData(self, data: DataRetrieval) -> List[dict]:
+    def retrieveData(self, data: DataRetrieval) -> List[Dict[str, T]]:
+        """
+        Retrieve data from the buffer with the given 
+        conditions on DataRetrieval
+        """
+        table = self.getTable(data.table[0])
         
-        print("\nInside Buffer.retrieveData()")
-        
-        matching_rows = []
-        
-        for table_name in data.table:
-            table = self.getTable(table_name)
-            if table:
-                for row in table.rows:
-                    if(row.isRowFullfilingCondition(data.conditions, table.header)):
-                        matching_rows.append(row.convertoStorageManagerRow(table.header))
-                        # print(matching_rows)
-                        
-        if len(matching_rows) == 0:
+        if table:
+            matching_rows = table.findRows(data.conditions)
+            if matching_rows:
+                matching_rows = [row.data for row in matching_rows]
+                
+                return matching_rows
             
-            print("     Data requested not found in buffer")
-            print("     Retrieving data from physical storage instead\n")
-            return None
-        
+        return None
+  
+    def writeData(self, rows: Rows, dataRetrieval: DataRetrieval, primaryKey: List[str] = []) -> bool:
+        """
+        Write data new rows to the buffer with the 
+        given table name from DataRetrieval
 
-        print("     Data found in buffer")
-        print("     Returning data from buffer\n")
-
-        
-        return matching_rows
-        
-    
-    def writeData(self, rows: Rows, dataRetrieval: DataRetrieval) -> bool:
-        
-        # new_table = Table("course")
-        # header = Header()
-        # self.addTabble(new_table)
-        
+        """    
         if len(rows) == 0:
             return False
-        
-        print("\n\nInside Buffer.writeData()")
-        print("     Adding data to buffer")
         
         table_name = dataRetrieval.table[0]
         is_table_exist = self.getTable(table_name)
         
-        if not is_table_exist:
-            print ("        Table not found, creating new table")
-            
+        if not is_table_exist:            
             new_table = Table(table_name)
-            table_header = Header()
-            
-            for column in rows[0]:
-                table_header.addColumn(column, "str")
-                
-            new_table.setHeader(table_header)
-            
-            for row in rows:
-                row_data = []
-                for column in row:
-                    row_data.append(row[column])
-                    
-                new_table.addRow(Row(new_table.numRows(), row_data))
-                
             self.addTabble(new_table)
-            # print(new_table)
                 
-        else:
-            print("     Table found, adding data to existing table")
-            
-            table = self.getTable(table_name)
-            
-            for row in rows:
-                row_data = []
-                for column in row:
-                    row_data.append(row[column])
+        table = self.getTable(table_name)
+        
+        for row in rows:
+            if (not table.existsRowPrimaryKey(row, primaryKey)):
+                table.addRow(Row(row))
+        
+    def updateData(self, table_name: str, data_before: Rows, data_after: Rows) -> None:
+        """
+        Update data in the buffer with the given table name
+        """
+        table = self.getTable(table_name)
+        
+        if table:
+            data_before = [Row(row) for row in data_before]
+            data_after = [Row(row) for row in data_after]
                     
-                table.addRow(Row(table.numRows(), row_data))
+            index = 0
+            num_change = len(data_before)
 
-            # print(table)
-        
-        print("     Data successfully added to buffer\n")
-        
-        
-    def getRowsBuffer(self, data: DataRetrieval) -> List[Row]:
-        '''ngecek apakah data yang mau diambil ada di buffer atau gk'''
-        table = self.getTable(data.table)
-        matching_rows = []
-        
-        if table:
             for row in table.rows:
-                if row.isRowFullfilngCondition(data.conditions):
-                    matching_rows.append(row)
+                if row.isRowEqual(data_before[index]):
+                    row.transferData(data_after[index])
+                    index += 1
+                
+                if index == num_change:
+                    break
+            
+
+    def __repr__(self):
+        print("Buffer:")
         
-        return matching_rows
-    
-    def retrieveDataInBuffer(self, data: DataRetrieval) -> List[Row]:
-        '''ngecek apakah data yang mau diambil ada di buffer atau gk'''
-        matching_rows = []
-        
-        for table_name in data.table:
-            table = self.getTable(table_name)
-            if table:
-                for row in table.rows:
-                    if all(row.isRowFullfilngCondition(condition) for condition in data.conditions):
-                        matching_rows.append(row)
-        
-        return matching_rows
-    
-    def updateData(self, data: DataWrite, databefore: List[str], dataafter: List[str]):
-        table = self.getTable(data.selected_table)
-        
-        if table:
-            for row in table.rows:
-                if row == databefore:
-                    table.rows.remove(row)
-                    table.addRow(Row(table.numRows(), dataafter))
+        if len(self.tables) == 0:
+            print("Buffer is empty")
+        else:
+            for table in self.tables:
+                print(table)
+        return ""
     
