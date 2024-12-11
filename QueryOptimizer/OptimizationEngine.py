@@ -5,7 +5,10 @@ from QueryOptimizer.constants import LEGAL_COMMANDS_AFTER_WHERE,LEGAL_COMPARATOR
 from QueryOptimizer.helpers import isAlphanumericWithQuotesAndUnderscoreAndDots
 from QueryOptimizer.CustomException import CustomException
 from StorageManager.StorageManager import StorageManager
-from QueryOptimizer.rule8Optimize import reverseQueryTree
+from StorageManager.objects.Statistics import Statistics
+from QueryOptimizer.whereOptimize import optimizeWhere
+from QueryOptimizer.sortLimitOptimize import optimizeSortLimit
+from QueryOptimizer.rule8Optimize import rule8
 
 class OptimizationEngine:
     def __init__(self):
@@ -32,20 +35,131 @@ class OptimizationEngine:
 
         # Return a ParsedQuery object
         return ParsedQuery(query=query, query_tree=root)
+    
 
-    def optimizeQuery(self, query: ParsedQuery) -> ParsedQuery:
-        """
-        Optimizes the parsed query and returns the optimized query.
-        """
-        print(self.storage_manager.getStats())
-        # Apply heuristic optimizations (pushdowns, reorderings, etc.)
-        self.__applyHeuristicRules(query)
+    
+    def optimizeQuery(self, query: ParsedQuery, statistics) -> ParsedQuery:
+        def extract_tables_from_tree(node):
+            tables = set()
+            def traverse(current_node):
+                # Check for tables in Value1 or Value2 nodes
+                if current_node.node_type in ["Value1", "Value2"]:
+                    tables.add(current_node.val[0])
 
-        # Calculate and assign the cost to the query
-        cost = self.__getCost(query)
-        query.estimated_cost = cost  # Example of adding optimization-specific attributes
+                # Recursively traverse children
+                if hasattr(current_node, 'children'):
+                    for child in current_node.children:
+                        traverse(child)
+            traverse(node)
+            return tables
+        def extract_conditions_from_tree( node):
+            conditions = []
+            def traverse(current_node):
+                # Check for tables in Value1 or Value2 nodes
+                if current_node.node_type in ["TJOIN"]:
+                    conditions.append(current_node.val)
+                    current_node.val = None
+                
+                # Recursively traverse children
+                if hasattr(current_node, 'children'):
+                    for child in current_node.children:
+                        traverse(child)
+            
+            traverse(node)
+            return conditions
+        def find_joined_tables(conditions, target_table):
+            joined_tables = set()
+            for condition in conditions:
+                first_table = condition[0].split('.')[0]
+                second_table = condition[2].split('.')[0]
+                if first_table == target_table:
+                    other_table = condition[2].split('.')[0]
+                    joined_tables.add(other_table)
+                elif second_table == target_table:
+                    other_table = condition[0].split('.')[0]
+                    joined_tables.add(other_table)
+            return joined_tables
 
-        return query
+        def replace_join_children(node, table1, table2):
+            node.children = [
+                QueryTree("Value1", [table1]),
+                QueryTree("Value2", [table2])
+            ]
+
+            return node
+        
+        def get_matching_conditions(conditions, table1, table2):
+            result = []
+            remaining_conditions = []
+            for condition in conditions:
+                print("Condition", condition)
+                table_names = {part.split('.')[0] for part in condition if '.' in part}
+                print("Table names", table_names)
+                print("Table1", table1)
+                print("Table2", table2)
+                if table1 in table_names and table2 in table_names:
+                    result.extend(condition)  
+                else:
+                    remaining_conditions.append(condition)  
+            conditions.clear()
+            conditions.extend(remaining_conditions)
+            return result
+
+        def optimize_recursive(current_tree, remaining_tables, remaining_conditions):
+            has_join_child = any(child.node_type == "TJOIN" or child.node_type == "JOIN" for child in current_tree.children)
+            referenced_tables = list(set(all_tables) - set(remaining_tables))
+            isReversed = bool(referenced_tables)
+            if (has_join_child):
+                print("Optimizing children...")
+                print( current_tree)
+                current_tree.children = [
+                    optimize_recursive(child, remaining_tables,remaining_conditions) if child.node_type == "TJOIN" else child
+                    for child in current_tree.children
+                ]
+            if(current_tree.node_type == "TJOIN"):
+                referenced_tables = list(set(all_tables) - set(remaining_tables))
+                isReversed = referenced_tables != []
+                print("Optimizing join order...", current_tree)
+                print("list", list(set(all_tables) - set(remaining_tables)))
+                print("isreverse", isReversed)
+                if(isReversed):
+                    print("Reversed")
+                    joined_tables = set()
+                    for table in referenced_tables:
+                        joined_tables.update(find_joined_tables(remaining_conditions, table))
+                    joined_tables = joined_tables & set(remaining_tables)
+                    print("Joined tables:", joined_tables)
+                    smallest_table = joined_tables.pop()
+                    smallest_joined_table = find_joined_tables(remaining_conditions, smallest_table)& set(referenced_tables)
+                    smallest_joined_table = smallest_joined_table.pop()
+                    print("Smallest table:", smallest_table) 
+                    print("Smallest joined table:", smallest_joined_table) 
+                    for child in current_tree.children:
+                        if child.node_type == "Value1":
+                            child.val = smallest_table        
+                    current_tree.val = get_matching_conditions(remaining_conditions, smallest_table, smallest_joined_table)
+                    remaining_tables.remove(smallest_table)
+                else:
+                    smallest_table = min(remaining_tables, key=lambda t: statistics.get(t, Statistics(0, 0, 0, 0, {})).n_r)
+                    print("Smallest table:", smallest_table)
+                    joined_tables = find_joined_tables(remaining_conditions, smallest_table) & set(remaining_tables)
+                    print("Joined tables:", joined_tables)
+                    if not joined_tables:
+                        return current_tree
+                    smallest_joined_table = min(joined_tables, key=lambda t: statistics.get(t, Statistics(0, 0, 0, 0, {})).n_r)
+                    print("Smallest joined table:", smallest_joined_table)
+                    replace_join_children(current_tree, smallest_table, smallest_joined_table)
+                    current_tree.val = get_matching_conditions(remaining_conditions, smallest_table, smallest_joined_table)
+                    remaining_tables.remove(smallest_table)
+                    remaining_tables.remove(smallest_joined_table)
+            
+            return current_tree
+        query_tree = query.query_tree
+        all_tables = extract_tables_from_tree(query_tree)
+        remaining_conditions = extract_conditions_from_tree(query_tree)
+        optimized_tree = optimize_recursive(query_tree, list(all_tables),remaining_conditions)
+        print("Optimized tree:", optimized_tree)
+        return optimizeWhere(rule8(ParsedQuery(query.query, optimized_tree)))
     
     def validateParsedQuery(self, query_tree: QueryTree) -> bool:
         """
@@ -142,8 +256,6 @@ class OptimizationEngine:
                 raise SyntaxError("Syntax Error: Missing table name")
             
             root.val.append(tokens.pop(0))
-            table = []
-            table.append(root.val[0])
                
             # Check if any join operation is present
             if (tokens and tokens[0].upper() in [",", "JOIN", "NATURAL"]):
@@ -173,15 +285,12 @@ class OptimizationEngine:
                         
                         if parent.node_type == "FROM":
                             childOne = QueryTree(node_type="Value1", val=[parent.val[0]])
-                            table.append(parent.val[0])
                         else:
                             childOne = QueryTree(node_type="Value1", val=[parent.children[1].val[0]])
-                            table.append(parent.children[1].val[0])
                             
                         # Change root if TJOIN is parent
                         if parent.node_type == "TJOIN":
                             childTwo = QueryTree(node_type="Value2", val=[tokens.pop(0)])
-                            table.append(childTwo.val[0])
                             child.children.append(parent)
                             child.children.append(childTwo)
                             
@@ -193,7 +302,6 @@ class OptimizationEngine:
                             
                         else:
                             childTwo = QueryTree(node_type="Value2", val=[tokens.pop(0)])
-                            table.append(childTwo.val[0])
                             child.children.append(childOne)
                             child.children.append(childTwo)
                             
@@ -212,13 +320,10 @@ class OptimizationEngine:
                         
                         if parent.node_type == "FROM":
                             childOne = QueryTree(node_type="Value1", val=[parent.val[0]])
-                            table.append(parent.val[0])
                         else:
                             childOne = QueryTree(node_type="Value1", val=[parent.children[1].val[0]])
-                            table.append(parent.children[1].val[0])
                             
                         childTwo = QueryTree(node_type="Value2", val=[tokens.pop(0)])
-                        table.append(childTwo.val[0])
                         
                         if tokens and tokens[0].upper() != "ON":
                             raise SyntaxError("Syntax Error: Missing ON")
@@ -271,21 +376,6 @@ class OptimizationEngine:
                         tokens.pop(0)
                         tokens.pop(0)
                         child.node_type = "TJOIN"
-                       
-                        seen = set()
-                        uniqueTable = []
-
-                        for item in table:
-                            if item not in seen:
-                                uniqueTable.append(item)
-                                seen.add(item)
-                                
-                        test = {
-                            "users": {"row": 100, "cols": ["user_id", "name", "age", "sibling", "office_id"]},
-                            "office": {"row": 80, "cols": ["office_id", "name", "location"]},
-                            "address": {"row": 80, "cols": ["address_id", "address", "city", "state", "zip"]},
-                            "salary": {"row": 80, "cols": ["salary_id", "user_id", "salary", "date"]},
-                        }
                         
                         if not tokens or (tokens[0].upper() in [",", "NATURAL", "JOIN", "WHERE", "LIMIT", "ORDER"]):
                             raise SyntaxError("Syntax Error: Missing table name")
@@ -299,20 +389,6 @@ class OptimizationEngine:
                         child.children.append(childOne)
                         child.children.append(childTwo)
                         
-                        table_columns = set(test[childTwo.val[0]]['cols']) 
-                        common_columns_all = []
-    
-                        for table_name in table:
-                            current_table_columns = set(test[table_name]['cols'])
-                            common_columns = table_columns.intersection(current_table_columns)
-                            for column in common_columns:
-                                common_columns_all.append(f"{childTwo.val[0]}.{column}")
-                                
-                            for column in common_columns:
-                                common_columns_all.append(f"{table_name}.{column}")
-                                
-                        common_columns_all = list(set(common_columns_all))
-                        child.val = common_columns_all
                         
                         if parent.children != []:
                             parent.children.pop()
@@ -324,16 +400,14 @@ class OptimizationEngine:
                         break
                     
                     grand = parent
-                            
+                                  
             if not tokens:
-                tree = reverseQueryTree(root)
-                return tree
+                return root
             else:
                 if tokens[0].upper() not in ["WHERE", "LIMIT", "ORDER"]:
                     raise SyntaxError("Syntax Error: Invalid syntax")
                 child = self.__createQueryTree(tokens)
                 if child is not None:  # Only append if the child is not None
-                    root = reverseQueryTree(root)
                     root.children.append(child)  
 
         elif token == "AND":

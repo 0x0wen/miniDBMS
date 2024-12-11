@@ -22,5 +22,3 @@ Developed by Amazing RDS, a team of 25.
    - \*table_node --> node_type : "Value1" or "Value2", value : table name (ex: ["employee"])
    - \*if in case 'join on' the condition has 'and', it will be (i can't explain :) so, just look the example)
      - query_str = "SELECT name , age FROM a, b JOIN c ON b.id = c.id AND b.city != c.city, d, e"
-     - ![image](https://github.com/user-attachments/assets/6f31923f-dc21-4755-9afa-e9d239146c80)
-     - i hope u can understand hehe
