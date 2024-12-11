@@ -75,9 +75,11 @@ class Buffer:
         table = self.getTable(table_name)
         
         for row in rows:
-            if (not table.existsRowPrimaryKey(row, primaryKey)):
+            #if (not table.existsRowPrimaryKey(row, primaryKey)):
                 table.addRow(Row(row))
-        
+
+        return True
+
     def updateData(self, table_name: str, data_before: Rows, data_after: Rows) -> None:
         """
         Update data in the buffer with the given table name
