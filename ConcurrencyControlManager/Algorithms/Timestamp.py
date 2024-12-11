@@ -123,9 +123,8 @@ class TimestampBasedProtocol(AbstractAlgorithm, ABC):
             print(f"Transaction {transactionId} commits.")
             self.end(transactionId)
             return
-
+    
     def validate(self, dbObject: Rows, transactionId: int, action: Action) -> Response:
-
         actionType = action.action[0].name
         item = dbObject.data[0].split("(")[1].split(")")[0] # Extract item from dbObject
 
@@ -136,29 +135,24 @@ class TimestampBasedProtocol(AbstractAlgorithm, ABC):
         if actionType == "WRITE":
             # Validate write action
             if lastReadTimestamp > currentTimestamp or lastWriteTimestamp > currentTimestamp:
-                return Response(status=False, message=transactionId)
+                return Response(response_action="WAIT", current_t_id=transactionId, related_t_id=self.locks.get(item, -1))
             if item in self.locks and self.locks[item] != transactionId:
-                return Response(status=False,
-                                message=transactionId)
+                return Response(response_action="WOUND", current_t_id=transactionId, related_t_id=self.locks[item])
+            return Response(response_action="ALLOW", current_t_id=transactionId, related_t_id=transactionId)
 
         elif actionType == "READ":
             # Validate read action
             if lastWriteTimestamp > currentTimestamp:
-                return Response(status=False,
-                                message=transactionId)
+                return Response(response_action="WAIT", current_t_id=transactionId, related_t_id=self.locks.get(item, -1))
             if item in self.locks and self.locks[item] != transactionId:
-                return Response(status=False,
-                                message=transactionId)
-
-        return Response(status=True,
-                        message=transactionId)
+                return Response(response_action="WOUND", current_t_id=transactionId, related_t_id=self.locks[item])
+            return Response(response_action="ALLOW", current_t_id=transactionId, related_t_id=transactionId)
 
     def end(self, transactionId: int) -> bool:
         itemsToUnlock = [item for item, tid in self.locks.items() if tid == transactionId]
         for item in itemsToUnlock:
             self.unlock(transactionId, item)
         return True
-
 
 if __name__ == "__main__":
     # Test cases
@@ -205,3 +199,4 @@ if __name__ == "__main__":
     # Transaction 2 commits.
     # Transaction 1 write-lock acquired on A.
     # Transaction 2 fail, because there's a lock
+

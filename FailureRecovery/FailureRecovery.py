@@ -1,152 +1,105 @@
-import os
-import json
-import shutil
-
-from os import path
-from typing import Optional
 from datetime import datetime
+from typing import Any, Optional, Dict
+
+# Importing modules in Failure Recovery
+from FailureRecovery.Buffer import Buffer
+from FailureRecovery.LogManager import LogManager
 from FailureRecovery.RecoverCriteria import RecoverCriteria
+
+# Importing modules from the Interface
 from Interface.ExecutionResult import ExecutionResult
-# from QueryProcessor.QueryProcessor import QueryProcessor
 
+# Importing modules in Query Optimizer to parse
+from QueryOptimizer.OptimizationEngine import OptimizationEngine
 
-# Todo : Penamaan dan integrasi sama QueryProcessor
+# Importing modules from Query Processor
+from QueryProcessor.QueryProcessor import QueryProcessor
+
+# Importing modules in Storage Manager for manipulating the database
+from StorageManager.StorageManager import StorageManager
+from StorageManager.objects.DataWrite import DataWrite
+
 class FailureRecovery:
-    __instance: Optional['FailureRecovery'] = None
+    _instance = None
 
-    # Singleton pattern
     def __new__(cls):
-        if cls.__instance is None:
-            cls.__instance = super(FailureRecovery, cls).__new__(cls)
-        return cls.__instance
-    
-    # Menginisialisasi config file
-    def __init__(self):
-        # Dapetin base directory dari FailureRecovery
-        self.BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-        
-        # Inisialisasi path file-file yang bakal dipake
-        self._log_file = os.path.join(self.BASE_DIR, "write_ahead_log.txt")
-        self.BACKUP_DIR = os.path.join(self.BASE_DIR, "backups")
-        self.DB_FILE = os.path.join(self.BASE_DIR, "database.db") 
-        self.CHECKPOINT_META = os.path.join(self.BASE_DIR, "checkpoint_meta.txt")
-        self.MAX_LOG_SIZE = 10 * 1024 * 1024  # 10 MB
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
 
-        # Memastikan database ada 
-        if not os.path.exists(self.DB_FILE):
-            open(self.DB_FILE, 'a').close()
+    def __init__(self, buffer_size: int = 1024):
+        if not hasattr(self, 'initialized'):
+            self.buffer = Buffer[Any](buffer_size)
+            self.log_manager = LogManager()
+            self.storage_manager = StorageManager()
+            self.query_processor = QueryProcessor()
+            self.initialized = True
 
-    # Method buat ngecheck ukuran log bakal return true kalo ukuran log lebih dari batas
-    def checkLogSize(self) -> bool:
-        return os.path.exists(self._log_file) and os.path.getsize(self._log_file) > self.MAX_LOG_SIZE 
-
-    # Method buat nulis log pake format json
-    def writeLog(self, info: ExecutionResult) -> None:
-        log_entry = {
-            'transaction_id': info.transaction_id,
-            'timestamp': info.timestamp.isoformat(),
-            'query': info.query,
-            'message': info.message
-        }
-        with open(self._log_file, 'a') as log_file:
-            json.dump(log_entry, log_file)
-            log_file.write('\n')
-        
-        # Lakuin checkpoint kalo ukuran log udah lebih dari batas (10MB)
-        if self.checkLogSize():
-            self.saveCheckpoint()
-
-    def __saveCheckpoint(self) -> None:
+    def write_log(self, info: ExecutionResult) -> None:
+        """Write-Ahead Logging implementation"""
         try:
-            # Bikin backup directory kalo belom ada
-            if not os.path.exists(self.BACKUP_DIR):
-                os.makedirs(self.BACKUP_DIR)
-
-            # Ambil waktu checkpoint
-            checkpoint_time = datetime.now()
-            timestamp = checkpoint_time.strftime('%Y%m%d_%H%M%S')
-
-           # 1 Ngelekauin Backup database
-            dbBasename = os.path.basename(self.DB_FILE)
-            backup_name = f"{dbBasename}.{timestamp}"
-            backup_path = os.path.join(self.BACKUP_DIR, backup_name)
+            # 1. Get current state from buffer/storage
+            current_data = self.buffer.read_data(info.data.table_name)
             
-            if os.path.exists(self.DB_FILE):
-                print(f"Copying DB to: {backup_path}")
-                shutil.copy2(self.DB_FILE, backup_path)
-            else:
-                print("Database file not found!")
+            # 2. Write to WAL first
+            self.log_manager.write_log_entry(
+                info.transaction_id,
+                info.query,
+                info.data.table_name,
+                current_data[0] if current_data else None,
+                info.data.data[0] if info.data and info.data.data else None
+            )
 
-            # 2 Ngebuat metadata file checkpoint
-            metadata = {
-                'timestamp': checkpoint_time.isoformat(),
-                'backup_file': backup_name,
-                'log_size': os.path.getsize(self._log_file) if os.path.exists(self._log_file) else 0
-            }
+            # 3. Update buffer with new data
+            if info.data and info.data.data:
+                self.buffer.write_data(info.data.table_name, info.data.data[0])
+
+            # 4. Check WAL size for checkpoint
+            if self.log_manager.is_wal_full():
+                self.save_checkpoint()
+
+        except Exception as e:
+            raise Exception(f"Write log failed: {e}")
+
+    def save_checkpoint(self) -> None:
+        """Synchronize WAL entries with physical storage"""
+        try:
+            entries = self.log_manager.get_entries_since_checkpoint()
             
-            meta_path = os.path.join(self.BACKUP_DIR, f"checkpoint_{timestamp}.meta")
-            with open(meta_path, 'w') as meta_file:
-                json.dump(metadata, meta_file, indent=2)
+            # Update physical storage with WAL entries
+            for entry in entries:
+                if entry["data_after"]:
+                    self.storage_manager.writeBlock(DataWrite(
+                        overwrite=True,
+                        selected_table=entry["table"],
+                        column=list(entry["data_after"].keys()),
+                        conditions=[],
+                        new_value=[entry["data_after"]]
+                    ))
+            
+            # Empty buffer after physical update
+            self.buffer.empty_buffer()
 
-            # 3 Ngearchive log file
-            if os.path.exists(self._log_file):
-                log_basename = os.path.basename(self._log_file)
-                log_archive = f"{log_basename}.{timestamp}"
-                archivePath = os.path.join(self.BACKUP_DIR, log_archive)
-                shutil.copy2(self._log_file, archivePath)
-                os.remove(self._log_file)
-
-            # 4 Buat log file baru yang kosong
-            open(self._log_file, 'w').close()
-
-            print(f"Checkpoint created successfully at {checkpoint_time}")
+            # Archive and clear WAL
+            self.log_manager.archive_wal()
             
         except Exception as e:
-            print(f"Error during checkpoint: {str(e)}")
-            if not os.path.exists(self._log_file):
-                open(self._log_file, 'w').close()
+            raise Exception(f"Checkpoint failed: {e}")
 
-    def saveCheckpoint(self) -> None:
-        """Method ini harusnya gada karena saveCheckpoint itu private method, 
-        ini versi publicnya sementara utk keperluan testing"""
-        self.__saveCheckpoint()
-    
     def recover(self, criteria: RecoverCriteria) -> None:
-        """This method accepts a checkpoint object that contains the criteria for checkpoint. This criteria can be timestamp or transaction id.
-        The recovery process started backward from the latest log in write-ahead log until the criteria is no longer met. For each log entry,
-        this method will interact with the query processor to execute a recovery query, restoring the database to its state prior to the
-        execution of that log entry."""
-        
-        # Cek dulu apakah log file ada
-        if not os.path.exists(self._log_file):
-            raise FileNotFoundError("No log file found")
-        
-        # Cek apakah criteria valid
-        elif not criteria.timestamp and not criteria.transaction_id:
-            raise ValueError("Recovery criteria must contain either timestamp or transaction id")
-        
-        # Membaca log file
-        with open(self._log_file) as log_file:
-            log_entries = log_file.readlines()
-        
-        # Proses recovery
-        for log_entry in reversed(log_entries):
-            entry = json.loads(log_entry)
+        """Recover database state using WAL"""
+        try:
+            logs = self.log_manager.read_logs(criteria)
             
-            # Cek apakah entry memenuhi criteria
-            if criteria.timestamp and entry['timestamp'] < criteria.timestamp:
-                print(f"Recovery completed at timestamp {criteria.timestamp}")
-                break
-            if criteria.transaction_id and entry['transaction_id'] == criteria.transaction_id:
-                print(f"Recovery completed at transaction id {criteria.transaction_id}")
-                break
-            
-            # Eksekusi query untuk recovery
-            # try:
-            #     QueryProcessor().execute_query(f"ROLLBACK {entry['transaction_id']}")
-            # except Exception as e:
-            #     print(f"Error during recovery: {str(e)}")
-            #     break
-                           
-
-        
+            # Process logs in reverse order
+            for log in reversed(logs):
+                if log["data_before"]:
+                    # Generate recovery query
+                    set_clause = ", ".join(f"{k}={v}" for k, v in log["data_before"].items())
+                    recovery_query = f"UPDATE {log['table']} SET {set_clause}"
+                    
+                    # Execute recovery through QueryProcessor
+                    self.query_processor.execute_query(recovery_query)
+                    
+        except Exception as e:
+            raise Exception(f"Recovery failed: {e}")
