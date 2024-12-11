@@ -83,7 +83,9 @@ class QueryProcessor:
         print(f"Transaction ID: {transaction_id}")
 
         # Generate Rows object from optimized query
+        print("atas")
         rows = self.generate_rows_from_query_tree(optimized_query, transaction_id)
+        print("bawah")
         print(rows.data)
 
         # validate and Log the transaction
@@ -154,10 +156,11 @@ class QueryProcessor:
 
             # Process SELECT (READ)
             if query_tree.node_type == "SELECT":
-                for child in query_tree.children:
-                    if child.node_type == "FROM":
-                        table_name = child.val[0]
-                        operations.append(f"R{transaction_id}({table_name})")
+                tables = []
+                conditions = []
+                self.get_table_and_condition(optimized_item.query_tree, tables, conditions)
+                for table_name in tables:
+                    operations.append(f"R{transaction_id}({table_name})")
 
             # Process UPDATE (WRITE)
             if query_tree.node_type == "UPDATE":
