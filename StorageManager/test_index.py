@@ -1,81 +1,92 @@
 import unittest
-import os
+import time
 from StorageManager.manager.IndexManager import IndexManager, HashIndex
 from StorageManager.manager.TableManager import TableManager
+from StorageManager.objects.Condition import Condition
+from StorageManager.objects.DataRetrieval import DataRetrieval
+from StorageManager.StorageManager import StorageManager
+from StorageManager.serialize_table import TableCreator
 
-# class TestHashIndex(unittest.TestCase):
-#     def setUp(self):
-#         """Set up instance for testing"""
-#         self.table = 'user2'
-#         self.column = ''
-
-#         self.index_manager = IndexManager(self.table)
-#         self.filepath = "Storage/"
-#         self.index_filename = f"{self.table}_index.dat"
+class TestSetupIndex(unittest.TestCase):
+    def setUp(self):
+        """
+        Set up storage manager and mock dependencies
+        """     
+        self.sm = StorageManager()
+        self.index_manager = IndexManager()
+        self.course_name = 'course'
+        self.student_name = 'student'
+        self.max_item = 20000
+        self.table_create =  TableCreator(self.max_item)
+        self.table_create.resetTable()
     
-#     def testWrite(self):
-#         """Test writing some data"""
-#         self.index_manager.writeIndex(self.table, self.column)
-#         self.assertTrue(os.path.exists(self.filepath + self.index_filename))
-
-#     def testRead(self):
-#         """Test reading the data"""
-        
-#         hashIndex = self.index_manager.readIndex(self.table, self.column)
-        
-#         self.assertTrue(hashIndex.test(), "Check if the length is more than 0")
-        
-
-# if __name__ == '__main__':
-#     suite = unittest.TestSuite()
-#     suite.addTest(TestHashIndex('testRead'))
-#     suite.addTest(TestHashIndex('testWrite'))
-#     runner = unittest.TextTestRunner(buffer=False)
-#     runner.run(suite)
-
-table = "course"
-column = 'courseid'
-index_manager = IndexManager()
-index_manager.writeIndex(table,column)
-
-serializer = TableManager()
-
-def findRecord(table_name: str, column: str, value: str) -> dict:
+    def test_setup_hash_index(self):
         """
-        Mencari record dari kumpulan blok berdasarkan nilai pada kolom tertentu.
-        Args:
-            table_name (str): Nama tabel.
-            column (str): Nama kolom yang ingin dicari.
-            value (str): Nilai yang ingin dicari pada kolom tersebut.
-        Returns:
-            dict: Record yang ditemukan dalam bentuk dictionary.
+        test indexing on student with student id of 1 and 4000
         """
-        index_manager = IndexManager()
-        hashedbucket = index_manager.readIndex(table_name, column)
+        data_retrieval = DataRetrieval([self.student_name], [], [
+            Condition(self.student_name, "=", 1),
+            Condition(self.student_name, "=", self.max_item)
+        ])
 
-        block_id = hashedbucket.search(value)
-        if block_id is None:
-            print(f"Record dengan {column} = {value} tidak ditemukan.")
-            return None
+        # Reset Index
+        try:
+            self.index_manager.deleteIndex(self.student_name)
+        except:
+            print(f'Index hasnt been declared')
 
-        block_data = serializer.readBlockIndex(table_name, block_id)
+        print("TEST On Finding a data with index of 1 and "+ self.max_item.__str__() + '\n')
+        print("Before Setting Index: ")
+        
+        start_time = time.time_ns()
+        self.sm.readBlock(data_retrieval)
+        end_time = time.time_ns()
+        times = (end_time - start_time) / 1_000_000
+        print(f"Needed Time : {times} ms")
+        print()
+        self.sm.setIndex(self.student_name,'studentid','hash')
+        print("After Setting Index: ")
+        start_time = time.time_ns()
+        self.sm.readBlock(data_retrieval)
+        end_time = time.time_ns()
 
-        for record in block_data:
-            column_value = record[column]
+        times = (end_time - start_time) / 1_000_000
+        print(f"Needed Time : {times} ms")
 
-            if isinstance(column_value, int):
-                value = int(value)  
-            elif isinstance(column_value, float):
-                value = float(value) 
-            else:
-                value = str(value) 
+    def test_setup_hash_index_with_lots_of_condition(self):
+        f"""
+        test indexing on student with student id < {self.max_item} and greater than {self.max_item / 2} and item of id 137
+        """
+        data_retrieval = DataRetrieval([self.student_name], [], [
+            Condition(self.student_name, ">", self.max_item / 2),
+            Condition(self.student_name, "<", self.max_item),
+            Condition(self.student_name, "=", 137)
+        ])
 
-            if column_value == value:
-                return record  
+        # Reset Index
+        try:
+            self.index_manager.deleteIndex(self.student_name)
+        except:
+            print(f'Index hasnt been declared')
 
-        print(f"Record dengan {column} = {value} tidak ditemukan di blok {block_id}.")
-        return None
+        print("TEST On Finding a data with index of 1 and "+ self.max_item.__str__() + '\n')
+        print("Before Setting Index: ")
+        
+        start_time = time.time_ns()
+        self.sm.readBlock(data_retrieval)
+        end_time = time.time_ns()
+        times = (end_time - start_time) / 1_000_000
+        print(f"Needed Time : {times} ms")
+        print()
+        self.sm.setIndex(self.student_name,'studentid','hash')
+        print("After Setting Index: ")
+        start_time = time.time_ns()
+        self.sm.readBlock(data_retrieval)
+        end_time = time.time_ns()
 
+        times = (end_time - start_time) / 1_000_000
+        print(f"Needed Time : {times} ms")
+        print()
 
-#Cari courseid = 23 di table courseid
-print(findRecord(table,column,'98'))
+if __name__ == "__main__":
+    unittest.main()

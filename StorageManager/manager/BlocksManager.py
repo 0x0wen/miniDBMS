@@ -17,7 +17,8 @@ class BlocksManager(SchemaManager):
         """
         if not table_name:
             raise ValueError("File name cannot be empty")
-        print(table_name)
+        #NOTE - Delete this
+        # print(table_name)
         schema = self.readSchema(table_name)
         columns = [col[0] for col in schema]  # Menyimpan nama kolom dari schema
         row_size = sum(size for _, _, size in schema)
@@ -29,7 +30,8 @@ class BlocksManager(SchemaManager):
 
         blocks = self.readBlocks(table_name)
         offset, num_rows = blocks[block_index]
-        print(f"Membaca blok ke-{block_index + 1}, Offset: {offset}, Jumlah baris: {num_rows}")
+        #NOTE - DELETE THIS
+        # print(f"Membaca blok ke-{block_index }, Offset: {offset}, Jumlah baris: {num_rows}")
 
         block_data = []
         try:

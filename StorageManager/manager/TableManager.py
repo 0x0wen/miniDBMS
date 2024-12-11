@@ -60,12 +60,15 @@ class TableManager(DataManager):
         Group conditions based on their connectors, by shifting connectors logic.
         """
         connectors = [condition.connector for condition in conditions]
-        print(" Sebelum Connector: ",connectors)
+        #NOTE - Delete this
+        # print(" Sebelum Connector: ",connectors)
 
         connectors = connectors[1:] + [None]  # shift kiri 1
         grouped_conditions = []
         current_group = []
-        print(" Sesudah Connector: ",connectors)
+
+        #NOTE - Delete this
+        # print(" Sesudah Connector: ",connectors)
 
         for i, condition in enumerate(conditions):
             current_group.append(condition)
@@ -74,8 +77,10 @@ class TableManager(DataManager):
                 grouped_conditions.append(current_group)
                 current_group = []
 
-        for group in grouped_conditions:
-            print("Group: " , group)
+        #NOTE - Delete this
+        # for group in grouped_conditions:
+            # print("Group: " , group)
+            
         return grouped_conditions
 
     def applyConditions(self, rows: list[dict], action_object) -> Rows:
@@ -122,39 +127,39 @@ class TableManager(DataManager):
                 return value <= operand
             return False
 
-        # Fungsi untuk mencari dengan menggunakan indeks jika kondisi sesuai
-        def searchWithIndex(action_object) -> list[dict]:
-            indexed_conditions = [cond for cond in action_object.conditions if cond.operation == "="]
-            filtered_rows = []
+        #Tak terpakai, udah dihandle
+        # # Fungsi untuk mencari dengan menggunakan indeks jika kondisi sesuai
+        # def searchWithIndex(action_object) -> list[dict]:
+        #     indexed_conditions = [cond for cond in action_object.conditions if cond.operation == "="]
+        #     filtered_rows = []
 
-            for condition in indexed_conditions:
-                index_manager = IndexManager()
-                try:
-                    hashedbucket = index_manager.readIndex(action_object.table[0], condition.column)
-                    if hashedbucket:
-                        # Mencari blok yang sesuai dengan nilai operand dalam kondisi
-                        block_id = hashedbucket.search(condition.operand)
-                        if block_id is not None:
-                            # Mengambil data dari blok yang ditemukan
-                            block_data = self.readBlockIndex(action_object.table[0], block_id)
-                            filtered_rows.extend(block_data)
-                except ValueError:
-                    # Tidak ada indeks untuk kolom tertentu
-                    continue
+        #     for condition in indexed_conditions:
+        #         index_manager = IndexManager()
+        #         try:
+        #             hashedbucket = index_manager.readIndex(action_object.table[0], condition.column)
+        #             if hashedbucket:
+        #                 # Mencari blok yang sesuai dengan nilai operand dalam kondisi
+        #                 block_id = hashedbucket.search(condition.operand)
+        #                 if block_id is not None:
+        #                     # Mengambil data dari blok yang ditemukan
+        #                     block_data = self.readBlockIndex(action_object.table[0], block_id)
+        #                     filtered_rows.extend(block_data)
+        #         except ValueError:
+        #             # Tidak ada indeks untuk kolom tertentu
+        #             continue
 
-            return filtered_rows
+        #     return filtered_rows
 
-        # Mencari dengan menggunakan indeks terlebih dahulu jika memungkinkan
-        indexed_rows = searchWithIndex(action_object)
+        # # Mencari dengan menggunakan indeks terlebih dahulu jika memungkinkan
+        # indexed_rows = searchWithIndex(action_object)
 
-        # Cek semua kondisi pada hasil dari indexed_rows jika tersedia
+        # # Cek semua kondisi pada hasil dari indexed_rows jika tersedia
+        # rows_to_filter = indexed_rows if indexed_rows else rows
+
+
         filtered_rows = []
-        rows_to_filter = indexed_rows if indexed_rows else rows
-
-        for row in rows_to_filter:
-            if len(action_object.conditions) == 0:
-                filtered_rows.append(row)
-            elif any(all(satisfies(row, cond) for cond in group) for group in grouped_conditions):
+        for row in rows:
+            if any(all(satisfies(row, cond) for cond in group) for group in grouped_conditions):
                 filtered_rows.append(row)
 
         return Rows(filtered_rows)
@@ -163,11 +168,11 @@ class TableManager(DataManager):
 
 
 
-    def filterColumns(self,rows: list[dict], columns: list[str]) -> list[dict]:
+    def filterColumns(self,rows: list[dict], columns: list[str]) -> Rows:
         
         if columns:
             return [{col: row[col] for col in columns if col in row} for row in rows]
-        return rows
+        return Rows(rows)
     
     def readTable(self, file_name) -> Rows:
         """ Read both schema and data from files """

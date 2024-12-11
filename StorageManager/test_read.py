@@ -36,20 +36,25 @@ ret4 = DataRetrieval(table=["course"], column=[], conditions=[
    {'year': 2097}, {'year': 2098}, {'year': 2099}]
 Amount :  38
 """
+cond1 = Condition(column="studentid", operation="=", operand='31', connector=None)
 
 retrieval = DataRetrieval(
-    table=["user2"],
-    column=[],
+    table=["student"],
+    column=['studentid'],
     conditions=[]
 )
-
 sm = StorageManager()
 
-print("\n---First read with ret4-----")
-sm.readBlock(ret4)
+testdel = DataRetrieval(
+    table=['course'],
+    column=[],
+    conditions=[
+        # Condition(column='courseid',operation='=',operand='30',connector=None)
+    ]
+)
 
 print("---Second read with ret4-----")
-sm.readBlock(ret4)
+sm.readBlock(testdel)
 
 transaction_id = 1
 timestamp = datetime.now()

@@ -39,8 +39,10 @@ class DataManager(BlocksManager):
                 serialized_row = self.serializeRow(row, schema)
                 row_size = len(serialized_row)
 
-                print(row_size)
-                print(remaining_space)
+                #NOTE - Delete this
+                # print(row_size)
+                # print(remaining_space)
+
                 if row_size <= remaining_space:
                     data_file.seek(last_block_offset + used_space_in_last_block)
                     data_file.write(serialized_row)
@@ -158,11 +160,14 @@ class DataManager(BlocksManager):
         """
         data = []
         blocks = self.readBlocks(table_name) 
-        print("Blocks metadata read:", blocks)  
+
+        #NOTE - Delete this
+        # print("Blocks metadata read:", blocks)  
         
         try:
             for block_index, (offset, num_rows) in enumerate(blocks):
-                print(f"Membaca blok ke-{block_index + 1}, Offset: {offset}, Jumlah baris: {num_rows}")
+                #NOTE - Delete this
+                # print(f"Membaca blok ke-{block_index + 1}, Offset: {offset}, Jumlah baris: {num_rows}")
 
                 block_data, _ = self.readBlockByOffset(table_name, block_index, schema, offset, num_rows)
 
@@ -198,7 +203,10 @@ class DataManager(BlocksManager):
         final_data : list[tuple[int, list]]= []
         # Read the block data
         for block_index, (offset, num_rows) in enumerate(blocks):
-            print(f"Membaca blok ke-{block_index + 1}, Offset: {offset}, Jumlah baris: {num_rows}")
+
+            #NOTE - Delete this
+            # print(f"Membaca blok ke-{block_index + 1}, Offset: {offset}, Jumlah baris: {num_rows}")
+            
             block_data, amount = self.readBlockByOffset(table_name, block_index, schema, offset, num_rows)
             final_data.append((amount, block_data))
 

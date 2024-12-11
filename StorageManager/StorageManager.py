@@ -6,16 +6,18 @@ from StorageManager.objects.Statistics import Statistics
 from StorageManager.manager.TableManager import TableManager
 from StorageManager.manager.IndexManager import IndexManager
 from QueryOptimizer.QueryTree import QueryTree
-# from Serializer import *
 from StorageManager.objects.Rows import Rows
-
+from functools import reduce
 from FailureRecovery.FailureRecovery import FailureRecovery 
 import os
 
 class StorageManager:
 
     def __init__(self) -> None:
-        pass
+        self.indexinfo = []
+        
+
+    
     
     def readBlock(self, data_retrieval: DataRetrieval) -> Rows:
         """
@@ -24,67 +26,157 @@ class StorageManager:
         Args:
             data_retrieval: Object containing data to help determine which data to be retrieved from hard disk.
         """
-    
-        
-        """
-        tolong di adjust sama mekanisme kalian -rafi
-        """
-        failureRecovery = FailureRecovery()
-        rows = failureRecovery.buffer.retrieveData(data_retrieval)
+        #Fungsi bantu index ranging
+        def process_ranges_with_column(conditions): 
+            from functools import reduce
 
-        print("Inside StorageManager.readblock()")
-        
-        if rows is not None:
-            # print("     Rows from buffer: ", rows)
-            return rows
-        else:
-            print("     Rows from buffer is empty\n")
-    
-        
-                
-        serializer = TableManager()
-        index_manager = IndexManager()
-        all_filtered_data: Rows = []
+            def generate_range(start, end, operator):
+                """Menghasilkan range berdasarkan operator."""
+                if operator == '>' or operator == '>=':
+                    return list(range(start , end + 1)) 
+                elif operator == '<' or operator == '<=':
+                    return list(range(0, start + 1))  
+                else:
+                    raise ValueError(f"Operator {operator} tidak valid")
 
-        for table_name in data_retrieval.table:  # (support for join in the future)
+            column_groups = {}
+            for start, end, operator, column in conditions:
+                if column not in column_groups:
+                    column_groups[column] = []
+                column_groups[column].append(generate_range(start, end, operator))
+
+            result = {}
+            for column, ranges in column_groups.items():
+                if ranges:
+                    intersect_result = sorted(reduce(lambda x, y: list(set(x) & set(y)), ranges))
+                    if intersect_result:
+                        result[column] = intersect_result  
+                    else:
+                        result[column] = sorted(list(set().union(*ranges)))
+
+            return result        
+        
+        def retrieve_indexed_data(data_retrieval : DataRetrieval, table_name: str, index_manager : IndexManager, serializer : TableManager) -> Rows:
+            """
+            Helper method to retrieve data using indexes.
+
+            Args:
+                data_retrieval: Object containing the conditions and other data to retrieve.
+                table_name: The name of the table being queried.
+
+            Returns:
+                A list of rows retrieved using indexes.
+            """
             indexed_rows = []
-            use_index = False
+            ranged_indexed_id = []
 
+            # Filter indexable conditions
             indexable_conditions = [
-                condition for condition in data_retrieval.conditions if condition.operation  in ["=", ">","<"]
+                condition for condition in data_retrieval.conditions if condition.operation in ["=", ">", "<", "<=", ">="]
             ]
 
-            for condition in indexable_conditions:
+            
+            for i, condition in enumerate(indexable_conditions):
+                # print(f"-=-=-=--=-=-=Condition-{i} yaitu {condition}--=-=-=-=-=-=-=-=--==")
                 index = index_manager.readIndex(table_name, condition.column)
-                if index:  # Use index if available
+                if not index:
+                    # print(f"Tidak ditemukan index di column {condition.column}")
+                    continue
+
+                if condition.operation == "=":
+                    # print("Operasi EQUAL ditemukan")
                     block_id = index.search(condition.operand)
                     if block_id is not None:
                         block_data = serializer.readBlockIndex(table_name, block_id)
+                        # print("BLock data equal" , block_data)
                         indexed_rows.extend(block_data)
-                        use_index = True
+                elif condition.operation in ['>', '<', '>=', '<=']:
+                    # print("Operasi RANGE ditemukan")
+                    block_id = index.search(condition.operand)
+                    ranged_indexed_id.append([block_id, len(index), condition.operation, condition.column])
 
-            if use_index and indexed_rows: 
-                print("Pencarian menggunakan index")
-                cond_filtered_data = serializer.applyConditions(indexed_rows, data_retrieval)
+            # Process ranges if applicable
+            ranged_indexed_id = process_ranges_with_column(ranged_indexed_id)
+            for column in ranged_indexed_id:
+                if ranged_indexed_id[column]:
+                    for i in ranged_indexed_id[column]:
+                        block_data = serializer.readBlockIndex(table_name, i)
+                        indexed_rows.extend(block_data)
+
+            return Rows(indexed_rows)
     
-            else: 
-                print("Pencarian tidak menggunakan index,baca semua blok")
-                data = serializer.readTable(table_name)
-                cond_filtered_data = serializer.applyConditions(data, data_retrieval)
     
-           
-            column_filtered_data = serializer.filterColumns(cond_filtered_data, data_retrieval.column)
-            # print("\n\nFrom StorageManager: column_filtered_data", column_filtered_data)
-            all_filtered_data.extend(column_filtered_data)
-            
-        print("all filtered data", all_filtered_data)
-            
+        failureRecovery = FailureRecovery()
+        # rows = failureRecovery.buffer.retrieveData(data_retrieval)
+        # # print("Inside StorageManager.readblock()")
         
+        # if rows is not None:
+        #     # print("     Rows from buffer: ", rows)
+        #     return rows
+        # else:
+        #     print("     Rows from buffer is empty\n")
+                
+        serializer = TableManager()
+        index_manager = IndexManager()
+        all_filtered_data = Rows([])
+        table_name = data_retrieval.table[0] # 1 tabel aja , tak ada join disini
+        indexed_rows : Rows = []
+
+        #Kalo condisi kosong, return semua data sesuai colomn
+        if(not len(data_retrieval.conditions)):
+            data = serializer.readTable(table_name)
+            column_filtered_data = serializer.filterColumns(data, data_retrieval.column)
+            #NOTE - Delete this
+            # print(column_filtered_data)
+            return column_filtered_data
+
+            
+
+        #Cek dulu, ada gk condisi yang pake column yang gk ada index
+        for cond in data_retrieval.conditions:
+            #NOTE - Delete this
+            # print(cond)
+            index = index_manager.readIndex(table_name, cond.column)
+            if(not index):
+                all_filtered_data.setIndex(None)
+                continue
+            if(index.column not in self.indexinfo):
+                self.indexinfo.append(index.column)
+            all_filtered_data.setIndex(cond.column)
+            
+        # Read indexed rows
+        if(all_filtered_data.isIndexed()):
+            indexed_rows = retrieve_indexed_data(data_retrieval, table_name, index_manager, serializer)
+
+        #NOTE - Delete this
+        # print(indexed_rows)
+        if  indexed_rows:  #cek (indexed_rows) harus ada hasil, antisipasi bener bener index digunakan pada column tidak cocok
+            #NOTE - Delete this
+            # print("Pencarian menggunakan index")
+            
+            cond_filtered_data = indexed_rows
+
+        else: 
+            #NOTE - Delete this
+            # print("Pencarian tidak menggunakan index,baca semua blok")
+            data = serializer.readTable(table_name)
+            
+            cond_filtered_data = serializer.applyConditions(data, data_retrieval)
+
+        
+        column_filtered_data = serializer.filterColumns(cond_filtered_data, data_retrieval.column)
+        all_filtered_data.extend(column_filtered_data)
+        #NOTE - Delete this
+        # print("all filtered data", all_filtered_data)
         # write to buffer in failureRecovery
-        failureRecovery.buffer.writeData(rows=cond_filtered_data, dataRetrieval=data_retrieval)
-        
-        return all_filtered_data
 
+        #NOTE - Delete this
+        # print("Index info: ", self.indexinfo)
+        failureRecovery.buffer.writeData(rows=cond_filtered_data, dataRetrieval=data_retrieval)
+        # failureRecovery.buffer.writeData(rows=cond_filtered_data, dataRetrieval=data_retrieval,self.indexinfo)
+
+
+        return all_filtered_data
 
 
     def writeBlock(self ,data_write: DataWrite) -> int:
@@ -99,7 +191,7 @@ class StorageManager:
         table_name = data_write.selected_table
         new_data = data_write.new_value
 
-        def replace_data(self, old_data, new_data, filtered_old_data):
+        def replace_data(old_data, new_data, filtered_old_data):
             if len(new_data) != len(filtered_old_data):
                 raise ValueError("new_data and filtered_old_data must have the same length.")
 
@@ -131,6 +223,7 @@ class StorageManager:
             return new_data.__len__()
         else:
             return table_manager.appendData(table_name, new_data)
+
         
     def deleteBlock(self, data_deletion : DataDeletion) -> int:
         """
@@ -143,38 +236,46 @@ class StorageManager:
         serializer = TableManager()
         index_manager = IndexManager()
 
-        use_index = False
+        use_index = False # Indexing Flag
+        indexed_column = None # Store column that has index
+
+        cond_filtered_data : Rows= ""
         
-        indexed_rows = []
-        indexable_conditions = [
-            condition for condition in data_deletion.conditions if condition.operation in ["=", ">", "<"]
-        ]
-
-        for condition in indexable_conditions:
-            index = index_manager.readIndex(table_name=data_deletion.table, column=condition.column)
-
-            if index:
-                block_id = index.search(condition.operand)
-                if block_id is not None:
-                    block_data = serializer.readBlockIndex(table_name=data_deletion.table,block_index= block_id)
-                    indexed_rows.extend(block_data)
-                    use_index = True
-        cond_filtered_data = ""
-        data = ""
         data = serializer.readTable(data_deletion.table)
-        if use_index and indexed_rows: 
-            print("Pencarian menggunakan index")
-            cond_filtered_data = serializer.applyConditions(indexed_rows, data_deletion)
-        else: 
-            cond_filtered_data = serializer.applyConditions(data, data_deletion)
+        
+        #Cek dulu, ada gk condisi yang pake column yang gk ada index
+        for cond in data_deletion.conditions:
+            index = index_manager.readIndex(data_deletion.table, cond.column)
+            data.setIndex(cond.column)
+            if(not index):
+                data.setIndex(None)
+                break
+
+        data_retrieval = DataRetrieval([data_deletion.table],[],data_deletion.conditions)
+        cond_filtered_data = self.readBlock(data_retrieval)
 
         # Filtereed table based on condition
         schema = serializer.readSchema(data_deletion.table)
         
+        #NOTE - Delete this
+        # print("TEST READ: ")
+        # print(cond_filtered_data)
+        # print("BLABLABLA")
+
+        
         # Create new data that doesn't contain filtered table
         newData = data.getRowsNotMatching(cond_filtered_data)
-        serializer.writeTable(data_deletion.table, newData ,schema)
-        return newData.__len__()
+
+        #NOTE - Add this functionality if buffer wanna be used
+        # FailureRecovery._instance.buffer.deleteData(newData)
+
+        #NOTE - Use this to delete from physical data
+        serializer.writeTable(data_deletion.table, newData, schema)
+        if(use_index):
+            index_manager.writeIndex(data_deletion.table, indexed_column)
+        
+        # get the amount of dat that is deleted
+        return cond_filtered_data.__len__()
 
 
     def setIndex(self, table : str, column : str, index_type : str) -> None:
@@ -186,7 +287,7 @@ class StorageManager:
             column : certain column to be given index
             index_type: type of index (B+ Tree or Hash)
         """
-        if(index_type == "Hash"):
+        if(index_type.lower() == "hash"):
             indexManager = IndexManager()
             indexManager.writeIndex(table, column)
         else:
@@ -201,7 +302,9 @@ class StorageManager:
         current_dir = os.path.dirname(os.path.abspath(__file__)) 
         storage_dir = os.path.join(current_dir, path_name) 
         storage_dir = os.path.abspath(storage_dir)  
-        print(storage_dir)
+
+        #NOTE - Delete this
+        # print(storage_dir)
         all_stats = {}
 
         # Check all tables in the directory
@@ -248,80 +351,63 @@ class StorageManager:
         # Buat dan return objek Statistik
         return Statistics(n_r=n_r, b_r=b_r, l_r=l_r, f_r=f_r, V_a_r=V_a_r)
     
-    def query_tree_to_data_retrieval(self, query_tree: QueryTree) -> DataRetrieval:
+    def merge_data(self, buffer_rows, physical_storage):
         """
-        Convert QueryTree object to DataRetrieval object with proper handling of joins, where conditions, and tables.
+        Menggabungkan data antara buffer dan storage fisik menggunakan atribut pertama sebagai key_column.
+
+        Args:
+            buffer_rows (list[list]): Data yang ada di buffer.
+            physical_storage (list[list]): Data yang ada di storage fisik.
+
+        Returns:
+            list[list]: Data terbaru yang telah digabungkan.
         """
-        tables = []
-        columns = []
-        where_conditions = []  # To store WHERE conditions
-        join_conditions = []   # To store JOIN conditions
-        processed_tables = set()  # To track processed tables 
+        if not buffer_rows and not physical_storage:
+            raise ValueError("Buffer rows and physical storage cannot both be empty")
 
-        def traverse_tree(node: QueryTree, connector: str = None):
-            """
-            Recursively traverse the QueryTree object to extract tables, columns, and conditions.
-            """
-            nonlocal tables, columns, where_conditions, join_conditions, processed_tables
+        # Gunakan kolom pertama sebagai key_column
+        key_column_index = 0
 
-            if node.node_type == "SELECT":
-                columns.extend(node.val) if node.val[0] != "*" else columns.extend([])
-            elif node.node_type == "FROM":
-                # Add tables from the FROM clause
-                for table in node.val:
-                    if table not in processed_tables:
-                        tables.append(table)
-                        processed_tables.add(table)
+        # Buat dictionary dari physical storage untuk akses cepat berdasarkan key_column
+        storage_dict = {row[key_column_index]: row for row in physical_storage}
 
-            elif node.node_type == "WHERE":
-                if len(node.val) == 3:
-                    # Simple WHERE condition
-                    column, operation, operand = node.val
-                    where_conditions.append(Condition(column=column, operation=operation, operand=operand, connector=connector))
-                elif len(node.val) > 3:
-                    # Complex WHERE condition (OR)
-                    for i in range(0, len(node.val), 4):
-                        column, operation, operand = node.val[i:i+3]
-                        where_conditions.append(Condition(column=column, operation=operation, operand=operand, connector=connector))
-                        connector = "OR"
+        # Update dictionary dengan data dari buffer
+        for buffer_row in buffer_rows:
+            storage_dict[buffer_row[key_column_index]] = buffer_row  # Replace atau tambahkan
 
-            elif node.node_type == "JOIN":
-                # Handle Cross Join (no condition)
-                if len(node.val) == 0:
-                    if tuple(tables) not in processed_tables:  # Ensure CROSS JOIN is added only once
-                        join_conditions.append(JoinCondition(join_type="CROSS"))
-                        processed_tables.add(tuple(tables))
-                else:
-                    # Don't add a generic JOIN, only process ON conditions for JOIN
-                    pass
+        # Konversi dictionary kembali ke list
+        merged_data = list(storage_dict.values())
 
-            elif node.node_type == "TJOIN":
-                # Handle Natural Join or Join On with conditions
-                if len(node.val) == 0:
-                    # Natural Join (no condition)
-                    join_conditions.append(JoinCondition(join_type="NATURAL"))
-                else:
-                    # JOIN ON
-                    join_conditions.append(JoinCondition(join_type="ON", condition=node.val))
+        return merged_data
 
-                # Add tables involved in the JOIN
-                if node.children:
-                    for child in node.children:
-                        table_name = child.val[0]
-                        if table_name not in processed_tables:
-                            tables.append(table_name)
-                            processed_tables.add(table_name)
-
-            # Recursively process the child nodes
-            for child in node.children:
-                if child.node_type.startswith("Value"):  # Ensure only table nodes are added
-                    table_name = child.val[0]
-                    if table_name not in processed_tables:
-                        tables.append(table_name)
-                        processed_tables.add(table_name)
-
-                traverse_tree(child, connector="AND")
-
-        # Start traversing from the root of the QueryTree
-        traverse_tree(query_tree)
-        return DataRetrieval(table=tables, column=columns, conditions=where_conditions, join_conditions=join_conditions)
+        
+    def synchronize_storage(self):
+        """
+        Sinkronisasi antara buffer dan storage fisik.
+        """
+        #get buffer
+        failureRecovery = FailureRecovery()
+        tables = failureRecovery.buffer.getTables()
+        
+        #get table di physical storage dan bandingkan dengan buffer
+        serializer = TableManager()
+        for table in tables:
+            # get header and rows from buffer
+            buffer_rows =[]
+            for row in table.rows:
+                buffer_rows.append(row)
+                
+            # get data from physical storage
+            schema = serializer.readSchema(table.table_name)
+            data = serializer.readTable(table.table_name)
+            data_array = [[row[col[0]] for col in schema] for row in data]
+            
+            # merge data
+            new_data = self.merge_data(buffer_rows, data_array)
+            
+            # write new data to physical storage
+            serializer.writeTable(table.table_name, new_data, schema)
+            
+        #Call checkpoint from failure recovery
+        failureRecovery.save_checkpoint()
+        return None
