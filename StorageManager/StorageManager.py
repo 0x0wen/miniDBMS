@@ -90,7 +90,8 @@ class StorageManager:
                 elif condition.operation in ['>', '<', '>=', '<=']:
                     # print("Operasi RANGE ditemukan")
                     block_id = index.search(condition.operand)
-                    ranged_indexed_id.append([block_id, len(index), condition.operation, condition.column])
+                    if(block_id != -1): # Kalo gk ada
+                        ranged_indexed_id.append([block_id, len(index), condition.operation, condition.column])
 
             # Process ranges if applicable
             ranged_indexed_id = process_ranges_with_column(ranged_indexed_id)
@@ -122,11 +123,13 @@ class StorageManager:
         for cond in data_retrieval.conditions:
             #NOTE - Delete this
             index = index_manager.readIndex(table_name, cond.column)
+            # print(f"is {cond.column}indexed: ", index_manager.isIndexed(table_name,cond.column))
             if(not index):
                 all_filtered_data.setIndex(None)
                 continue
             if(index.column not in indexinfo):
                 indexinfo.append(index.column)
+                
             all_filtered_data.setIndex(cond.column)
             
         # Read indexed rows
@@ -146,7 +149,7 @@ class StorageManager:
         all_filtered_data.extend(column_filtered_data)
 
 
-
+        # print("Index info: ", indexinfo)
         # write to buffer in failureRecovery
         failureRecovery = FailureRecovery()
         failureRecovery.buffer.writeData(rows=cond_filtered_data, dataRetrieval=data_retrieval, primaryKey=indexinfo)

@@ -23,6 +23,9 @@ class IndexManager(DataManager):
         full_path = self.path_name  + index_filename
         if not os.path.exists(full_path) or not self.isIndexed(table_name, column):
             return None  # Return None if index is not available
+        
+        if not self.isIndexed(table_name, column):
+            return None
 
         with open(full_path, 'rb') as index_file:
             while True:
@@ -113,9 +116,10 @@ class IndexManager(DataManager):
                     continue
 
                 # Check if column matches
-                if column.__eq__(column_name_data):
+                if column == column_name_data.decode('utf-8'):
+                    # print(f"Match! antara {column} dengan {column_name_data}")
                     return True
-                
+                                
         # No matching column is found
         return False
     def deleteIndex(self, table_name):
