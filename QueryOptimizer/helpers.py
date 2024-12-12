@@ -15,4 +15,4 @@ def isAlphanumericWithQuotes(string):
     :param string: The string to check.
     :return: True if the string matches the pattern, False otherwise.
     """
-    return bool(re.fullmatch(r"[a-zA-Z0-9'\"]+|[0-9]+\.[0-9]+", string))
+    return bool(re.fullmatch(r"[a-zA-Z0-9'_]+(?:_[a-zA-Z0-9'_]+)*|[0-9]+\.[0-9]+", string))
