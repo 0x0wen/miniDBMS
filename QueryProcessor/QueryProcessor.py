@@ -67,10 +67,11 @@ class QueryProcessor:
     def check_transaction_course(self, query, client_id):
         # BEGIN OPTIMIZING
         optimized_query = []
+        statistics = self.storage_manager.getStats()
         for q in query:
             query_without_aliases, alias_map = self.remove_aliases(q)
             optimized_query.append(
-                self.optimization_engine.optimizeQuery(self.optimization_engine.parseQuery(q)))
+                self.optimization_engine.optimizeQuery(self.optimization_engine.parseQuery(q, statistics), statistics))
                 # self.optimization_engine.optimizeQuery(self.optimization_engine.parseQuery(query_without_aliases)))
         # END OPTIMIZING
         print("optimized querynya adalah")
