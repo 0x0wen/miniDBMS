@@ -119,7 +119,6 @@ class StorageManager:
             
 
         #Cek dulu, ada gk condisi yang pake column yang gk ada index
-        indexinfo = []
         for cond in data_retrieval.conditions:
             #NOTE - Delete this
             index = index_manager.readIndex(table_name, cond.column)
@@ -127,11 +126,10 @@ class StorageManager:
             if(not index):
                 all_filtered_data.setIndex(None)
                 continue
-            if(index.column not in indexinfo):
-                indexinfo.append(index.column)
                 
             all_filtered_data.setIndex(cond.column)
-            
+        
+
         # Read indexed rows
         if(all_filtered_data.isIndexed()):
             indexed_rows = retrieve_indexed_data(data_retrieval, table_name, index_manager, serializer)
@@ -149,10 +147,11 @@ class StorageManager:
         all_filtered_data.extend(column_filtered_data)
 
 
-        # print("Index info: ", indexinfo)
         # write to buffer in failureRecovery
         # failureRecovery = FailureRecovery()
-        # failureRecovery.buffer.writeData(rows=cond_filtered_data, dataRetrieval=data_retrieval,indexinfo)
+        PK = serializer.getPrimaryKey(table_name)
+        print(PK)
+        # failureRecovery.buffer.writeData(rows=cond_filtered_data, dataRetrieval=data_retrieval,PK)
         # rows = failureRecovery.buffer.retrieveData(data_retrieval)
         # return rows    
         return all_filtered_data
