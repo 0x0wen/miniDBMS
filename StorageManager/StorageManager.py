@@ -85,12 +85,12 @@ class StorageManager:
                     block_id = index.search(condition.operand)
                     if block_id is not None:
                         block_data = serializer.readBlockIndex(table_name, block_id)
-                        # print("BLock data equal" , block_data)
                         indexed_rows.extend(block_data)
                 elif condition.operation in ['>', '<', '>=', '<=']:
                     # print("Operasi RANGE ditemukan")
                     block_id = index.search(condition.operand)
-                    ranged_indexed_id.append([block_id, len(index), condition.operation, condition.column])
+                    if(block_id != -1): # Kalo gk ada
+                        ranged_indexed_id.append([block_id, len(index), condition.operation, condition.column])
 
             # Process ranges if applicable
             ranged_indexed_id = process_ranges_with_column(ranged_indexed_id)
@@ -106,7 +106,7 @@ class StorageManager:
         serializer = TableManager()
         index_manager = IndexManager()
         all_filtered_data = Rows([])
-        table_name = data_retrieval.table[0] # 1 tabel aja , tak ada join disini
+        table_name = data_retrieval.table[0] 
         indexed_rows : Rows = []
 
         #Kalo condisi kosong, return semua data sesuai colomn
@@ -118,22 +118,21 @@ class StorageManager:
             
 
         #Cek dulu, ada gk condisi yang pake column yang gk ada index
-        indexinfo = []
         for cond in data_retrieval.conditions:
             #NOTE - Delete this
             index = index_manager.readIndex(table_name, cond.column)
+            # print(f"is {cond.column}indexed: ", index_manager.isIndexed(table_name,cond.column))
             if(not index):
                 all_filtered_data.setIndex(None)
                 continue
-            if(index.column not in indexinfo):
-                indexinfo.append(index.column)
+                
             all_filtered_data.setIndex(cond.column)
-            
+        
+
         # Read indexed rows
         if(all_filtered_data.isIndexed()):
             indexed_rows = retrieve_indexed_data(data_retrieval, table_name, index_manager, serializer)
 
-        #NOTE - Delete this
         if  indexed_rows:  #cek (indexed_rows) harus ada hasil, antisipasi bener bener index digunakan pada column tidak cocok
             cond_filtered_data = serializer.applyConditions(indexed_rows,data_retrieval)
 
@@ -146,10 +145,10 @@ class StorageManager:
         all_filtered_data.extend(column_filtered_data)
 
 
-
         # write to buffer in failureRecovery
         failureRecovery = FailureRecovery()
-        failureRecovery.buffer.writeData(rows=cond_filtered_data, dataRetrieval=data_retrieval, primaryKey=indexinfo)
+        PK = serializer.getPrimaryKey(table_name)
+        failureRecovery.buffer.writeData(rows=cond_filtered_data, dataRetrieval=data_retrieval,primaryKey=PK)
         rows = failureRecovery.buffer.retrieveData(data_retrieval)
         return rows    
         # return all_filtered_data

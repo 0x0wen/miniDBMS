@@ -102,6 +102,29 @@ class TestReadBlock(unittest.TestCase):
             self.assertIn('coursename', record)
             self.assertNotIn('year', record)  # Kolom 'year' tidak boleh ada
 
+    def test_year_in_range(self):
+            self.table_creator.resetTable()
+            # Retrieve all rows and select only the 'year' column
+            data_ret = DataRetrieval(
+                table=["course"],
+                column=['year'],
+                conditions=[
+                    Condition(column="year", operation=">", operand='2010', connector=None),
+                    Condition(column="year", operation="<", operand='2020', connector="AND"),
+
+                ]
+            )
+            result = self.sm.readBlock(data_ret)
+
+            print("Hasil Test Year in Range")
+            print(result)
+
+            # Assert all 'year' values are within the range [2010, 2020]
+            for record in result:
+                year = record.get('year')
+                self.assertIsNotNone(year, "Year value is missing")
+                self.assertTrue(2010 <= year <= 2020, f"Year {year} out of range [2010, 2020]")
+
 
 if __name__ == "__main__":
     unittest.main()

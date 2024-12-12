@@ -63,66 +63,25 @@ class QueryProcessor:
             
         print(' '.join(tokens))
         return ' '.join(tokens), alias_map
-    
-    def check_transaction_course(self, query, client_id):
-        # BEGIN OPTIMIZING
-        optimized_query = []
-        for q in query:
-            query_without_aliases, alias_map = self.remove_aliases(q)
-            optimized_query.append(
-                self.optimization_engine.optimizeQuery(self.optimization_engine.parseQuery(q)))
-                # self.optimization_engine.optimizeQuery(self.optimization_engine.parseQuery(query_without_aliases)))
-        # END OPTIMIZING
-        print("optimized querynya adalah")
-        for q in optimized_query:
-            print(q.query_tree)
 
-        # BEGIN CONCURRENCY CONTROL
-        # Get transaction ID
-        transaction_id = self.concurrent_manager.beginTransaction()
-        print(f"Transaction ID: {transaction_id}")
-
-        # Generate Rows object from optimized query
-        print("atas")
-        rows = self.generate_rows_from_query_tree(optimized_query, transaction_id)
-        print("bawah")
-        print(rows.data)
-
-        # validate and Log the transaction
-        for row_data in rows.data:
-            # Create a Rows object with a single row of data
-            single_row = Rows([row_data])
-
-            # Create an Action object based on the first character of the row string
-            row_string = single_row.data[0]
-            action_type = "read" if row_string[0] == 'R' else "write"
-            action = Action([action_type])
-            self.concurrent_manager.two_phase_lock.logObject(single_row, transaction_id)
-            response = self.concurrent_manager.two_phase_lock.validate(single_row, transaction_id, action)
-        # END CONCURRENCY CONTROL
-
-        return optimized_query, client_id, transaction_id, response
-
-    def execute_query(self, optimized_query, client_id, transaction_id) -> List:
-        results = []
+    def execute_query(self, optimized_query, client_id, transaction_id) -> List: # execute single query
         send_to_client = ""
         print("client id: ", client_id)
-        for query in optimized_query:
-            query_tree = query.query_tree
-            if query_tree.node_type == "SELECT":
-                send_to_client += self.format_results_as_table(self.query_tree_to_results(query_tree))
-                print("isi send to client\n", send_to_client)
-            elif query_tree.node_type == "UPDATE":
-                old_rows, new_rows, table_name = self.query_tree_to_update_operations(query_tree)
-                send_to_client = send_to_client + "UPDATED " + str(len(new_rows)) + " ROWS"
-                self.send_to_failure_recovery(transaction_id, old_rows, new_rows, table_name, results)
+        query_tree = optimized_query.query_tree
+        if query_tree.node_type == "SELECT":
+            send_to_client += self.format_results_as_table(self.query_tree_to_results(query_tree))
+            print("isi send to client\n", send_to_client)
+        elif query_tree.node_type == "UPDATE":
+            old_rows, new_rows, table_name = self.query_tree_to_update_operations(query_tree)
+            send_to_client = send_to_client + "UPDATED " + str(len(new_rows)) + " ROWS"
+            self.send_to_failure_recovery(transaction_id, old_rows, new_rows, table_name)
     
         # self.concurrent_manager.endTransaction(transaction_id)
         # print("ini yg dikirim ke klien")
         # print(send_to_client)
-        return send_to_client, results
+        return send_to_client
 
-    def send_to_failure_recovery(self, transaction_id, old_rows, new_rows, table_name, results):
+    def send_to_failure_recovery(self, transaction_id, old_rows, new_rows, table_name):
         """
         Send data to FailureRecovery to store it into the buffer.
         """
@@ -134,7 +93,6 @@ class QueryProcessor:
             data_after=new_rows,
             table_name=table_name
         )
-        results.append(execution_result)
         self.failure_recovery.write_log(execution_result)
 
     def generate_rows_from_query_tree(self, optimized_query: List, transaction_id: int) -> Rows:
@@ -299,7 +257,7 @@ class QueryProcessor:
     def query_tree_to_results(self, qt: QueryTree):
         if qt.node_type == "SELECT":
             list_of_data_retrievals, tables = self.query_tree_to_data_retrievals(qt)
-            # print("list of data", list_of_data_retrievals)
+            print("list of data retrievals", list_of_data_retrievals)
             # print("table", tables)
             join_operations = self.get_join_operations(qt)
             results = {}
@@ -314,7 +272,7 @@ class QueryProcessor:
                 after_join = self.apply_join_operation(join_operations, results)
             else:
                 after_join = results[qt.children[0].val[0]]
-            print(after_join)
+            print("after join: ", after_join)
 
             if qt.val[0] == "*":
                 all_column = list(after_join[0].keys())
@@ -484,6 +442,7 @@ class QueryProcessor:
         table_name = table
 
         # Kalo querynya UPDATE user2 SET harga = 15000, desk = 'data999' WHERE id = 99;
+        # update course set coursename = "berubah" where year > 2016;
         print("Old rows:", old_rows) # [{'id': 99, 'umur': 'data99', 'harga': 34.75, 'desk': 'desk99'}]
         print("New rows:", new_rows) # [{'id': 99, 'umur': 'data99', 'harga': 15000.0, 'desk': 'data999'}]
         print("Table name:", table_name) # user2
