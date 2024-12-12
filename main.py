@@ -70,9 +70,10 @@ qo = OptimizationEngine()
 query_tree = qo.optimizeQuery(qo.parseQuery(input("masukin query\n"))).query_tree
 print("qt nya ini\n", query_tree)
 
-results = qp.query_tree_to_results(query_tree)
-print("coba results")
-print(results)
+# results = qp.query_tree_to_results(query_tree)
+qp.query_tree_to_update_operations(query_tree)
+# print("coba results")
+# print(results)
 
 
     # qp.query_tree_to_results(query_tree)
