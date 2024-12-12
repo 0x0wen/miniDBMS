@@ -184,3 +184,15 @@ class TableManager(DataManager):
             for row in data
         ])
         return data_with_schema
+
+
+    def getPrimaryKey(self,file_name):
+        indexmanager = IndexManager()
+        PK = []
+        schema = self.readSchema(file_name)
+        column_names = [column_name for column_name,_,_ in schema]
+        for column in column_names:
+            if(indexmanager.isIndexed(file_name,column)):
+                PK.append(column)
+
+        return PK
