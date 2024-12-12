@@ -152,6 +152,7 @@ class StorageManager:
         # print("Index info: ", indexinfo)
         # write to buffer in failureRecovery
         failureRecovery = FailureRecovery()
+        print("indexinfo", indexinfo)
         failureRecovery.buffer.writeData(rows=cond_filtered_data, dataRetrieval=data_retrieval, primaryKey=indexinfo)
         rows = failureRecovery.buffer.retrieveData(data_retrieval)
         return rows    
