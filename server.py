@@ -69,7 +69,7 @@ class Server:
     def run_all(self, queries, client_id, client_socket):
         rows_data, optimized_query = self.generate_rows(queries, client_id)
         print("isi dict trans id to client id", self.transactionid_to_clientid)
-        print("isi dict client id to trans id", self.transactionid_to_clientid)
+        print("isi dict client id to trans id", self.clientid_to_transactionid)
         for row_data, single_query in zip(rows_data, optimized_query):
             # Create a Rows object with a single row of data
             single_row = Rows([row_data])
