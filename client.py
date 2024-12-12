@@ -56,9 +56,9 @@ class Client:
             return ""
 
     def start(self):
-        if not self.is_port_open():
-            print(f"Port {self.port} is not open. Exiting.")
-            return
+        # if not self.is_port_open():
+        #     print(f"Port {self.port} is not open. Exiting.")
+        #     return
 
         print(f"Connecting to {self.host} on port {self.port}...")
         self.client_socket.connect((self.host, self.port))

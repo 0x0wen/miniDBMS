@@ -147,9 +147,8 @@ class StorageManager:
 
         # write to buffer in failureRecovery
         # failureRecovery = FailureRecovery()
-        PK = serializer.getPrimaryKey(table_name)
-        # print(PK)
-        # failureRecovery.buffer.writeData(rows=cond_filtered_data, dataRetrieval=data_retrieval,PK)
+        # PK = serializer.getPrimaryKey(table_name)
+        # failureRecovery.buffer.writeData(rows=cond_filtered_data, dataRetrieval=data_retrieval,primaryKey=PK)
         # rows = failureRecovery.buffer.retrieveData(data_retrieval)
         # return rows    
         return all_filtered_data
