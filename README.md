@@ -27,4 +27,4 @@ Developed by Amazing RDS, a team of 25.
 
 ## Known Bug
 
-- Can't join more than two tables
+- hunting dulu bro
