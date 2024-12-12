@@ -148,11 +148,11 @@ class StorageManager:
 
 
         # write to buffer in failureRecovery
-        # failureRecovery = FailureRecovery()
-        # failureRecovery.buffer.writeData(rows=cond_filtered_data, dataRetrieval=data_retrieval,indexinfo)
-        # rows = failureRecovery.buffer.retrieveData(data_retrieval)
-        # return rows    
-        return all_filtered_data
+        failureRecovery = FailureRecovery()
+        failureRecovery.buffer.writeData(rows=cond_filtered_data, dataRetrieval=data_retrieval, primaryKey=indexinfo)
+        rows = failureRecovery.buffer.retrieveData(data_retrieval)
+        return rows    
+        # return all_filtered_data
 
 
     def writeBlock(self ,data_write: DataWrite) -> int:
