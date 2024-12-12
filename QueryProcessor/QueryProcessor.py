@@ -324,6 +324,19 @@ class QueryProcessor:
         return after_select
     
     def apply_join_operation(self, jo: JoinOperation, results):
+        # Handle case ketika jo.tables memiliki JoinOperation
+        if isinstance(jo.tables[0], JoinOperation):
+            left_result = self.apply_join_operation(jo.tables[0], results)
+            left_table_name = "_".join(self.get_all_table_names(jo.tables[0]))
+            results[left_table_name] = left_result
+            jo.tables[0] = left_table_name
+
+        if isinstance(jo.tables[1], JoinOperation):
+            right_result = self.apply_join_operation(jo.tables[1], results)
+            right_table_name = "_".join(self.get_all_table_names(jo.tables[1]))
+            results[right_table_name] = right_result
+            jo.tables[1] = right_table_name
+
         result = []
         if jo.join_condition.join_type == "ON":
             for d1 in results[jo.tables[0]]:
@@ -334,8 +347,27 @@ class QueryProcessor:
                     for condition in jo.join_condition.condition:
                         if len(condition) == 3:
                             key1, operator, key2 = condition
+                            val1 = None
+                            val2 = None
+                            
+                            if key1 in d1:
+                                val1 = d1[key1]
+                            else:
+                                for k, v in d1.items():
+                                    if k.endswith(f".{key1}"):
+                                        val1 = v
+                                        break
+                                        
+                            if key2 in d2:
+                                val2 = d2[key2]
+                            else:
+                                for k, v in d2.items():
+                                    if k.endswith(f".{key2}"):
+                                        val2 = v
+                                        break
+                            
                             if operator == "=":
-                                if d1.get(key1) != d2.get(key2):
+                                if val1 != val2:
                                     match = False
                                     break
                         else:
@@ -349,10 +381,29 @@ class QueryProcessor:
                                     continue
                                 elif len(or_condition) == 3:
                                     key1, operator, key2 = or_condition
-                                    if operator == "=":
-                                        if d1.get(key1) == d2.get(key2):
-                                            match = True
-                                            break
+                                    val1 = None
+                                    val2 = None
+                                    
+                                    if key1 in d1:
+                                        val1 = d1[key1]
+                                    else:
+                                        for k, v in d1.items():
+                                            if k.endswith(f".{key1}"):
+                                                val1 = v
+                                                break
+                                                
+                                    if key2 in d2:
+                                        val2 = d2[key2]
+                                    else:
+                                        for k, v in d2.items():
+                                            if k.endswith(f".{key2}"):
+                                                val2 = v
+                                                break
+                                    
+                                    if operator == "=" and val1 == val2:
+                                        match = True
+                                        break
+                    
                     # Jika semua kondisi terpenuhi, gabungkan kedua dictionary
                     if match:
                         merged_dict = {
@@ -387,8 +438,18 @@ class QueryProcessor:
                         for key in common_keys:
                             merged_dict[key] = d1[key]
                         result.append(merged_dict)                   
-
+        print("crot")
         return result
+
+    def get_all_table_names(self, jo: JoinOperation) -> list:
+        """Helper function to get all table names from a JoinOperation"""
+        table_names = []
+        for table in jo.tables:
+            if isinstance(table, JoinOperation):
+                table_names.extend(self.get_all_table_names(table))
+            else:
+                table_names.append(table)
+        return table_names
 
     def apply_select(self, result, select_attributes):
         filtered_result = []
