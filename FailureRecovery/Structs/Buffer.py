@@ -75,8 +75,7 @@ class Buffer:
         table = self.getTable(table_name)
         
         for row in rows:
-            print(primaryKey)
-            if (not table.existsRowPrimaryKey(row, list(row.keys())[0])):
+            if (not table.existsRowPrimaryKey(row, primaryKey)):
                 table.addRow(Row(row))
 
         return True
