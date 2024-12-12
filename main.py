@@ -61,13 +61,16 @@
 from QueryOptimizer.QueryTree import QueryTree
 from QueryOptimizer.OptimizationEngine import  OptimizationEngine
 from QueryProcessor.QueryProcessor import QueryProcessor
+from StorageManager.StorageManager import StorageManager
 
 qp = QueryProcessor()
 qo = OptimizationEngine()
+sm = StorageManager()
+statistics = sm.getStats()
 # query = input("masukin query\n")
 
 # try: 
-query_tree = qo.optimizeQuery(qo.parseQuery(input("masukin query\n"))).query_tree
+query_tree = qo.optimizeQuery(qo.parseQuery(input("masukin query\n"), statistics), statistics).query_tree
 print("qt nya ini\n", query_tree)
 
 results = qp.query_tree_to_results(query_tree)
