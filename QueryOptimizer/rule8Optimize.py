@@ -87,6 +87,13 @@ def rule8(queryTree):
         cek1 = False
         cek2 = False
         
+        if tree.children[0] not in ["JOIN", "TJOIN", "Value1","Value2"]:
+            break
+        
+        if tree.children[1] not in ["JOIN", "TJOIN", "Value1","Value2"]:
+            break
+
+        
         if len(tree.children) > 0 and (tree.children[0].node_type != 'JOIN' and tree.children[0].node_type != 'TJOIN'):
             temp = QueryTree(node_type="SELECT", val=[item for item in uniqueList if tree.children[0].val[0]+'.' in item])
             if(len(temp.val) != 0):
