@@ -1,9 +1,10 @@
 from Interface.Rows import Rows
 from Interface.Action import Action
+from FailureRecovery.Structs.RecoverCriteria import RecoverCriteria
+from QueryProcessor.QueryProcessor import QueryProcessor
 import socket
 import time
 import threading
-from QueryProcessor.QueryProcessor import QueryProcessor
 
 class Server:
     def __init__(self, host="localhost", port=1235):
@@ -17,6 +18,8 @@ class Server:
         self.clients = {}  # Store client ID and (address, socket)
         self.transactionid_to_clientid = {}
         self.clientid_to_transactionid = {}
+        self.clientid_to_queries = {} # dictionary to store optimized query and its transaction id
+        self.clientid_to_clientsocket = {}
 
     def send_with_header(self, client_socket, message):
         """Send a message with a header indicating its length."""
@@ -62,6 +65,62 @@ class Server:
         print("bawah")
         print(rows.data)
         return rows.data, optimized_query
+    
+    def run_all(self, queries, client_id, client_socket):
+        rows_data, optimized_query = self.generate_rows(queries, client_id)
+        print("isi dict trans id to client id", self.transactionid_to_clientid)
+        print("isi dict client id to trans id", self.transactionid_to_clientid)
+        for row_data, single_query in zip(rows_data, optimized_query):
+            # Create a Rows object with a single row of data
+            single_row = Rows([row_data])
+
+            # Create an Action object based on the first character of the row string
+            row_string = single_row.data[0]
+            action_type = "read" if row_string[0] == 'R' else "write"
+            action = Action([action_type])
+            self.query_processor.concurrent_manager.two_phase_lock.logObject(single_row, self.clientid_to_transactionid[client_id])
+            response = self.query_processor.concurrent_manager.two_phase_lock.validate(single_row, self.clientid_to_transactionid[client_id], action)
+            print("response nya", response)
+
+            if response.response_action == "ALLOW":
+                # run directly
+                start_time = time.time()
+                send_to_client = self.query_processor.execute_query(single_query, client_id, self.clientid_to_transactionid[client_id])
+                execution_time = time.time() - start_time
+                send_to_client += (f"\nExecution Time: {execution_time:.3f} ms\n")
+                self.send_with_header(client_socket, send_to_client)
+                self.query_processor.concurrent_manager.two_phase_lock.end(self.clientid_to_transactionid[client_id])
+            elif response.response_action == "WAIT":
+                # letting other transaction run while continuously check for response change
+                while response.response_action != "ALLOW":
+                    response = self.query_processor.concurrent_manager.two_phase_lock.validate(single_row, self.clientid_to_transactionid[client_id], action)
+                start_time = time.time()
+                send_to_client = self.query_processor.execute_query(single_query, client_id, self.clientid_to_transactionid[client_id])
+                execution_time = time.time() - start_time
+                send_to_client += (f"\nExecution Time: {execution_time:.3f} ms\n")
+                self.send_with_header(client_socket, send_to_client)
+                self.query_processor.concurrent_manager.two_phase_lock.end(self.clientid_to_transactionid[client_id])
+            elif response.response_action == "WOUND":
+                # abort all changes on related transaction id
+                self.query_processor.failure_recovery.recover(RecoverCriteria(response.related_t_id))
+                # run current query
+                start_time = time.time()
+                send_to_client = self.query_processor.execute_query(single_query, client_id, self.clientid_to_transactionid[client_id])
+                execution_time = time.time() - start_time
+                send_to_client += (f"\nExecution Time: {execution_time:.3f} ms\n")
+                self.send_with_header(client_socket, send_to_client)
+                self.query_processor.concurrent_manager.two_phase_lock.end(self.clientid_to_transactionid[client_id])
+                # start over related transaction
+                self.run_all(self.clientid_to_queries[self.transactionid_to_clientid[response.related_t_id]], self.transactionid_to_clientid[response.related_t_id], self. clientid_to_clientsocket[self.transactionid_to_clientid[response.related_t_id]])
+
+
+        # after transaction done run this
+        if self.query_processor.failure_recovery.logManager.is_wal_full():
+            self.query_processor.storage_manager.synchronize_storage()
+            self.timer_event.set()  # restart timer 300 detik
+        # remove client id and transaction id map
+        self.clientid_to_transactionid = {}
+        self.transactionid_to_clientid = {}
 
     def handle_client(self, client_socket, client_id):
         try:
@@ -72,7 +131,7 @@ class Server:
                     continue
 
                 try:
-                    # Process queries
+                    # accept queries from user
                     queries = [query_input]
                     if query_input.upper().startswith("BEGIN TRANSACTION"):
                         while True:
@@ -82,42 +141,11 @@ class Server:
                             if query_input.upper() == "COMMIT":
                                 break
 
-                    rows_data, optimized_query = self.generate_rows(queries, client_id)
-                    print("isi dict trans id to client id", self.transactionid_to_clientid)
-                    print("isi dict client id to trans id", self.transactionid_to_clientid)
-                    for row_data, single_query in zip(rows_data, optimized_query):
-                        # Create a Rows object with a single row of data
-                        single_row = Rows([row_data])
-
-                        # Create an Action object based on the first character of the row string
-                        row_string = single_row.data[0]
-                        action_type = "read" if row_string[0] == 'R' else "write"
-                        action = Action([action_type])
-                        self.query_processor.concurrent_manager.two_phase_lock.logObject(single_row, self.clientid_to_transactionid[client_id])
-                        response = self.query_processor.concurrent_manager.two_phase_lock.validate(single_row, self.clientid_to_transactionid[client_id], action)
-                        print("response nya", response)
-
-                        if response.response_action == "ALLOW":
-                            start_time = time.time()
-                            send_to_client = self.query_processor.execute_query(single_query, client_id, self.clientid_to_transactionid[client_id])
-                            execution_time = time.time() - start_time
-                            send_to_client += (f"\nExecution Time: {execution_time:.3f} ms\n")
-                            self.send_with_header(client_socket, send_to_client)
-                            print(self.query_processor.concurrent_manager.two_phase_lock.end(self.clientid_to_transactionid[client_id]))
-
-                        # TODO: add handler for WOUND and WATI conditions
-
-
-                    # after transaction done run this
-                    if self.query_processor.failure_recovery.logManager.is_wal_full():
-                        self.query_processor.storage_manager.synchronize_storage()
-                        self.timer_event.set()  # restart timer 300 detik
-                    # remove client id and transaction id map
-                    self.clientid_to_transactionid = {}
-                    self.transactionid_to_clientid = {}
+                    # main function to run queries
+                    self.run_all(queries, client_id, client_socket)
 
                 except Exception as e:
-                    # Handle query errors without disconnecting the client
+                    # handle query errors without disconnecting the client
                     error_message = f"Error processing query: {e}\n"
                     self.send_with_header(client_socket, error_message)
         except Exception as e:
