@@ -1,3 +1,6 @@
+import traceback
+from logging import raiseExceptions
+
 from Interface.Rows import Rows
 from Interface.Action import Action
 from FailureRecovery.Structs.RecoverCriteria import RecoverCriteria
@@ -9,7 +12,7 @@ from collections import deque
 
 
 class Server:
-    def __init__(self, host="localhost", port=1235):
+    def __init__(self, host="localhost", port=1236):
         self.host = host
         self.port = port
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -61,14 +64,12 @@ class Server:
         # BEGIN CONCURRENCY CONTROL
         # Get transaction ID
         transaction_id = self.query_processor.concurrent_manager.beginTransaction()
-        print(f"Transaction ID: {transaction_id}")
         self.transactionid_to_clientid[transaction_id] = client_id
         self.clientid_to_transactionid[client_id] = transaction_id
-
+        print("Map client to trans: ", self.clientid_to_transactionid)
+        self.last_transaction_id = transaction_id
         # Generate Rows object from optimized query
-        print("atas")
         rows = self.query_processor.generate_rows_from_query_tree(optimized_query, transaction_id)
-        print("bawah")
         print(rows.data)
         return rows.data, optimized_query
 
@@ -97,9 +98,11 @@ class Server:
             row_string = single_row.data[0]
             action_type = "read" if row_string[0] == 'R' else "write"
             action = Action([action_type])
-            self.query_processor.concurrent_manager.logObject(single_row, self.clientid_to_transactionid[client_id])
+            print("Client id map:", self.clientid_to_transactionid)
+            this_transaction_id = self.clientid_to_transactionid[client_id] if client_id in self.clientid_to_transactionid else raiseExceptions("Client ID not found")
+            self.query_processor.concurrent_manager.logObject(single_row, this_transaction_id)
             response = self.query_processor.concurrent_manager.validateObject(single_row,
-                                                                              self.clientid_to_transactionid[client_id],
+                                                                              this_transaction_id,
                                                                               action)
             print("response nya", response, " saat query:", single_query)
             # print("dari query", single_query)
@@ -108,21 +111,18 @@ class Server:
             is_run = False
             for id_trans in self.transaction_map_of_deque:
                 if id_trans == response.related_t_id:
-                    print("transaction id ada di queue:", self.clientid_to_transactionid[client_id])
+                    print("transaction id ada di queue:", this_transaction_id)
                     if response.response_action == "ALLOW":
                         self.transaction_map_of_deque[id_trans].append(single_query)
                         while self.transaction_map_of_deque[id_trans]:
                             single_query = self.transaction_map_of_deque[id_trans].popleft()
                             self.query_processor.concurrent_manager.logObject(single_row,
-                                                                              self.clientid_to_transactionid[client_id])
-                            response = self.query_processor.concurrent_manager.validateObject(single_row,
-                                                                                              self.clientid_to_transactionid[
-                                                                                                  client_id], action)
+                                                                              this_transaction_id)
+                            response = self.query_processor.concurrent_manager.validateObject(single_row, this_transaction_id , action)
                             print("Transaksi ini responsenya", response)
                             start_time = time.time()
                             send_to_client = self.query_processor.execute_query(single_query, client_id,
-                                                                                self.clientid_to_transactionid[
-                                                                                    client_id])
+                                                                                this_transaction_id)
                             execution_time = time.time() - start_time
                             send_to_client += (f"\nExecution Time: {execution_time:.3f} ms\n")
                             self.send_with_header(client_socket, send_to_client)
@@ -139,18 +139,18 @@ class Server:
                 continue
 
             if response.response_action == "ALLOW":
-                print("transaction id yg allowed:", self.clientid_to_transactionid[client_id],
+                print("transaction id yg allowed:", this_transaction_id,
                       "related id di response:", response.related_t_id, "current id di response:",
                       response.current_t_id)
                 # print("ketika querynya:", single_query)
                 # run directly
                 start_time = time.time()
                 send_to_client = self.query_processor.execute_query(single_query, client_id,
-                                                                    self.clientid_to_transactionid[client_id])
+                                                                    this_transaction_id)
                 execution_time = time.time() - start_time
                 send_to_client += (f"\nExecution Time: {execution_time:.3f} ms\n")
                 self.send_with_header(client_socket, send_to_client)
-                # self.query_processor.concurrent_manager.end(self.clientid_to_transactionid[client_id])
+                # self.query_processor.concurrent_manager.end(this_transaction_id)
             elif response.response_action == "WAIT":
                 # Kalau wait maka transaksi ini harus menunggu transaksi lain
                 # Masukkan query transaksi ini ke dalam deque
@@ -176,17 +176,17 @@ class Server:
                 # self.send_with_header(client_socket, send_to_client)
                 # self.query_processor.concurrent_manager.end(self.clientid_to_transactionid[client_id])
             elif response.response_action == "WOUND":
-                print("transaction id yg wounded:", self.clientid_to_transactionid[client_id],
+                print("transaction id yg wounded:", this_transaction_id,
                       "related id di response:", response.related_t_id, "current id di response:",
                       response.current_t_id)
                 # print("ketika querynya:", single_query)
                 # abort all changes on related transaction id
                 self.query_processor.failure_recovery.recover(RecoverCriteria(transaction_id=response.current_t_id))
-                self.query_processor.concurrent_manager.end(response.current_t_id)
+                self.query_processor.concurrent_manager.endTransaction(response.current_t_id)
                 # run current query
                 start_time = time.time()
                 send_to_client = self.query_processor.execute_query(single_query, client_id,
-                                                                    self.clientid_to_transactionid[client_id])
+                                                                    this_transaction_id)
                 execution_time = time.time() - start_time
                 send_to_client += (f"\nExecution Time: {execution_time:.3f} ms\n")
                 self.send_with_header(client_socket, send_to_client)
@@ -197,16 +197,16 @@ class Server:
                              self.clientid_to_clientsocket[self.transactionid_to_clientid[response.related_t_id]])
 
         if end:
-            print("query", self.clientid_to_transactionid[client_id], "dah commit dan end")
-            self.query_processor.concurrent_manager.endTransaction(self.clientid_to_transactionid[client_id])
+            print("query", this_transaction_id, "dah commit dan end")
+            self.query_processor.concurrent_manager.endTransaction(this_transaction_id)
 
         # after transaction done run this
         if self.query_processor.failure_recovery.logManager.is_wal_full():
             self.query_processor.storage_manager.synchronize_storage()
             self.timer_event.set()  # restart timer 300 detik
         # remove client id and transaction id map
-        self.clientid_to_transactionid = {}
-        self.transactionid_to_clientid = {}
+        self.clientid_to_transactionid.pop(client_id)
+        self.transactionid_to_clientid.pop(this_transaction_id)
 
     def handle_client(self, client_socket, client_id):
         try:
@@ -234,7 +234,7 @@ class Server:
 
                 except Exception as e:
                     # handle query errors without disconnecting the client
-                    error_message = f"Error processing query: {e}\n"
+                    error_message = f"Error processing query: {traceback.format_exc()}\n"
                     self.send_with_header(client_socket, error_message)
         except Exception as e:
             print(f"Error handling client {client_id}: {e}")
