@@ -109,6 +109,11 @@ class ConcurrentTest(unittest.TestCase):
             "SELECT * FROM student WHERE studentid = 1",
             "COMMIT"
         ]
+        #BEGIN TRANSACTION;
+        #SELECT * FROM student WHERE studentid = 1;
+        #UPDATE student SET fullname = 'JohnDoe' WHERE studentid = 1;
+        #SELECT * FROM student WHERE studentid = 1;
+        #COMMIT;
         client_2 = ConcurrentClient(input_user=client_2_input, id_user=2)
 
         client_3_input = [
