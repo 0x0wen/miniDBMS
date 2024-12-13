@@ -80,11 +80,6 @@ class DataManager(BlocksManager):
 
         return rows_in_last_block + num_rows
     
-    def overwriteData(self, file_name, data) -> int:
-        schema = self.readSchema(file_name)
-        current_data = self.readData(file_name, schema)
-        
-        return 0
 
     def readBlockByOffset(self, table_name : str , block_id : int, schema : list[tuple], offset : int, num_rows) -> tuple[list, int]:
         """
