@@ -24,7 +24,6 @@ class StorageManager:
         """
         #Fungsi bantu index ranging
         def process_ranges_with_column(conditions): 
-            from functools import reduce
 
             def generate_range(start, end, operator):
                 """Menghasilkan range berdasarkan operator."""
