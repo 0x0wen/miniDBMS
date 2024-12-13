@@ -17,7 +17,7 @@ storageManager = StorageManager()
 QUERY 1: Update table course: coursedesc dengan id 101-102 menjadi Study of crime, criminal behavior, and societal impacts
 '''
 print("Query 1:\n")
-print(" (transaction_id = 1) UPDATE course SET coursedesc = 'Study of crime, criminal behavior, and societal impacts' WHERE courseid >= 15 AND courseid <= 20;")
+print(" (transaction_id = 1) UPDATE course SET coursedesc = 'Study of crime, criminal behavior, and societal impacts' WHERE courseid >= 101 AND courseid <= 102;")
 print()
 print("--FailureRecovery.buffer before read:\n")
 print(failureRecovery.buffer)
@@ -50,7 +50,7 @@ exec_res_1 = ExecutionResult(
 )
 
 '''
-QUERY 2: Update table student: mengubah gpa dibawah 2 menjadi 2
+QUERY 2: Update table student: mengubah gpa diatas 2 menjadi 2
 '''
 print("Query 2:\n")
 print(" (transaction_id = 2) UPDATE student SET gpa = 2.0 WHERE gpa > 2.0;")
@@ -83,7 +83,7 @@ exec_res_2 = ExecutionResult(
 )
 
 '''
-QUERY 3: Update table course: coursename dengan id 25-30 menjadi Intelegensi Buatan
+QUERY 3: Update table course: coursename dengan id 102-103 menjadi Intelegensi Buatan
 '''
 
 print("Query 3:\n")

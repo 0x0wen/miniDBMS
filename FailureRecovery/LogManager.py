@@ -121,3 +121,32 @@ class LogManager:
         if criteria.transaction_id and log["transaction_id"] != criteria.transaction_id:
             return False
         return True
+    
+    def _matches_deletion_criteria(self, log: dict, criteria: Optional[RecoverCriteria]) -> bool:
+        """
+        Check if log matches deletion criteria
+        """
+        if not criteria:
+            return True
+        if criteria.timestamp and datetime.fromisoformat(log["timestamp"]) > criteria.timestamp:
+            return True
+        if criteria.transaction_id and log["transaction_id"] != criteria.transaction_id:
+            return True
+        return False
+    
+    def delete_logs(self, criteria: RecoverCriteria) -> None:
+        """
+        Delete logs that match the recovery criteria.
+        """
+        try:
+            with open(f"{self.log_path}wal.log", "r") as f:
+                lines = f.readlines()
+            
+            with open(f"{self.log_path}wal.log", "w") as f:
+                for line in lines:
+                    if line.strip():
+                        log_dict = json.loads(line)
+                        if self._matches_deletion_criteria(log_dict, criteria):
+                            f.write(line)
+        except FileNotFoundError:
+            pass
