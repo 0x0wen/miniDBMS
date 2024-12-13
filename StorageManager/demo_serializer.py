@@ -39,11 +39,12 @@ attends_data = [
     [3, 103],
 ]
 
-if __name__ == 'main':
-    serializer = TableManager()
-    index_manager = IndexManager()
-    serializer.writeTable('student', student_data, student_schema)
-    index_manager.writeIndex('student', 'studentid')
-    serializer.writeTable('course', course_data, course_schema)
-    index_manager.writeIndex('course', 'courseid')
-    serializer.writeTable('attends', attends_data, attends_schema)
+
+serializer = TableManager()
+index_manager = IndexManager()
+serializer.writeTable('student', student_data, student_schema)
+index_manager.writeIndex('student', 'studentid')
+serializer.writeTable('course', course_data, course_schema)
+index_manager.writeIndex('course', 'courseid')
+serializer.writeTable('attends', attends_data, attends_schema)
+
