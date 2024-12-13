@@ -118,7 +118,7 @@ class TwoPhaseLock(AbstractAlgorithm):
 
     def parseRows(self, db_object: Rows):
         """
-        Returns a list of string, int, string.
+        Returns a list of string, int, string
 
         Example:
         ["W", 1, "A"] or ["R", 2, "B"] or ["C", 1, ""]
