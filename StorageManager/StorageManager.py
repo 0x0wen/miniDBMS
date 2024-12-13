@@ -144,12 +144,12 @@ class StorageManager:
 
 
         # write to buffer in failureRecovery
-        # failureRecovery = FailureRecovery()
-        # PK = serializer.getPrimaryKey(table_name)
-        # failureRecovery.buffer.writeData(rows=cond_filtered_data, dataRetrieval=data_retrieval,primaryKey=PK)
-        # rows = failureRecovery.buffer.retrieveData(data_retrieval)
-        # return rows    
-        return all_filtered_data
+        failureRecovery = FailureRecovery()
+        PK = serializer.getPrimaryKey(table_name)
+        failureRecovery.buffer.writeData(rows=cond_filtered_data, dataRetrieval=data_retrieval,primaryKey=PK)
+        rows = failureRecovery.buffer.retrieveData(data_retrieval)
+        return rows    
+        # return all_filtered_data
 
 
     def writeBlock(self ,data_write: DataWrite) -> int:
@@ -338,21 +338,21 @@ class StorageManager:
         if not buffer_rows and not physical_storage:
             raise ValueError("Buffer rows and physical storage cannot both be empty")
 
-        # Gunakan kolom pertama sebagai key_column
-        key_column_index = 0
+        # Gunakan key_column dari atribut pertama dari dictionary
+        key_column = list(buffer_rows[0].keys())[0] if buffer_rows else list(physical_storage[0].keys())[0]
 
-        # Buat dictionary dari physical storage untuk akses cepat berdasarkan key_column
-        storage_dict = {row[key_column_index]: row for row in physical_storage}
+        # Buat dictionary dari physical storage berdasarkan key_column
+        storage_dict = {row[key_column]: row for row in physical_storage}
 
         # Update dictionary dengan data dari buffer
         for buffer_row in buffer_rows:
-            storage_dict[buffer_row[key_column_index]] = buffer_row  # Replace atau tambahkan
-
-        # Konversi dictionary kembali ke list
-        merged_data = list(storage_dict.values())
-
+            buffer_key = buffer_row[key_column]
+            storage_dict[buffer_key] = buffer_row  # Replace atau tambahkan
+       
+        # Konversi dictionary ke array of arrays
+        merged_data = [list(row.values()) for row in storage_dict.values()]
         return merged_data
-
+        
         
     def synchronize_storage(self):
         """
@@ -368,19 +368,19 @@ class StorageManager:
             # get header and rows from buffer
             buffer_rows =[]
             for row in table.rows:
-                buffer_rows.append(row)
+                buffer_rows.append(row.convertoStorageManagerRow())
                 
             # get data from physical storage
             schema = serializer.readSchema(table.table_name)
             data = serializer.readTable(table.table_name)
-            data_array = [[row[col[0]] for col in schema] for row in data]
             
             # merge data
-            new_data = self.merge_data(buffer_rows, data_array)
+            new_data = self.merge_data(buffer_rows, data)
             
             # write new data to physical storage
             serializer.writeTable(table.table_name, new_data, schema)
             
         #Call checkpoint from failure recovery
-        failureRecovery.save_checkpoint()
+        temp = failureRecovery.save_checkpoint()
+        print("Checkpoint saved at: ", temp)
         return None
