@@ -163,6 +163,10 @@ class TwoPhaseLock(AbstractAlgorithm):
 
         return valid
         ### End of method ###
+    
+    def handleCommitRequest(self, transaction_id: int) -> bool:
+        return (self.unlockAllS(transaction_id) and self.unlockAllX(transaction_id))
+        ### End of method ###
 
     def isLockedByOlderTransaction(self, transaction_id: int, data_item: str) -> bool:
         for lock in self.lock_s_table:
@@ -225,6 +229,15 @@ class TwoPhaseLock(AbstractAlgorithm):
 
             else:
                 self.response = Response("ALLOW", transaction_id, transaction_id)
+        
+        elif parsed_db_object[0] == "C":
+            valid = self.handleCommitRequest(transaction_id)
+            self.response = Response("ALLOW", transaction_id, transaction_id)
+
+        ### End of method ###
+
+    def validate(self, db_object: Rows, transaction_id: int, action: Action) -> Response:
+        return self.response
 
         ### End of method ###
 
