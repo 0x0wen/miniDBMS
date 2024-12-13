@@ -27,7 +27,6 @@ class Table:
         
         for row in self.rows:
             if row.isRowFullfilingCondition(condition):
-                # print("Row found: ", row.data)
                 matching_rows.append(row)
         
         if len(matching_rows) == 0:

@@ -4,6 +4,7 @@ from FailureRecovery.FailureRecovery import FailureRecovery
 from StorageManager.objects.Rows import Rows
 from FailureRecovery.Structs.Table import Table
 from StorageManager.StorageManager import StorageManager
+from FailureRecovery.Structs.Row import Row
 
 class TestSynchronizeMultipleTables(unittest.TestCase):
     def setUp(self):
@@ -52,19 +53,70 @@ class TestSynchronizeMultipleTables(unittest.TestCase):
 
         # Initial data for buffer
         self.buffer_data_1 = [
-            [1, 1000, 'Updated Course Name 1', 'Updated Desc 1'],
-            [2, 2000, 'Course Name 2', 'Course Desc 2'],
-            [3, 3000, 'New Course Name 3', 'New Desc 3'],
-            [5, 5000, 'Course Name 5', 'Course Desc 5'],
+            Row({'courseid': 1, 'year': 1000, 'coursename': 'Updated Course Name 1', 'coursedesc': 'Updated Desc 1'}),
+            Row({'courseid': 2, 'year': 2000, 'coursename': 'Course Name 2', 'coursedesc': 'Course Desc 2'}),
+            Row({'courseid': 3, 'year': 3000, 'coursename': 'New Course Name 3', 'coursedesc': 'New Desc 3'}),
+            Row({'courseid': 5, 'year': 5000, 'coursename': 'Updated Course Name 5', 'coursedesc': 'Updated Desc 5'}),
         ]
 
         self.buffer_data_2 = [
-            [1, 'Alice', 3.5],
-            [2, 'Updated Bob', 3.6],
-            [3, 'New Charlie', 4.0],
-            [5, 'Elia', 3.1],
+            Row({'studentid': 1, 'name': 'Alice', 'gpa': 3.5}),
+            Row({'studentid': 2, 'name': 'Updated Bob', 'gpa': 3.6}),
+            Row({'studentid': 3, 'name': 'New Charlie', 'gpa': 4.0}),
+            Row({'studentid': 5, 'name': 'Elia', 'gpa': 3.1}),
         ]
 
+        self.dict_list_1 = []
+        for row in self.physical_data_1:
+            row_dict = {self.schema_1[i][0]: row[i] for i in range(len(self.schema_1))}
+            self.dict_list_1.append(row_dict)
+            
+        self.dict_list_2 = []
+        for row in self.physical_data_2:
+            row_dict = {self.schema_2[i][0]: row[i] for i in range(len(self.schema_2))}
+            self.dict_list_2.append(row_dict)
+            
+        # Transaction info for log
+        self.failure_recovery.logManager.write_log_entry(
+                1,
+                "UPDATE",
+                self.table_1_name,
+                [self.dict_list_1[0]], 
+                [self.buffer_data_1[0].data]
+            )
+        
+        self.failure_recovery.logManager.write_log_entry(
+                2,
+                "UPDATE",
+                self.table_1_name,
+                [self.dict_list_1[2]], 
+                [self.buffer_data_1[2].data]
+            )
+        
+        self.failure_recovery.logManager.write_log_entry(
+                3,
+                "UPDATE",
+                self.table_1_name,
+                [self.dict_list_1[4]], 
+                [self.buffer_data_1[3].data]
+            )
+        
+        self.failure_recovery.logManager.write_log_entry(
+                4,
+                "UPDATE",
+                self.table_2_name,
+                [self.dict_list_2[1]],
+                [self.buffer_data_2[1].data]
+            )
+        
+        self.failure_recovery.logManager.write_log_entry(
+                5,
+                "UPDATE",
+                self.table_2_name,
+                [self.dict_list_2[2]],
+                [self.buffer_data_2[2].data]
+            )
+        
         # Write initial data to physical storage
         self.serializer.writeTable(self.table_1_name, self.physical_data_1, self.schema_1)
         self.serializer.writeTable(self.table_2_name, self.physical_data_2, self.schema_2)
@@ -106,7 +158,7 @@ class TestSynchronizeMultipleTables(unittest.TestCase):
             {'courseid': 2, 'year': 2000, 'coursename': 'Course Name 2', 'coursedesc': 'Course Desc 2'},
             {'courseid': 3, 'year': 3000, 'coursename': 'New Course Name 3', 'coursedesc': 'New Desc 3'},
             {'courseid': 4, 'year': 4000, 'coursename': 'Course Name 4', 'coursedesc': 'Course Desc 4'},
-            {'courseid': 5, 'year': 5000, 'coursename': 'Course Name 5', 'coursedesc': 'Course Desc 5'},
+            {'courseid': 5, 'year': 5000, 'coursename': 'Updated Course Name 5', 'coursedesc': 'Updated Desc 5'},
             {'courseid': 6, 'year': 6000, 'coursename': 'Course Name 6', 'coursedesc': 'Course Desc 6'},
         ]
 

@@ -1,11 +1,9 @@
-from StorageManager.objects.DataRetrieval import DataRetrieval,Condition
-from StorageManager.objects.JoinOperation import JoinOperation, JoinCondition
+from StorageManager.objects.DataRetrieval import DataRetrieval
 from StorageManager.objects.DataWrite import DataWrite
 from StorageManager.objects.DataDeletion import DataDeletion
 from StorageManager.objects.Statistics import Statistics
 from StorageManager.manager.TableManager import TableManager
 from StorageManager.manager.IndexManager import IndexManager
-from QueryOptimizer.QueryTree import QueryTree
 from StorageManager.objects.Rows import Rows
 from functools import reduce
 from FailureRecovery.FailureRecovery import FailureRecovery 
@@ -278,8 +276,6 @@ class StorageManager:
         storage_dir = os.path.join(current_dir, path_name) 
         storage_dir = os.path.abspath(storage_dir)  
 
-        #NOTE - Delete this
-        # print(storage_dir)
         all_stats = {}
 
         # Check all tables in the directory
@@ -326,63 +322,65 @@ class StorageManager:
         # Buat dan return objek Statistik
         return Statistics(n_r=n_r, b_r=b_r, l_r=l_r, f_r=f_r, V_a_r=V_a_r)
     
-    def merge_data(self, buffer_rows, physical_storage):
+    def apply_transactions(self, physical_storage, transactions):
         """
-        Menggabungkan data antara buffer dan storage fisik menggunakan atribut pertama sebagai key_column.
+        Update data in physical storage based on transaction logs.
 
         Args:
-            buffer_rows (list[list]): Data yang ada di buffer.
-            physical_storage (list[list]): Data yang ada di storage fisik.
+            physical_storage (list[dict]): Data yang ada di storage fisik.
+            transactions (list[dict]): Log transaksi yang berisi perubahan.
 
         Returns:
-            list[list]: Data terbaru yang telah digabungkan.
+            list[dict]: Data terbaru di storage fisik setelah transaksi diterapkan.
         """
-        if not buffer_rows and not physical_storage:
-            raise ValueError("Buffer rows and physical storage cannot both be empty")
+        # Urutkan transaksi berdasarkan timestamp
+        transactions.sort(key=lambda x: x['timestamp'])
 
-        # Gunakan kolom pertama sebagai key_column
-        key_column_index = 0
+        # Terapkan setiap transaksi
+        for transaction in transactions:
+            for before, after in zip(transaction['data_before'], transaction['data_after']):
+                # Cari data di physical_storage yang cocok dengan data_before
+                for idx, row in enumerate(physical_storage):
+                    if row == before:  # Jika row ditemukan
+                        physical_storage[idx] = after  # Ganti dengan data_after
+                        break
+                else:
+                    # Jika tidak ditemukan, tambahkan data_after ke physical_storage
+                    physical_storage.append(after)
 
-        # Buat dictionary dari physical storage untuk akses cepat berdasarkan key_column
-        storage_dict = {row[key_column_index]: row for row in physical_storage}
-
-        # Update dictionary dengan data dari buffer
-        for buffer_row in buffer_rows:
-            storage_dict[buffer_row[key_column_index]] = buffer_row  # Replace atau tambahkan
-
-        # Konversi dictionary kembali ke list
-        merged_data = list(storage_dict.values())
-
-        return merged_data
-
+        # Konversi ke array of arrays
+        results = [list(row.values()) for row in physical_storage]
+        return results
         
     def synchronize_storage(self):
         """
-        Sinkronisasi antara buffer dan storage fisik.
+        Sinkronisasi antara buffer, log transaksi, dan pyhsical storage.
         """
-        #get buffer
+        # Dapatkan buffer dan log transaksi
         failureRecovery = FailureRecovery()
         tables = failureRecovery.buffer.getTables()
-        
-        #get table di physical storage dan bandingkan dengan buffer
+        transaction_logs = failureRecovery.save_checkpoint()
+
+        # Proses setiap tabel di buffer
         serializer = TableManager()
         for table in tables:
-            # get header and rows from buffer
-            buffer_rows =[]
-            for row in table.rows:
-                buffer_rows.append(row)
-                
-            # get data from physical storage
+            # Ambil data dari penyimpanan fisik
             schema = serializer.readSchema(table.table_name)
-            data = serializer.readTable(table.table_name)
-            data_array = [[row[col[0]] for col in schema] for row in data]
+            physical_storage = serializer.readTable(table.table_name)
             
-            # merge data
-            new_data = self.merge_data(buffer_rows, data_array)
-            
-            # write new data to physical storage
+            # Round float values to 2 decimal places
+            physical_storage = [
+                    {k: (round(v, 2) if isinstance(v, float) else v) for k, v in row.items()}
+                    for row in physical_storage
+                ]
+
+            # Filter log transaksi untuk tabel yang sedang diproses
+            table_logs = [log for log in transaction_logs if log['table'] == table.table_name]
+
+            # Update data di penyimpanan fisik berdasarkan log transaksi 
+            new_data = self.apply_transactions(physical_storage, table_logs)
+
+            # Tulis data baru ke penyimpanan fisik
             serializer.writeTable(table.table_name, new_data, schema)
-            
-        #Call checkpoint from failure recovery
-        failureRecovery.save_checkpoint()
+
         return None
