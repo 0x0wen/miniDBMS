@@ -530,7 +530,7 @@ class OptimizationEngine:
                     condition.append(tokens.pop(0))
             root.val = condition
             if(tokens and tokens[0].upper() not in LEGAL_COMMANDS_AFTER_WHERE):
-                print("anu nya ", tokens[0])
+                # print("anu nya ", tokens[0])
                 raise CustomException("Invalid command after WHERE clause", code=400)
             child = self.__createQueryTree(tokens,statistics)
             if child is not None:  # Only append if the child is not None
@@ -561,7 +561,7 @@ class OptimizationEngine:
                     condition.append(tokens.pop(0))
             root.val = condition
             if(tokens and tokens[0].upper() not in LEGAL_COMMANDS_AFTER_WHERE):
-                print("anu nya", tokens[0])
+                # print("anu nya", tokens[0])
                 raise CustomException("Invalid command after WHERE clause", code=400)
             child = self.__createQueryTree(tokens,statistics)
             if child is not None:  # Only append if the child is not None

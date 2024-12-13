@@ -129,7 +129,6 @@ class TwoPhaseLock(AbstractAlgorithm):
         if isinstance(db_object, Rows):
             match = re.match(r"([A-Z])(\d+)(?:\((.*?)\))?", db_object.data[0])
             if match:
-                print("return parse",match.groups())
                 letter, number, value = match.groups()
                 return [letter, int(number), value if value is not None else ""]
             else:
