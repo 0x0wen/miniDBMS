@@ -260,33 +260,92 @@ class QueryProcessor:
     def query_tree_to_results(self, qt: QueryTree):
         if qt.node_type == "SELECT":
             list_of_data_retrievals, tables = self.query_tree_to_data_retrievals(qt)
-            print("list of data retrievals", list_of_data_retrievals)
-            # print("table", tables)
             join_operations = self.get_join_operations(qt)
             results = {}
+            limit_value = None
+            order_col = None
+            order_dir = "ASC"
+            
+            # Get results for each table
             for data_retrieval in list_of_data_retrievals:
                 results[data_retrieval.table[0]] = self.storage_manager.readBlock(data_retrieval)
-            # for table in tables:
-            #     print("hasil akhirnya", results[table])
-            # print("join conditionnya nya", join_operations.join_condition)
-            # for j in join_operations.join_condition.condition:
-            #     print(j)
+
+            # Check for LIMIT and ORDER BY under FROM node
+            if qt.children[0].node_type == "FROM":
+                for child in qt.children[0].children:
+                    if child.node_type == "LIMIT":
+                        limit_value = int(child.val[0])
+                    elif child.node_type == "SORT":
+                        if child.val:
+                            order_col = child.val[0]
+                            order_dir = "DESC" if len(child.val) > 1 and child.val[1].upper() == "DESC" else "ASC"
+
+            # Apply joins if needed
             if (qt.children[0].node_type != "FROM"):
                 after_join = self.apply_join_operation(join_operations, results)
             else:
                 after_join = results[qt.children[0].val[0]]
-            print("after join: ", after_join)
 
+            # Apply select
             if qt.val[0] == "*":
-                all_column = list(after_join[0].keys())
+                all_column = list(after_join[0].keys()) if after_join else []
                 after_select = self.apply_select(after_join, all_column)
             else:
                 after_select = self.apply_select(after_join, qt.val)
-            # print("isi qt.val itu", qt.val)
 
-        print("after select: ", after_select)
-        return after_select
-    
+            # Apply ORDER BY if specified
+            if order_col is not None:
+                after_select = self.apply_order_by(after_select, order_col, order_dir)
+
+            # Apply LIMIT if it was found
+            if limit_value is not None:
+                after_select = after_select[:limit_value]
+
+            return after_select
+
+    def apply_order_by(self, results: list, column: str, direction: str = "ASC") -> list:
+        """
+        Order the results based on the specified column and direction.
+        
+        Args:
+            results (list): List of dictionaries containing the query results
+            column (str): Column name to order by
+            direction (str): Order direction ("ASC" or "DESC")
+            
+        Returns:
+            list: Sorted list of dictionaries
+        """
+        if not results:  # Handle empty results
+            return results
+            
+        def get_sort_key(row):
+            try:
+                value = row[column]
+                
+                # Handle different data types
+                if isinstance(value, (int, float)):
+                    return (0, float(value))  # Numeric values first
+                elif isinstance(value, str):
+                    # Try to convert to float if it's a numeric string
+                    try:
+                        return (0, float(value))
+                    except ValueError:
+                        return (1, value.lower())  # Strings second, case-insensitive
+                else:
+                    return (2, str(value).lower())  # Other types last
+            except KeyError:
+                available_cols = list(row.keys())
+                raise KeyError(f"Column '{column}' not found. Available columns: {available_cols}")
+        
+        try:
+            # Sort the results
+            sorted_results = sorted(results, key=get_sort_key, reverse=(direction.upper() == "DESC"))
+            return sorted_results
+        except Exception as e:
+            print(f"Error during sorting: {str(e)}")
+            print(f"Results sample: {results[:1] if results else 'No results'}")
+            raise
+
     def apply_join_operation(self, jo: JoinOperation, results):
         # Handle case ketika jo.tables memiliki JoinOperation
         if isinstance(jo.tables[0], JoinOperation):
@@ -391,7 +450,7 @@ class QueryProcessor:
             for d1 in results[jo.tables[0]]:
                 for d2 in results[jo.tables[1]]:
                     # Cari atribut yang sama di kedua dictionary
-                    common_keys = set(d1.keys()).intersection(set(d2.keys()))
+                    common_keys = set(d1.keys()). intersection(set(d2.keys()))
                     if common_keys and all(d1[key] == d2[key] for key in common_keys):
                         merged_dict = {
                             f"{jo.tables[0]}.{k}": v for k, v in d1.items() if k not in common_keys

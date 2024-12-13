@@ -34,9 +34,6 @@ def reverseQueryTree(tree):
         newTree.children[1] = tree
         return parent
     
-    
-    
-    
     return tree
 
 def rule8(queryTree):
@@ -89,6 +86,9 @@ def rule8(queryTree):
         cek1 = False
         cek2 = False
         
+        if not tree.children:
+            break
+        
         if tree.children[0].node_type not in ["JOIN", "TJOIN", "Value1","Value2"]:
             break
         
@@ -121,4 +121,3 @@ def rule8(queryTree):
             break
     
     return queryTree
-  
