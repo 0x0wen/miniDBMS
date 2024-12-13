@@ -34,9 +34,6 @@ def reverseQueryTree(tree):
         newTree.children[1] = tree
         return parent
     
-    
-    
-    
     return tree
 
 def rule8(queryTree):
@@ -121,4 +118,3 @@ def rule8(queryTree):
             break
     
     return queryTree
-  
