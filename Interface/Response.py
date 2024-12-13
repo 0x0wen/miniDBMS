@@ -15,3 +15,9 @@ class Response:
 
     def __call__(self):
         return self.response_action, self.current_t_id, self.related_t_id
+    
+    def __eq__(self, other):
+        if isinstance(other, Response):
+            return (self.response_action == other.response_action) and (self.current_t_id == other.current_t_id) and (self.related_t_id == other.related_t_id)
+        
+        return False

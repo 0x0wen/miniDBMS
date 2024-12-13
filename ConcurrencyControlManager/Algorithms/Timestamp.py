@@ -78,11 +78,13 @@ class TimestampBasedProtocol(AbstractAlgorithm, ABC):
             self.transactionQueue.append(transactionId)
         return True
 
-    def starvationHandling(self, transactionId: int, dataItem: str) -> bool:
-        if transactionId in self.transactionQueue:
-            print(f"Transaction {transactionId} is starving, attempting to acquire {dataItem}.")
-            return True
-        return False
+    # def starvationHandling(self, transactionId: int, dataItem: str) -> bool:
+    #     if transactionId in self.transactionQueue:
+    #         print(f"Transaction {transactionId} is starving, forcing acquisition of {dataItem}.")
+    #         self.locks[dataItem] = transactionId  # Force the lock to the starved transaction
+    #         self.dataTimestamps[dataItem] = self.getTimestamp(transactionId)
+    #         return True
+    #     return False
 
     def parseRows(self, dbObject: Rows):
         row = dbObject.data[0]
@@ -126,26 +128,35 @@ class TimestampBasedProtocol(AbstractAlgorithm, ABC):
     
     def validate(self, dbObject: Rows, transactionId: int, action: Action) -> Response:
         actionType = action.action[0].name
-        item = dbObject.data[0].split("(")[1].split(")")[0] # Extract item from dbObject
+
+        # Check for actions without parameters (like commit)
+        if '(' not in dbObject.data[0]:
+            item = None  # No item to validate
+        else:
+            item = dbObject.data[0].split("(")[1].split(")")[0]  # Extract item from dbObject
 
         currentTimestamp = self.getTimestamp(transactionId)
-        lastWriteTimestamp = self.writeTimestamp(item)
-        lastReadTimestamp = self.readTimestamp(item)
 
-        if actionType == "WRITE":
-            # Validate write action
-            if lastReadTimestamp > currentTimestamp or lastWriteTimestamp > currentTimestamp:
-                return Response(response_action="WAIT", current_t_id=transactionId, related_t_id=self.locks.get(item, -1))
-            if item in self.locks and self.locks[item] != transactionId:
-                return Response(response_action="WOUND", current_t_id=transactionId, related_t_id=self.locks[item])
-            return Response(response_action="ALLOW", current_t_id=transactionId, related_t_id=transactionId)
+        if item:  # Validate read/write actions
+            lastWriteTimestamp = self.writeTimestamp(item)
+            lastReadTimestamp = self.readTimestamp(item)
 
-        elif actionType == "READ":
-            # Validate read action
-            if lastWriteTimestamp > currentTimestamp:
-                return Response(response_action="WAIT", current_t_id=transactionId, related_t_id=self.locks.get(item, -1))
-            if item in self.locks and self.locks[item] != transactionId:
-                return Response(response_action="WOUND", current_t_id=transactionId, related_t_id=self.locks[item])
+            if actionType == "WRITE":
+                if lastReadTimestamp > currentTimestamp or lastWriteTimestamp > currentTimestamp:
+                    return Response(response_action="WAIT", current_t_id=transactionId, related_t_id=self.locks.get(item, -1))
+                if item in self.locks and self.locks[item] != transactionId:
+                    return Response(response_action="WOUND", current_t_id=transactionId, related_t_id=self.locks[item])
+                return Response(response_action="ALLOW", current_t_id=transactionId, related_t_id=transactionId)
+
+            elif actionType == "READ":
+                if lastWriteTimestamp > currentTimestamp:
+                    return Response(response_action="WAIT", current_t_id=transactionId, related_t_id=self.locks.get(item, -1))
+                if item in self.locks and self.locks[item] != transactionId:
+                    return Response(response_action="WOUND", current_t_id=transactionId, related_t_id=self.locks[item])
+                return Response(response_action="ALLOW", current_t_id=transactionId, related_t_id=transactionId)
+
+        # Handle commit actions
+        if actionType == "COMMIT":
             return Response(response_action="ALLOW", current_t_id=transactionId, related_t_id=transactionId)
 
     def end(self, transactionId: int) -> bool:
