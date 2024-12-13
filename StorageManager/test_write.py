@@ -81,12 +81,13 @@ class TestWriteBlock(unittest.TestCase):
         cond_for_retrieval = Condition(column="studentid", operation="<", operand="15")
 
         data_retrieval = DataRetrieval(
-            table=["course"],
+            table=["student"],
             column=[],
             conditions=[cond_for_retrieval],
         )
         result = self.sm.writeBlock(data_overwrite_one)
-        self.sm.readBlock(data_retrieval)
+        retrieved_data = self.sm.readBlock(data_retrieval)
+        print(retrieved_data)
         self.assertEqual(result,1)
     
     def test_overwrite_multiple_data(self):
@@ -110,12 +111,13 @@ class TestWriteBlock(unittest.TestCase):
         cond_for_retrieval = Condition(column="studentid", operation="<", operand="15")
 
         data_retrieval = DataRetrieval(
-            table=["course"],
+            table=["student"],
             column=[],
             conditions=[cond_for_retrieval],
         )
         result = self.sm.writeBlock(data_overwrite_one)
-        self.sm.readBlock(data_retrieval)
+        retrieved_data = self.sm.readBlock(data_retrieval)
+        print(retrieved_data)
         self.assertEqual(result,3)
 
 if __name__ == "__main__":
