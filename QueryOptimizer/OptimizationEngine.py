@@ -49,6 +49,9 @@ class OptimizationEngine:
                 
             # Handle spaces when not in quotes
             if char.isspace():
+                if current_token in ['>','<']:
+                    tokens.append(current_token)
+                    current_token = ''
                 if current_token:
                     tokens.append(current_token)
                     current_token = ''
@@ -56,18 +59,20 @@ class OptimizationEngine:
             
             if char in ['>','<']:
                 if current_token:
-                    tokens.append(current_token)
-                    current_token = ''
-                if tokens and tokens[-1] in ['>','<']:
-                    tokens[-1] += char
-                    continue
+                    current_token = char
                 
             # Handle special characters
             if char in ['=',',']:
-                if current_token:
+                if current_token in ['>','<']:
+                    current_token += char
                     tokens.append(current_token)
                     current_token = ''
-                tokens.append(char)
+                elif current_token:
+                    tokens.append(current_token)
+                    current_token = ''
+                    tokens.append(char)
+                else:
+                    tokens.append(char)
                 continue
                 
             # Build token
