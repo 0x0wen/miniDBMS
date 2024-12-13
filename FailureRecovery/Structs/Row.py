@@ -42,7 +42,7 @@ class Row:
             elif condition.connector == "OR":
                 result = result or condition_result
 
-        return result if result is not None else False  
+        return result if result is not None else True 
 
     
     def isRowEqual(self, other: 'Row') -> bool:
