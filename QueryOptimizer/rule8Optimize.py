@@ -86,6 +86,9 @@ def rule8(queryTree):
         cek1 = False
         cek2 = False
         
+        if not tree.children:
+            break
+        
         if tree.children[0].node_type not in ["JOIN", "TJOIN", "Value1","Value2"]:
             break
         

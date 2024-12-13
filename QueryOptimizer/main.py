@@ -9,12 +9,14 @@ from StorageManager.StorageManager import StorageManager
 storage_manager = StorageManager()
 
 # Example SQL query
-queries = ["SELECT student.fullname from student where student.gpa = 4.0", 
-           "SELECT course.coursename from student where course.year = 2020",
-           "SELECT * from attends where attends.studentid = 2",
-           "SELECT student.name, course.coursename from attends JOIN student ON attends.studentID = student.studentID JOIN course ON attends.courseID = course.courseID where student.gpa = 3.5",
-           "SELECT * FROM attends, student JOIN course ON attends.CourseID = course.CourseID WHERE attends.studentID = student.studentID AND student.gpa = 3.5",
-           ]
+queries =   [
+                "SELECT * FROM student",
+                "SELECT student.fullname from student where student.gpa = 4.0", 
+                "SELECT course.coursename from student where course.year = 2020",
+                "SELECT * from attends where attends.studentid = 2",
+                "SELECT student.name, course.coursename from attends JOIN student ON attends.studentID = student.studentID JOIN course ON attends.courseID = course.courseID where student.gpa = 3.5",
+                "SELECT * FROM attends, student JOIN course ON attends.CourseID = course.CourseID WHERE attends.studentID = student.studentID AND student.gpa = 3.5",
+            ]
 
 # Initialize the optimization engine
 engine = OptimizationEngine()
