@@ -1,11 +1,9 @@
-from StorageManager.objects.DataRetrieval import DataRetrieval,Condition
-from StorageManager.objects.JoinOperation import JoinOperation, JoinCondition
+from StorageManager.objects.DataRetrieval import DataRetrieval
 from StorageManager.objects.DataWrite import DataWrite
 from StorageManager.objects.DataDeletion import DataDeletion
 from StorageManager.objects.Statistics import Statistics
 from StorageManager.manager.TableManager import TableManager
 from StorageManager.manager.IndexManager import IndexManager
-from QueryOptimizer.QueryTree import QueryTree
 from StorageManager.objects.Rows import Rows
 from functools import reduce
 from FailureRecovery.FailureRecovery import FailureRecovery 
@@ -146,12 +144,12 @@ class StorageManager:
 
 
         # write to buffer in failureRecovery
-        # failureRecovery = FailureRecovery()
-        # PK = serializer.getPrimaryKey(table_name)
-        # failureRecovery.buffer.writeData(rows=cond_filtered_data, dataRetrieval=data_retrieval,primaryKey=PK)
-        # rows = failureRecovery.buffer.retrieveData(data_retrieval)
-        # return rows    
-        return all_filtered_data
+        failureRecovery = FailureRecovery()
+        PK = serializer.getPrimaryKey(table_name)
+        failureRecovery.buffer.writeData(rows=cond_filtered_data, dataRetrieval=data_retrieval,primaryKey=PK)
+        rows = failureRecovery.buffer.retrieveData(data_retrieval)
+        return rows    
+        # return all_filtered_data
 
 
     def writeBlock(self ,data_write: DataWrite) -> int:
@@ -220,43 +218,26 @@ class StorageManager:
         serializer = TableManager()
         index_manager = IndexManager()
 
-        use_index = False # Indexing Flag
-        indexed_column = None # Store column that has index
-
         cond_filtered_data : Rows= ""
         
         data = serializer.readTable(data_deletion.table)
         
-        #Cek dulu, ada gk condisi yang pake column yang gk ada index
-        for cond in data_deletion.conditions:
-            index = index_manager.readIndex(data_deletion.table, cond.column)
-            data.setIndex(cond.column)
-            if(not index):
-                data.setIndex(None)
-                break
+        pk = serializer.getPrimaryKey(data_deletion.table)
 
         data_retrieval = DataRetrieval([data_deletion.table],[],data_deletion.conditions)
         cond_filtered_data = self.readBlock(data_retrieval)
 
         # Filtereed table based on condition
         schema = serializer.readSchema(data_deletion.table)
-        
-        #NOTE - Delete this
-        # print("TEST READ: ")
-        # print(cond_filtered_data)
-        # print("BLABLABLA")
 
         
         # Create new data that doesn't contain filtered table
         newData = data.getRowsNotMatching(cond_filtered_data)
-
-        #NOTE - Add this functionality if buffer wanna be used
-        # FailureRecovery._instance.buffer.deleteData(newData)
-
-        #NOTE - Use this to delete from physical data
+        
         serializer.writeTable(data_deletion.table, newData, schema)
-        if(data.isIndexed()):
-            index_manager.writeIndex(data_deletion.table, indexed_column)
+        if(pk.__len__() > 0):
+            for idx in pk:
+                index_manager.writeIndex(data_deletion.table, idx)
         
         # get the amount of dat that is deleted
         return cond_filtered_data.__len__()
@@ -349,21 +330,21 @@ class StorageManager:
         if not buffer_rows and not physical_storage:
             raise ValueError("Buffer rows and physical storage cannot both be empty")
 
-        # Gunakan kolom pertama sebagai key_column
-        key_column_index = 0
+        # Gunakan key_column dari atribut pertama dari dictionary
+        key_column = list(buffer_rows[0].keys())[0] if buffer_rows else list(physical_storage[0].keys())[0]
 
-        # Buat dictionary dari physical storage untuk akses cepat berdasarkan key_column
-        storage_dict = {row[key_column_index]: row for row in physical_storage}
+        # Buat dictionary dari physical storage berdasarkan key_column
+        storage_dict = {row[key_column]: row for row in physical_storage}
 
         # Update dictionary dengan data dari buffer
         for buffer_row in buffer_rows:
-            storage_dict[buffer_row[key_column_index]] = buffer_row  # Replace atau tambahkan
-
-        # Konversi dictionary kembali ke list
-        merged_data = list(storage_dict.values())
-
+            buffer_key = buffer_row[key_column]
+            storage_dict[buffer_key] = buffer_row  # Replace atau tambahkan
+       
+        # Konversi dictionary ke array of arrays
+        merged_data = [list(row.values()) for row in storage_dict.values()]
         return merged_data
-
+        
         
     def synchronize_storage(self):
         """
@@ -379,19 +360,19 @@ class StorageManager:
             # get header and rows from buffer
             buffer_rows =[]
             for row in table.rows:
-                buffer_rows.append(row)
+                buffer_rows.append(row.convertoStorageManagerRow())
                 
             # get data from physical storage
             schema = serializer.readSchema(table.table_name)
             data = serializer.readTable(table.table_name)
-            data_array = [[row[col[0]] for col in schema] for row in data]
             
             # merge data
-            new_data = self.merge_data(buffer_rows, data_array)
+            new_data = self.merge_data(buffer_rows, data)
             
             # write new data to physical storage
             serializer.writeTable(table.table_name, new_data, schema)
             
         #Call checkpoint from failure recovery
-        failureRecovery.save_checkpoint()
+        temp = failureRecovery.save_checkpoint()
+        print("Checkpoint saved at: ", temp)
         return None

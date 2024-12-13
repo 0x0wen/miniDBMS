@@ -30,8 +30,8 @@ print("--FailureRecovery.buffer before read:\n")
 print(failureRecovery.buffer)
 
 ret_1 = DataRetrieval(table=["course"], column=[], conditions=[
-    Condition(column="year", operation=">=", operand=2015, connector=None),
-    Condition(column="year", operation="<=", operand=2020, connector="AND"),
+    Condition(column="courseid", operation=">=", operand=15, connector=None),
+    Condition(column="courseid", operation="<=", operand=20, connector="AND"),
 ])
 data_before = storageManager.readBlock(ret_1)
 
@@ -72,8 +72,8 @@ print("--FailureRecovery.buffer before read:\n")
 print(failureRecovery.buffer)
 
 ret_2 = DataRetrieval(table=["course"], column=[], conditions=[
-    Condition(column="year", operation=">=", operand=2018, connector=None),
-    Condition(column="year", operation="<=", operand=2023, connector="AND"),
+    Condition(column="courseid", operation=">=", operand=18, connector=None),
+    Condition(column="courseid", operation="<=", operand=23, connector="AND"),
 ])
 data_before = storageManager.readBlock(ret_2)
 
