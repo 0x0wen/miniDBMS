@@ -29,6 +29,7 @@ ret_1 = DataRetrieval(table=["course"], column=[], conditions=[
 
 data_before = storageManager.readBlock(ret_1)
 
+print(data_before)
 print("--FailureRecovery.buffer after read:\n")
 print(failureRecovery.buffer)
 

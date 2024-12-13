@@ -1,5 +1,6 @@
 class Rows(list):
-    def __init__(self, rows: list[dict]) -> None:
+    def __init__(self, rows: list[dict] = []) -> None:
+        
         super().__init__(rows)
         self.indexed_column = None
         
@@ -9,6 +10,9 @@ class Rows(list):
     #     return f"Rows(rows={self})"
     
     def extend(self, new_rows: list[dict]) -> None:
+
+        if(not new_rows):
+            return []
         if all(isinstance(row, dict) for row in new_rows):
             super().extend(new_rows)
         else:

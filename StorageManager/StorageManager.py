@@ -140,12 +140,13 @@ class StorageManager:
         
         column_filtered_data = serializer.filterColumns(cond_filtered_data, data_retrieval.column)
         all_filtered_data.extend(column_filtered_data)
-
+        if(all_filtered_data.__len__() == 0):
+           all_filtered_data = []
 
         # write to buffer in failureRecovery
         failureRecovery = FailureRecovery()
         PK = serializer.getPrimaryKey(table_name)
-        failureRecovery.buffer.writeData(rows=cond_filtered_data, dataRetrieval=data_retrieval,primaryKey=PK)
+        failureRecovery.buffer.writeData(rows=all_filtered_data, dataRetrieval=data_retrieval,primaryKey=PK)
         rows = failureRecovery.buffer.retrieveData(data_retrieval)
         return rows    
         # return all_filtered_data
