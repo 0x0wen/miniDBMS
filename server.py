@@ -120,7 +120,7 @@ class Server:
                 print("transaction id yg wounded:", self.clientid_to_transactionid[client_id], "dan client id nya", client_id)
                 print("ketika querynya:", single_query)
                 # abort all changes on related transaction id
-                self.query_processor.failure_recovery.recover(RecoverCriteria(response.related_t_id))
+                self.query_processor.failure_recovery.recover(RecoverCriteria(transaction_id=response.related_t_id))
                 # run current query
                 start_time = time.time()
                 send_to_client = self.query_processor.execute_query(single_query, client_id, self.clientid_to_transactionid[client_id])
