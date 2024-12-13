@@ -62,4 +62,4 @@ The Failure Recovery Manager is used to ensure data consistency and durability i
 
 ## 🏃‍♂️ How to Run Unit Testing
 1. Run this to navigate to route directory `cd ../`.
-2. Execute this command in terminal `python -m FailureRecovery.test` 
+2. Execute this command in terminal `python -m FailureRecovery._Test.Test1` 
