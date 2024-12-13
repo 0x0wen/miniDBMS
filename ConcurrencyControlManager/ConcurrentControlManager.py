@@ -18,7 +18,7 @@ class ConcurrentControlManager:
         """
         self.sequence_number: int = 0  # last id assigned to a transaction
         self.concurrency_control: ConcurrencyControlAlgorithmEnum = ConcurrencyControlAlgorithmEnum.LOCK  # Algorithm to use
-        self.abstract_algorithm: AbstractAlgorithm = TimestampBasedProtocol()
+        self.abstract_algorithm: AbstractAlgorithm = TwoPhaseLock()  # Algorithm object
         self.two_phase_lock = TwoPhaseLock()
 
     def beginTransaction(self) -> int:
