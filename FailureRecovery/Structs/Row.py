@@ -14,6 +14,10 @@ class Row:
         for condition in conditions:
             data = str(self.data[condition.column])
             operand = str(condition.operand)
+            
+            if data.replace('.', '', 1).isdigit() and operand.replace('.', '', 1).isdigit():
+                data = float(data) if '.' in data else int(data)
+                operand = float(operand) if '.' in operand else int(operand)
 
             if condition.operation == '=':
                 if data != operand:
@@ -29,6 +33,7 @@ class Row:
                     return False
             elif condition.operation == '<=':
                 if not data <= operand:
+                    print(data, operand)
                     return False
             elif condition.operation == '>=':
                 if not data >= operand:
