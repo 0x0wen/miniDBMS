@@ -161,6 +161,10 @@ class StorageManager:
         
         """
         table_manager = TableManager()
+        index_manager = IndexManager()
+
+        pk = table_manager.getPrimaryKey(data_write.selected_table)
+
         table_name = data_write.selected_table
         new_data = data_write.new_value
 
@@ -192,11 +196,16 @@ class StorageManager:
             
             rows_to_write = replace_data(old_data, new_data, filtered_old_data)
             table_manager.writeTable(table_name, rows_to_write, schema)
-            
+            if(pk.__len__() > 0):
+                for idx in pk:
+                    index_manager.writeIndex(data_write.selected_table, idx)
             return new_data.__len__()
         else:
-            return table_manager.appendData(table_name, new_data)
-
+            result =  table_manager.appendData(table_name, new_data)
+            if(pk.__len__() > 0):
+                for idx in pk:
+                    index_manager.writeIndex(data_write.selected_table, idx)
+            return result
         
     def deleteBlock(self, data_deletion : DataDeletion) -> int:
         """
