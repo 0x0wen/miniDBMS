@@ -78,7 +78,7 @@ class DataManager(BlocksManager):
             for offset, num_rows in updated_blocks:
                 blocks_file.write(struct.pack('ii', offset, num_rows))
 
-        return rows_in_last_block + num_rows
+        return data.__len__()
     
 
     def readBlockByOffset(self, table_name : str , block_id : int, schema : list[tuple], offset : int, num_rows) -> tuple[list, int]:
