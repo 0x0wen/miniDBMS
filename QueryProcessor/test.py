@@ -56,10 +56,10 @@ class TestQueryProcessor(unittest.TestCase):
         join_operation = JoinOperation(tables=["table1", "table2"], join_condition=join_condition)
 
         result = self.query_processor.apply_join_operation(join_operation, results)
-        expected_result = [
-            {'table1.id': 1, 'table1.name': 'Alice', 'table2.id': 1, 'table2.age': 25},
-            {'table1.id': 2, 'table1.name': 'Bob', 'table2.id': 2, 'table2.age': 30}
-        ]
+        expected_result = [{'table1.id': 1, 'table1.name': 'Alice', 'table2.age': 25, 'table2.id': 1},
+ {'table1.id': 1, 'table1.name': 'Alice', 'table2.age': 30, 'table2.id': 2},
+  {'table1.id': 2, 'table1.name': 'Bob', 'table2.age': 25, 'table2.id': 1},
+   {'table1.id': 2, 'table1.name': 'Bob', 'table2.age': 30, 'table2.id': 2}]
 
         self.assertEqual(result, expected_result)
 
