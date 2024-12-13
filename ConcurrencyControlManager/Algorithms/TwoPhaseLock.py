@@ -118,24 +118,27 @@ class TwoPhaseLock(AbstractAlgorithm):
 
     def parseRows(self, db_object: Rows):
         """
-        Returns a list of string, int, string.
-        
+        Returns a list of string, int, string
+
         Example:
         ["W", 1, "A"] or ["R", 2, "B"] or ["C", 1, ""]
         """
         parsed_rows = []
+
         for row in db_object.data:
-            if (row[0] == "W" or row[0] == "R"):
-                parsed_rows.append(row[0])
-                parsed_rows.append(row[1])
-                parsed_rows.append(row[3])
+            if isinstance(row, str):
+                import re
+                match = re.match(r"([A-Z])(\d+)\((.*?)\)", row)
+                if match:
+                    letter, number, value = match.groups()
+                    parsed_rows.append([letter, int(number), value])
+                else:
+                    raise ValueError(f"Row format is invalid: {row}")
             else:
-                parsed_rows.append(row[0])
-                parsed_rows.append(row[1])
-                parsed_rows.append("")
+                raise TypeError(f"Row must be a string, got {type(row).__name__}")
 
         return parsed_rows
-        ### End of method ###
+            ### End of method ###
 
     def handleLockXRequest(self, transaction_id: int, data_item: str) -> bool:
         valid = False
@@ -233,12 +236,7 @@ class TwoPhaseLock(AbstractAlgorithm):
         elif parsed_db_object[0] == "C":
             valid = self.handleCommitRequest(transaction_id)
             self.response = Response("ALLOW", transaction_id, transaction_id)
-
-        ### End of method ###
-
-    def validate(self, db_object: Rows, transaction_id: int, action: Action) -> Response:
-        return self.response
-
+        
         ### End of method ###
 
     def validate(self, db_object: Rows, transaction_id: int, action: Action) -> Response:
