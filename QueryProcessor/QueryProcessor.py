@@ -4,11 +4,9 @@ from ConcurrencyControlManager.ConcurrentControlManager import ConcurrentControl
 from StorageManager.objects.DataRetrieval import DataRetrieval, Condition
 from StorageManager.objects.JoinCondition import JoinCondition
 from StorageManager.objects.JoinOperation import JoinOperation
-from StorageManager.objects.DataWrite import DataWrite
 from FailureRecovery.FailureRecovery import FailureRecovery
 from StorageManager.manager.SchemaManager import SchemaManager 
 from Interface.Rows import Rows
-from Interface.Action import Action
 from typing import List
 from StorageManager.StorageManager import StorageManager
 from datetime import datetime
@@ -144,8 +142,8 @@ class QueryProcessor:
         tables = []
         conditions = []
         self.get_table_and_condition(qt, tables, conditions)
-        print("tablenya", tables)
-        print("conditionnya", conditions)
+        # print("tablenya", tables)
+        # print("conditionnya", conditions)
 
         columns = {}
         for table in tables:
