@@ -108,9 +108,22 @@ class StorageManager:
 
         #Kalo condisi kosong, return semua data sesuai colomn
         if(not len(data_retrieval.conditions)):
+            #     data_retrieval= DataRetrieval(
+            #     table=['course'],
+            #     column=[],
+            #     conditions=[]
+            # 
             data = serializer.readTable(table_name)
             column_filtered_data = serializer.filterColumns(data, data_retrieval.column)
-            return Rows(column_filtered_data)
+            failureRecovery = FailureRecovery()
+            buffered_row = failureRecovery.buffer.retrieveData(data_retrieval)
+            if(buffered_row):
+                return buffered_row
+            else:
+                PK = serializer.getPrimaryKey(table_name)
+                failureRecovery.buffer.writeData(rows=column_filtered_data, dataRetrieval=data_retrieval,primaryKey=PK)
+                rows = failureRecovery.buffer.retrieveData(data_retrieval)
+                return Rows(rows)
 
             
 
