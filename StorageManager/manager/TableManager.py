@@ -164,10 +164,6 @@ class TableManager(DataManager):
 
         return Rows(filtered_rows)
 
-
-
-
-
     def filterColumns(self,rows: list[dict], columns: list[str]) -> Rows:
         
         if columns:
