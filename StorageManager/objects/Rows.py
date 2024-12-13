@@ -36,6 +36,8 @@ class Rows(list):
             Rows : data that doesn't match the conditional_rows
         """
         newData : Rows = []
+        if(not conditional_rows and conditional_rows.__len__() == 0):
+            return []
         if(type(conditional_rows) != Rows):
             conditional_rows = Rows(conditional_rows)
         conditional_rows = conditional_rows._toSet()
