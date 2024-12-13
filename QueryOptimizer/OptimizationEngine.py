@@ -219,7 +219,8 @@ class OptimizationEngine:
         remaining_conditions = extract_conditions_from_tree(query_tree)
         optimized_tree = optimize_recursive(query_tree, list(all_tables),remaining_conditions)
         # print("Optimized tree:", optimized_tree)
-        return optimizeWhere(rule8(ParsedQuery(query.query, optimized_tree)))
+        # return optimizeWhere(rule8(ParsedQuery(query.query, optimized_tree)))
+        return (ParsedQuery(query.query, optimized_tree))
     
     def validateParsedQuery(self, query_tree: QueryTree) -> bool:
         """
