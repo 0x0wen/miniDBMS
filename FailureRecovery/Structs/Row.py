@@ -9,32 +9,40 @@ class Row:
         
     def isRowFullfilingCondition(self, conditions: list[Condition]) -> bool:
         """
-        Checks if a row fulfills a given condition.
+        Checks if a row fulfills a given set of conditions with proper handling of connectors (AND/OR).
         """
+        result = None  
         for condition in conditions:
             data = str(self.data[condition.column])
             operand = str(condition.operand)
 
-            if condition.operation == '=':
-                if data != operand:
-                    return False
-            elif condition.operation == '!=':
-                if data == operand:
-                    return False
-            elif condition.operation == '<':
-                if not data < operand:
-                    return False
-            elif condition.operation == '>':
-                if not data > operand:
-                    return False
-            elif condition.operation == '<=':
-                if not data <= operand:
-                    return False
-            elif condition.operation == '>=':
-                if not data >= operand:
-                    return False
+            if data.replace('.', '', 1).isdigit() and operand.replace('.', '', 1).isdigit():
+                data = float(data) if '.' in data else int(data)
+                operand = float(operand) if '.' in operand else int(operand)
 
-        return True
+    
+            condition_result = False
+            if condition.operation == '=':
+                condition_result = data == operand
+            elif condition.operation == '!=' or condition.operation == '<>':
+                condition_result = data != operand
+            elif condition.operation == '<':
+                condition_result = data < operand
+            elif condition.operation == '>':
+                condition_result = data > operand
+            elif condition.operation == '<=':
+                condition_result = data <= operand
+            elif condition.operation == '>=':
+                condition_result = data >= operand
+
+            if result is None:
+                result = condition_result  
+            elif condition.connector == "AND":
+                result = result and condition_result
+            elif condition.connector == "OR":
+                result = result or condition_result
+
+        return result if result is not None else False  
 
     
     def isRowEqual(self, other: 'Row') -> bool:
