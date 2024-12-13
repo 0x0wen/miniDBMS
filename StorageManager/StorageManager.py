@@ -117,9 +117,9 @@ class StorageManager:
 
         #Cek dulu, ada gk condisi yang pake column yang gk ada index
         for cond in data_retrieval.conditions:
-            #NOTE - Delete this
+            
             index = index_manager.readIndex(table_name, cond.column)
-            # print(f"is {cond.column}indexed: ", index_manager.isIndexed(table_name,cond.column))
+            
             if(not index):
                 all_filtered_data.setIndex(None)
                 continue
@@ -259,8 +259,7 @@ class StorageManager:
         storage_dir = os.path.join(current_dir, path_name) 
         storage_dir = os.path.abspath(storage_dir)  
 
-        #NOTE - Delete this
-        # print(storage_dir)
+        
         all_stats = {}
 
         # Check all tables in the directory
