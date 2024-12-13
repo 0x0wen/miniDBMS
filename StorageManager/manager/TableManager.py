@@ -53,8 +53,6 @@ class TableManager(DataManager):
             for offset, num_rows in blocks:
                 blocks_file.write(struct.pack('ii', offset, num_rows))
 
-    
-
     def group_conditions(self,conditions: list[Condition]) -> list[list[Condition]]:
         """
         Group conditions based on their connectors, by shifting connectors logic.
