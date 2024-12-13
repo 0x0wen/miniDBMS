@@ -1,5 +1,6 @@
 class Rows(list):
-    def __init__(self, rows: list[dict]) -> None:
+    def __init__(self, rows: list[dict] = []) -> None:
+        
         super().__init__(rows)
         self.indexed_column = None
         
@@ -9,6 +10,9 @@ class Rows(list):
     #     return f"Rows(rows={self})"
     
     def extend(self, new_rows: list[dict]) -> None:
+
+        if(not new_rows):
+            return []
         if all(isinstance(row, dict) for row in new_rows):
             super().extend(new_rows)
         else:
@@ -32,6 +36,8 @@ class Rows(list):
             Rows : data that doesn't match the conditional_rows
         """
         newData : Rows = []
+        if(not conditional_rows and conditional_rows.__len__() == 0):
+            return []
         if(type(conditional_rows) != Rows):
             conditional_rows = Rows(conditional_rows)
         conditional_rows = conditional_rows._toSet()

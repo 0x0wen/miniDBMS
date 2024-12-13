@@ -1,4 +1,3 @@
-import os
 """
 As we didn't create any functionality of create table, this is the main entry
 of creating a table as given in specs which is student and course

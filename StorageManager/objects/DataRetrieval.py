@@ -12,8 +12,7 @@ class DataRetrieval:
     # Debugging representation
     def __repr__(self) -> str:
         # Format tabel
-        table_str = ", ".join(self.table) if self.table else "None"
-        # Format kolom
+        table_str = ", ".join(self.table) if self.table else "None"        # Format kolom
         column_str = ", ".join(self.column) if self.column else "All Columns"
         
         # Format kondisi WHERE

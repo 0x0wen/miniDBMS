@@ -24,7 +24,6 @@ class StorageManager:
         """
         #Fungsi bantu index ranging
         def process_ranges_with_column(conditions): 
-            from functools import reduce
 
             def generate_range(start, end, operator):
                 """Menghasilkan range berdasarkan operator."""
@@ -117,9 +116,9 @@ class StorageManager:
 
         #Cek dulu, ada gk condisi yang pake column yang gk ada index
         for cond in data_retrieval.conditions:
-            #NOTE - Delete this
+            
             index = index_manager.readIndex(table_name, cond.column)
-            # print(f"is {cond.column}indexed: ", index_manager.isIndexed(table_name,cond.column))
+            
             if(not index):
                 all_filtered_data.setIndex(None)
                 continue
@@ -141,12 +140,13 @@ class StorageManager:
         
         column_filtered_data = serializer.filterColumns(cond_filtered_data, data_retrieval.column)
         all_filtered_data.extend(column_filtered_data)
-
+        if(all_filtered_data.__len__() == 0):
+           all_filtered_data = []
 
         # write to buffer in failureRecovery
         failureRecovery = FailureRecovery()
         PK = serializer.getPrimaryKey(table_name)
-        failureRecovery.buffer.writeData(rows=cond_filtered_data, dataRetrieval=data_retrieval,primaryKey=PK)
+        failureRecovery.buffer.writeData(rows=all_filtered_data, dataRetrieval=data_retrieval,primaryKey=PK)
         rows = failureRecovery.buffer.retrieveData(data_retrieval)
         return rows    
         # return all_filtered_data
@@ -161,6 +161,10 @@ class StorageManager:
         
         """
         table_manager = TableManager()
+        index_manager = IndexManager()
+
+        pk = table_manager.getPrimaryKey(data_write.selected_table)
+
         table_name = data_write.selected_table
         new_data = data_write.new_value
 
@@ -192,11 +196,16 @@ class StorageManager:
             
             rows_to_write = replace_data(old_data, new_data, filtered_old_data)
             table_manager.writeTable(table_name, rows_to_write, schema)
-            
+            if(pk.__len__() > 0):
+                for idx in pk:
+                    index_manager.writeIndex(data_write.selected_table, idx)
             return new_data.__len__()
         else:
-            return table_manager.appendData(table_name, new_data)
-
+            result =  table_manager.appendData(table_name, new_data)
+            if(pk.__len__() > 0):
+                for idx in pk:
+                    index_manager.writeIndex(data_write.selected_table, idx)
+            return result
         
     def deleteBlock(self, data_deletion : DataDeletion) -> int:
         """
@@ -209,43 +218,26 @@ class StorageManager:
         serializer = TableManager()
         index_manager = IndexManager()
 
-        use_index = False # Indexing Flag
-        indexed_column = None # Store column that has index
-
         cond_filtered_data : Rows= ""
         
         data = serializer.readTable(data_deletion.table)
         
-        #Cek dulu, ada gk condisi yang pake column yang gk ada index
-        for cond in data_deletion.conditions:
-            index = index_manager.readIndex(data_deletion.table, cond.column)
-            data.setIndex(cond.column)
-            if(not index):
-                data.setIndex(None)
-                break
+        pk = serializer.getPrimaryKey(data_deletion.table)
 
         data_retrieval = DataRetrieval([data_deletion.table],[],data_deletion.conditions)
         cond_filtered_data = self.readBlock(data_retrieval)
 
         # Filtereed table based on condition
         schema = serializer.readSchema(data_deletion.table)
-        
-        #NOTE - Delete this
-        # print("TEST READ: ")
-        # print(cond_filtered_data)
-        # print("BLABLABLA")
 
         
         # Create new data that doesn't contain filtered table
         newData = data.getRowsNotMatching(cond_filtered_data)
-
-        #NOTE - Add this functionality if buffer wanna be used
-        # FailureRecovery._instance.buffer.deleteData(newData)
-
-        #NOTE - Use this to delete from physical data
+        
         serializer.writeTable(data_deletion.table, newData, schema)
-        if(use_index):
-            index_manager.writeIndex(data_deletion.table, indexed_column)
+        if(pk.__len__() > 0):
+            for idx in pk:
+                index_manager.writeIndex(data_deletion.table, idx)
         
         # get the amount of dat that is deleted
         return cond_filtered_data.__len__()
@@ -276,6 +268,7 @@ class StorageManager:
         storage_dir = os.path.join(current_dir, path_name) 
         storage_dir = os.path.abspath(storage_dir)  
 
+        
         all_stats = {}
 
         # Check all tables in the directory

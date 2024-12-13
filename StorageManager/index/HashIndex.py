@@ -122,6 +122,3 @@ class HashIndex:
             items.append(f"{key}: {block_id}")
 
         return f"HashTable({self.column}): " + ", ".join(items)
-    
-    def test(self):
-        return self.hash_table.__len__() > 0
