@@ -442,7 +442,6 @@ class QueryProcessor:
                         for key in common_keys:
                             merged_dict[key] = d1[key]
                         result.append(merged_dict)                   
-        print("crot")
         return result
 
     def get_all_table_names(self, jo: JoinOperation) -> list:

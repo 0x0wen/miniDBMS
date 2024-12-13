@@ -35,17 +35,26 @@ class TestQueryProcessor(unittest.TestCase):
         self.assertEqual(alias_map, {'cs': 'coursename'})
 
     def test_generate_rows_from_query_tree(self):
+        # Mock query trees for SELECT and UPDATE operations
         mock_query_tree_select = MagicMock(node_type='SELECT', children=[MagicMock(node_type='FROM', val=['table1'])])
         mock_query_tree_update = MagicMock(node_type='UPDATE', val=['table2'])
+        
+        # Mock optimized query that contains SELECT and UPDATE query trees
         mock_optimized_query = [MagicMock(query_tree=mock_query_tree_select), MagicMock(query_tree=mock_query_tree_update)]
+        
         mock_rows = MagicMock()
-
+        
+        mock_rows.data = ['R1(table1)', 'W1(table2)']
+        
+        # Mock the Rows instantiation within the QueryProcessor class
         with patch('QueryProcessor.QueryProcessor.Rows', return_value=mock_rows):
             transaction_id = 1
             rows = self.query_processor.generate_rows_from_query_tree(mock_optimized_query, transaction_id)
 
-            self.assertEqual(rows, mock_rows)
-            self.assertEqual(rows.data, ['R1(table1)', 'W1(table2)'])
+            # Assertions
+            self.assertEqual(rows, mock_rows) 
+            self.assertEqual(rows.data, ['R1(table1)', 'W1(table2)']) 
+
 
     def test_apply_join_operation(self):
         results = {
