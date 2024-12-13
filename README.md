@@ -50,7 +50,7 @@ Developed by Amazing RDS, a team of 21 member can be access [here](./docs/member
 The Query Processor is a core component of a DBMS that interprets, optimizes, and executes user queries efficiently, transforming them into actionable operations. [Learn more about Query Processor](./QueryProcessor/README.md).
 
 ### Failure Recovery Manager
-The Failure Recovery Manager is used to ensure data consistency and durability in the event of failures. It interacts with various components of the database system, such as the Query Processor, Concurrency Control Manager, and the Storage Manager [Learn more about Query Processor](./FailureRecovery/README.md).
+The Failure Recovery Manager is used to ensure data consistency and durability in the event of failures. It interacts with various components of the database system, such as the Query Processor, Concurrency Control Manager, and the Storage Manager [Learn more about Failure Recovery](./FailureRecovery/README.md).
 
 ### Concurrency Control Manager
 The Concurrency Control Manager is a Python-based system designed to manage database transactions using various concurrency control algorithms. It supports different algorithms such as Two-Phase Locking and Timestamp-Based Protocols to ensure data consistency and handle concurrent transactions effectively. [Learn more about Concurrency Control Manager](./ConcurrencyControlManager/README.md).
