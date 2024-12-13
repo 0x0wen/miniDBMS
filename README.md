@@ -49,4 +49,6 @@ Developed by Amazing RDS, a team of 21 member can be access [here](./docs/member
 ### Query Processor
 The Query Processor is a core component of a DBMS that interprets, optimizes, and executes user queries efficiently, transforming them into actionable operations. [Learn more about Query Processor](./QueryProcessor/README.md).
 
+### Failure Recovery Manager
+The Failure Recovery Manager is used to ensure data consistency and durability in the event of failures. It interacts with various components of the database system, such as the Query Processor, Concurrency Control Manager, and the Storage Manager. The Query Processor interacts with the Failure Recovery to ensure that changes made by queries are logged and can be recovered in case of a failure. The Concurrency Control Manager interacts with the Failure Recovery to handle transaction conflicts and ensure data consistency. Whilst, the Storage Manager interacts with the Failure Recovery class to ensure that changes are logged and can be recovered in case of a failure.
 
