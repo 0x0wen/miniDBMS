@@ -266,12 +266,19 @@ if __name__ == "__main__":
     trans_2 = two_phase.validate(db_object_2, 2, Action(["write"]))
 
     two_phase.logObject(db_object_3, 1)
-    trans_3 = two_phase.validate(db_object_2, 1, Action(["commit"]))
+    trans_3 = two_phase.validate(db_object_3, 1, Action(["commit"]))
     two_phase.end(1)
 
     two_phase.logObject(db_object_4, 2)
-    trans_4 = two_phase.validate(db_object_2, 2, Action(["write"]))
+    trans_4 = two_phase.validate(db_object_4, 2, Action(["write"]))
 
+    """
+    Expected output:
+    ALLOW, 1, 1
+    WAIT, 2, 1
+    ALLOW, 1, 1
+    ALLOW, 2, 2
+    """
     print(trans_1)
     print(trans_2)
     print(trans_3)
