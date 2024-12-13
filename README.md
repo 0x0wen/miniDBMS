@@ -1,6 +1,9 @@
-# miniDBMS
+# miniDBMS - Database System Mega Project - Amazing RDS - 2024
+> mini Database Management System Development
 
-Developed by Amazing RDS, a team of 25.
+## 🏋️‍♀️ Group Member
+Developed by Amazing RDS, a team of 21 member can be access [here](./docs/member.md) for more information.
+
 
 ## Naming conventions
 
@@ -11,18 +14,19 @@ Developed by Amazing RDS, a team of 25.
 5. Constant names : UPPERCASE with underscores (ex: TIME_LIMIT)
 
 
-## Pre-requisite
+## 📑 Pre-requisite
 
 1. Windows 7 / Ubuntu / MacOS ( Not recomended to use any os from your IF2230 OS project ( It may not work ) ) or higher
 2. [Python](https://www.python.org/) (version 3.6 or higher)
 
-## How to run
+##  🏃‍♂ How to run
 
 1. Clone this repository
 2. Run `python3 server.py`
 3. Run `python3 client.py`
-4. Input your query in the client terminal
-5. The result will be shown in the client terminal (Maybe😭)
+4. This Program support multi-client so you can execute this `python3 client.py` multiple time.
+5. Input your query in the client terminal
+6. The result will be shown in the client terminal.
 
 ## Query Tree Description
 
@@ -41,6 +45,8 @@ Developed by Amazing RDS, a team of 25.
 5. ORDER BY --> node_type : "ORDER BY", value : the attribute name for order by (ex: ["name", "asc"]), children : has 1 children, the children will be table_node or join_node
 6. LIMIT --> node_type : "LIMIT", value : the limit number (ex: ["10"]), children : has 1 children, the children will be table_node or join_node
 
-## Known Bug
+## ️🔑 Key Features
+### Query Processor
+The Query Processor is a core component of a DBMS that interprets, optimizes, and executes user queries efficiently, transforming them into actionable operations. [Learn more about Query Processor](./QueryProcessor/README.md).
 
-- hunting dulu bro
+
