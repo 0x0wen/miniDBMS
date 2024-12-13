@@ -24,7 +24,7 @@ class Row:
             condition_result = False
             if condition.operation == '=':
                 condition_result = data == operand
-            elif condition.operation == '!=':
+            elif condition.operation == '!=' or condition.operation == '<>':
                 condition_result = data != operand
             elif condition.operation == '<':
                 condition_result = data < operand
