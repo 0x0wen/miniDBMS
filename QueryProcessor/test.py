@@ -78,18 +78,28 @@ class TestQueryProcessor(unittest.TestCase):
         output = self.query_processor.format_results_as_table(results)
         self.assertEqual(output, expected_output)
 
-    def test_query_tree_to_results(self):
-        qt = QueryTree(node_type="SELECT", val=["*"])
-        qt.children.append(QueryTree(node_type="FROM", val=["employees"]))
-        qt.children.append(QueryTree(node_type="WHERE", val=["employee_id", "=", "1"]))
+def test_query_tree_to_results(self):
+    # Siapkan query tree
+    qt = QueryTree(node_type="SELECT", val=["*"])
+    qt.children.append(QueryTree(node_type="FROM", val=["employees"]))
+    qt.children.append(QueryTree(node_type="WHERE", val=["employee_id", "=", "1"]))
 
-        with patch.object(self.query_processor, 'query_tree_to_data_retrievals', return_value=([MagicMock()], ["employees"])):
-            with patch.object(self.query_processor, 'get_join_operations', return_value=MagicMock()):
-                with patch.object(self.query_processor.storage_manager, 'readBlock', return_value=[{'employee_id': 1, 'name': 'Alice', 'position': 'cashier'}]):
-                    with patch.object(self.query_processor, 'apply_join_operation', return_value=[{'employee_id': 1, 'name': 'Alice', 'position': 'cashier'}]):
-                        result = self.query_processor.query_tree_to_results(qt)
-                        expected_result = [{'employee_id': 1, 'name': 'Alice', 'position': 'cashier'}]
-                        self.assertEqual(result, expected_result)
+    # Mock data retrievals dan operasi join
+    mock_data_retrieval = MagicMock()
+    mock_data_retrieval.table = ["employees"]
+
+    with patch.object(self.query_processor, 'query_tree_to_data_retrievals', return_value=([mock_data_retrieval], ["employees"])):
+        with patch.object(self.query_processor, 'get_join_operations', return_value=MagicMock()):
+            with patch.object(self.query_processor.storage_manager, 'readBlock', return_value=[{'employee_id': 1, 'name': 'Alice', 'position': 'cashier'}]):
+                with patch.object(self.query_processor, 'apply_join_operation', return_value=[{'employee_id': 1, 'name': 'Alice', 'position': 'cashier'}]):
+                    # Panggil metode yang diuji
+                    result = self.query_processor.query_tree_to_results(qt)
+
+                    # Hasil yang diharapkan
+                    expected_result = [{'employee_id': 1, 'name': 'Alice', 'position': 'cashier'}]
+
+                    # Bandingkan hasilnya
+                    self.assertEqual(result, expected_result)
 
 if __name__ == '__main__':
     unittest.main()
