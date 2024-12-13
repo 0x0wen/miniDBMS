@@ -4,6 +4,7 @@ from FailureRecovery.FailureRecovery import FailureRecovery
 from StorageManager.objects.Rows import Rows
 from FailureRecovery.Structs.Table import Table
 from StorageManager.StorageManager import StorageManager
+from FailureRecovery.Structs.Row import Row
 
 class TestSynchronizeMultipleTables(unittest.TestCase):
     def setUp(self):
@@ -52,17 +53,17 @@ class TestSynchronizeMultipleTables(unittest.TestCase):
 
         # Initial data for buffer
         self.buffer_data_1 = [
-            [1, 1000, 'Updated Course Name 1', 'Updated Desc 1'],
-            [2, 2000, 'Course Name 2', 'Course Desc 2'],
-            [3, 3000, 'New Course Name 3', 'New Desc 3'],
-            [5, 5000, 'Course Name 5', 'Course Desc 5'],
+            Row({'courseid': 1, 'year': 1000, 'coursename': 'Updated Course Name 1', 'coursedesc': 'Updated Desc 1'}),
+            Row({'courseid': 2, 'year': 2000, 'coursename': 'Course Name 2', 'coursedesc': 'Course Desc 2'}),
+            Row({'courseid': 3, 'year': 3000, 'coursename': 'New Course Name 3', 'coursedesc': 'New Desc 3'}),
+            Row({'courseid': 5, 'year': 5000, 'coursename': 'Updated Course Name 5', 'coursedesc': 'Updated Desc 5'}),
         ]
 
         self.buffer_data_2 = [
-            [1, 'Alice', 3.5],
-            [2, 'Updated Bob', 3.6],
-            [3, 'New Charlie', 4.0],
-            [5, 'Elia', 3.1],
+            Row({'studentid': 1, 'name': 'Alice', 'gpa': 3.5}),
+            Row({'studentid': 2, 'name': 'Updated Bob', 'gpa': 3.6}),
+            Row({'studentid': 3, 'name': 'New Charlie', 'gpa': 4.0}),
+            Row({'studentid': 5, 'name': 'Elia', 'gpa': 3.1}),
         ]
 
         # Write initial data to physical storage
@@ -106,7 +107,7 @@ class TestSynchronizeMultipleTables(unittest.TestCase):
             {'courseid': 2, 'year': 2000, 'coursename': 'Course Name 2', 'coursedesc': 'Course Desc 2'},
             {'courseid': 3, 'year': 3000, 'coursename': 'New Course Name 3', 'coursedesc': 'New Desc 3'},
             {'courseid': 4, 'year': 4000, 'coursename': 'Course Name 4', 'coursedesc': 'Course Desc 4'},
-            {'courseid': 5, 'year': 5000, 'coursename': 'Course Name 5', 'coursedesc': 'Course Desc 5'},
+            {'courseid': 5, 'year': 5000, 'coursename': 'Updated Course Name 5', 'coursedesc': 'Updated Desc 5'},
             {'courseid': 6, 'year': 6000, 'coursename': 'Course Name 6', 'coursedesc': 'Course Desc 6'},
         ]
 
@@ -122,6 +123,8 @@ class TestSynchronizeMultipleTables(unittest.TestCase):
         expected_buffer_data = [] # Buffer should be empty after synchronization
         
         # Check if updated data matches the expected data
+        print(updated_data_1)
+        print(expected_data_1)
         self.assertEqual(updated_data_1, expected_data_1)
         self.assertEqual(updated_data_2_rounded, expected_data_2)
         self.assertEqual(expected_buffer_data, self.failure_recovery.buffer.getTables())
