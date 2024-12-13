@@ -67,10 +67,12 @@ class Server:
         return rows.data, optimized_query
     
     def run_all(self, queries, client_id, client_socket):
+        print("queries", queries) 
         rows_data, optimized_query = self.generate_rows(queries, client_id)
         print("isi dict trans id to client id", self.transactionid_to_clientid)
         print("isi dict client id to trans id", self.clientid_to_transactionid)
         for row_data, single_query in zip(rows_data, optimized_query):
+            print(single_query.query_tree.node_type)
             # Create a Rows object with a single row of data
             single_row = Rows([row_data])
 
@@ -81,6 +83,7 @@ class Server:
             self.query_processor.concurrent_manager.two_phase_lock.logObject(single_row, self.clientid_to_transactionid[client_id])
             response = self.query_processor.concurrent_manager.two_phase_lock.validate(single_row, self.clientid_to_transactionid[client_id], action)
             print("response nya", response)
+            print("dari query", single_query)
 
             if response.response_action == "ALLOW":
                 # run directly
@@ -139,6 +142,8 @@ class Server:
                             query_input = client_socket.recv(1024).decode("utf-8").strip()
                             queries.append(query_input)
                             if query_input.upper() == "COMMIT":
+                                queries.pop(0)
+                                queries.pop()
                                 break
 
                     # main function to run queries
