@@ -82,7 +82,6 @@ class OptimizationEngine:
         if current_token:
             tokens.append(current_token)
 
-        print("Tokens:", tokens)
         # Validate the first token of the query
         if (not self.validateFirstToken(tokens)):
             raise CustomException("Invalid first token", code=400)
@@ -152,11 +151,11 @@ class OptimizationEngine:
             result = []
             remaining_conditions = []
             for condition in conditions:
-                print("Condition", condition)
+                # print("Condition", condition)
                 table_names = {part.split('.')[0] for part in condition if '.' in part}
-                print("Table names", table_names)
-                print("Table1", table1)
-                print("Table2", table2)
+                # print("Table names", table_names)
+                # print("Table1", table1)
+                # print("Table2", table2)
                 if table1 in table_names and table2 in table_names:
                     result.extend(condition)  
                 else:
@@ -169,10 +168,10 @@ class OptimizationEngine:
             has_join_child = any(child.node_type in ["JOIN", "TJOIN"] for child in current_tree.children)
             referenced_tables = list(set(all_tables) - set(remaining_tables))
             isReversed = bool(referenced_tables)
-            print('hey', current_tree)
+            # print('hey', current_tree)
             if (has_join_child):
-                print("Optimizing children...")
-                print( current_tree)
+                # print("Optimizing children...")
+                # print( current_tree)
                 current_tree.children = [
                     optimize_recursive(child, remaining_tables,remaining_conditions) if child.node_type in ["JOIN", "TJOIN"] else child
                     for child in current_tree.children
@@ -180,21 +179,21 @@ class OptimizationEngine:
             if(current_tree.node_type == "TJOIN"):
                 referenced_tables = list(set(all_tables) - set(remaining_tables))
                 isReversed = referenced_tables != []
-                print("Optimizing join order...", current_tree)
-                print("list", list(set(all_tables) - set(remaining_tables)))
-                print("isreverse", isReversed)
+                # print("Optimizing join order...", current_tree)
+                # print("list", list(set(all_tables) - set(remaining_tables)))
+                # print("isreverse", isReversed)
                 if(isReversed):
-                    print("Reversed")
+                    # print("Reversed")
                     joined_tables = set()
                     for table in referenced_tables:
                         joined_tables.update(find_joined_tables(remaining_conditions, table))
                     joined_tables = joined_tables & set(remaining_tables)
-                    print("Joined tables:", joined_tables)
+                    # print("Joined tables:", joined_tables)
                     smallest_table = joined_tables.pop()
                     smallest_joined_table = find_joined_tables(remaining_conditions, smallest_table)& set(referenced_tables)
                     smallest_joined_table = smallest_joined_table.pop()
-                    print("Smallest table:", smallest_table) 
-                    print("Smallest joined table:", smallest_joined_table) 
+                    # print("Smallest table:", smallest_table) 
+                    # print("Smallest joined table:", smallest_joined_table) 
                     for child in current_tree.children:
                         if child.node_type == "Value1":
                             child.val = smallest_table        
@@ -202,13 +201,13 @@ class OptimizationEngine:
                     remaining_tables.remove(smallest_table)
                 else:
                     smallest_table = min(remaining_tables, key=lambda t: statistics.get(t, Statistics(0, 0, 0, 0, {})).n_r)
-                    print("Smallest table:", smallest_table)
+                    # print("Smallest table:", smallest_table)
                     joined_tables = find_joined_tables(remaining_conditions, smallest_table) & set(remaining_tables)
-                    print("Joined tables:", joined_tables)
+                    # print("Joined tables:", joined_tables)
                     if not joined_tables:
                         return current_tree
                     smallest_joined_table = min(joined_tables, key=lambda t: statistics.get(t, Statistics(0, 0, 0, 0, {})).n_r)
-                    print("Smallest joined table:", smallest_joined_table)
+                    # print("Smallest joined table:", smallest_joined_table)
                     replace_join_children(current_tree, smallest_table, smallest_joined_table)
                     current_tree.val = get_matching_conditions(remaining_conditions, smallest_table, smallest_joined_table)
                     remaining_tables.remove(smallest_table)
@@ -219,7 +218,7 @@ class OptimizationEngine:
         all_tables = extract_tables_from_tree(query_tree)
         remaining_conditions = extract_conditions_from_tree(query_tree)
         optimized_tree = optimize_recursive(query_tree, list(all_tables),remaining_conditions)
-        print("Optimized tree:", optimized_tree)
+        # print("Optimized tree:", optimized_tree)
         return optimizeWhere(rule8(ParsedQuery(query.query, optimized_tree)))
     
     def validateParsedQuery(self, query_tree: QueryTree) -> bool:
