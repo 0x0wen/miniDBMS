@@ -226,17 +226,11 @@ class OptimizationEngine:
                 node.children = sorted(node.children, key=lambda x: x.val)
             return node
 
-        def last_projection(node):
-            if node.node_type == "PROJECT" and hasattr(node, 'children'):
-                last_projection = node.children[-1]
-                return QueryTree("PROJECT", last_projection.val, [last_projection])
-            return node
-        
         query_tree = query.query_tree
         all_tables = extract_tables_from_tree(query_tree)
         remaining_conditions = extract_conditions_from_tree(query_tree)
 
-        query_tree.children = [last_projection(commutative_selection(child)) for child in query_tree.children]
+        query_tree.children = [(commutative_selection(child)) for child in query_tree.children]
         query_tree.children = [grandchild for child in query_tree.children for grandchild in conjunctive_selection(child)]
         optimized_tree = optimize_recursive(query_tree, list(all_tables),remaining_conditions)
         # print("Optimized tree:", optimized_tree)
