@@ -12,7 +12,7 @@ from collections import deque
 
 
 class Server:
-    def __init__(self, host="localhost", port=1236):
+    def __init__(self, host="localhost", port=1235):
         self.host = host
         self.port = port
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -50,6 +50,7 @@ class Server:
         # BEGIN OPTIMIZING
         optimized_query = []
         statistics = self.query_processor.storage_manager.getStats()
+        print("statistics:", statistics)
         for q in query:
             query_without_aliases, alias_map = self.query_processor.remove_aliases(q)
             optimized_query.append(
@@ -100,6 +101,7 @@ class Server:
             action = Action([action_type])
             print("Client id map:", self.clientid_to_transactionid)
             this_transaction_id = self.clientid_to_transactionid[client_id] if client_id in self.clientid_to_transactionid else raiseExceptions("Client ID not found")
+            print("this_transaction_id:", this_transaction_id)
             self.query_processor.concurrent_manager.logObject(single_row, this_transaction_id)
             response = self.query_processor.concurrent_manager.validateObject(single_row,
                                                                               this_transaction_id,
