@@ -180,13 +180,13 @@ class TwoPhaseLock(AbstractAlgorithm):
         return False
         ### End of method ###
 
-    def getTransactionIdOfLock(self, data_item: str) -> int:
+    def getTransactionIdOfLock(self, data_item: str, current_t_id: int) -> int:
         for lock in self.lock_x_table:
             if lock[1] == data_item:
                 return lock[0]
 
         for lock in self.lock_s_table:
-            if lock[1] == data_item:
+            if lock[1] == data_item and lock[0] != current_t_id:
                 return lock[0]
 
         return -1
@@ -194,11 +194,11 @@ class TwoPhaseLock(AbstractAlgorithm):
 
     def woundOrWait(self, transaction_id: int, data_item: str) -> tuple[str, int]:
         if self.isLockedByOlderTransaction(transaction_id, data_item):
-            transaction_to_wait = self.getTransactionIdOfLock(data_item)
+            transaction_to_wait = self.getTransactionIdOfLock(data_item, transaction_id)
             return ("WAIT", transaction_to_wait)
 
         else:
-            transaction_to_wound = self.getTransactionIdOfLock(data_item)
+            transaction_to_wound = self.getTransactionIdOfLock(data_item, transaction_id)
 
             self.unlockAllS(transaction_to_wound)
             self.unlockAllX(transaction_to_wound)
