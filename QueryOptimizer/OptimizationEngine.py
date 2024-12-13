@@ -88,7 +88,7 @@ class OptimizationEngine:
         
         # Reset the one-node constraint list
         self.one_node_constraint = []
-        
+
         # Create a QueryTree from the tokens
         root = self.__createQueryTree(tokens, statistics)
 
@@ -581,7 +581,9 @@ class OptimizationEngine:
             while tokens and tokens[0].upper() not in ["LIMIT"]:
                 col = tokens.pop(0)
                 root.val.append(col)
-                if tokens[0] == ",":
+                if not tokens:
+                    break
+                elif tokens[0] == ",":
                     tokens.pop(0)
                     if tokens and tokens[0].upper() in ["LIMIT", ","]:
                         raise CustomException("Invalid syntax for ORDER BY clause", code=400)
