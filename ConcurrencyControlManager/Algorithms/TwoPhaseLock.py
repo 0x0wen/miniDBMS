@@ -1,8 +1,10 @@
+from array import array
+
 from Interface.Response import Response
 from Interface.Action import Action
 from Interface.Rows import Rows
 from ConcurrencyControlManager.Algorithms.AbstractAlgorithm import AbstractAlgorithm
-
+import re
 
 class TwoPhaseLock(AbstractAlgorithm):
     """
@@ -101,7 +103,7 @@ class TwoPhaseLock(AbstractAlgorithm):
         ### End of method ###
 
     def upgradeLockSToX(self, transaction_id: int, data_item: str) -> bool:
-        if not self.isLockedSByOtherTransaction(transaction_id, data_item):
+        if self.isLockedSByOtherTransaction(transaction_id, data_item):
             return False
         idx = -1
         for i in range(len(self.lock_s_table)):
@@ -123,22 +125,16 @@ class TwoPhaseLock(AbstractAlgorithm):
         Example:
         ["W", 1, "A"] or ["R", 2, "B"] or ["C", 1, ""]
         """
-        parsed_rows = []
-
-        for row in db_object.data:
-            if isinstance(row, str):
-                import re
-                match = re.match(r"([A-Z])(\d+)\((.*?)\)", row)
-                if match:
-                    letter, number, value = match.groups()
-                    parsed_rows.append([letter, int(number), value])
-                else:
-                    raise ValueError(f"Row format is invalid: {row}")
+        if isinstance(db_object, Rows):
+            match = re.match(r"([A-Z])(\d+)\((.*?)\)", db_object.data[0])
+            if match:
+                letter, number, value = match.groups()
+                return [letter, int(number), value]
             else:
-                raise TypeError(f"Row must be a string, got {type(row).__name__}")
-
-        return parsed_rows
-            ### End of method ###
+                raise ValueError(f"Row format is invalid: {db_object}")
+        else:
+            raise TypeError(f"Row must be a string, got {type(db_object).__name__}")
+        ### End of method ###
 
     def handleLockXRequest(self, transaction_id: int, data_item: str) -> bool:
         valid = False
