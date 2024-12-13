@@ -82,42 +82,43 @@ def rule8(queryTree):
     
     tree = root.children[0]
     
-    while(True):
-        cek1 = False
-        cek2 = False
-        
-        if not tree.children:
-            break
-        
-        if tree.children[0].node_type not in ["JOIN", "TJOIN", "Value1","Value2"]:
-            break
-        
-        if tree.children[1].node_type not in ["JOIN", "TJOIN", "Value1","Value2"]:
-            break
-        
-        if len(tree.children) > 0 and (tree.children[0].node_type != 'JOIN' and tree.children[0].node_type != 'TJOIN'):
-            temp = QueryTree(node_type="SELECT", val=[item for item in uniqueList if tree.children[0].val[0]+'.' in item])
-            if(len(temp.val) != 0):
-                temp2 = copy.copy(tree.children[0])
-                tree.children[0] = temp
-                temp.children.append(temp2)
-            cek1 = True
+    if '*' not in uniqueList:
+        while(True):
+            cek1 = False
+            cek2 = False
             
-        if len(tree.children) > 1 and (tree.children[1].node_type != 'JOIN' and tree.children[1].node_type != 'TJOIN'):
-            temp = QueryTree(node_type="SELECT", val=[item for item in uniqueList if tree.children[1].val[0]+'.' in item])
-            if(len(temp.val) != 0):
-                temp2 = copy.copy(tree.children[1])
-                tree.children[1] = temp
-                temp.children.append(temp2)
-            cek2 = True
+            if not tree.children:
+                break
             
-        if cek1 == True and cek2 == True:
-            break
-        elif cek1 == True:
-            tree = tree.children[1]
-        elif cek2 == True:
-            tree = tree.children[0]
-        else:
-            break
-    
+            if tree.children[0].node_type not in ["JOIN", "TJOIN", "Value1","Value2"]:
+                break
+            
+            if tree.children[1].node_type not in ["JOIN", "TJOIN", "Value1","Value2"]:
+                break
+            
+            if len(tree.children) > 0 and (tree.children[0].node_type != 'JOIN' and tree.children[0].node_type != 'TJOIN'):
+                temp = QueryTree(node_type="SELECT", val=[item for item in uniqueList if tree.children[0].val[0]+'.' in item])
+                if(len(temp.val) != 0):
+                    temp2 = copy.copy(tree.children[0])
+                    tree.children[0] = temp
+                    temp.children.append(temp2)
+                cek1 = True
+                
+            if len(tree.children) > 1 and (tree.children[1].node_type != 'JOIN' and tree.children[1].node_type != 'TJOIN'):
+                temp = QueryTree(node_type="SELECT", val=[item for item in uniqueList if tree.children[1].val[0]+'.' in item])
+                if(len(temp.val) != 0):
+                    temp2 = copy.copy(tree.children[1])
+                    tree.children[1] = temp
+                    temp.children.append(temp2)
+                cek2 = True
+                
+            if cek1 == True and cek2 == True:
+                break
+            elif cek1 == True:
+                tree = tree.children[1]
+            elif cek2 == True:
+                tree = tree.children[0]
+            else:
+                break
+        
     return queryTree
