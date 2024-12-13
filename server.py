@@ -71,39 +71,54 @@ class Server:
         rows_data, optimized_query = self.generate_rows(queries, client_id)
         print("isi dict trans id to client id", self.transactionid_to_clientid)
         print("isi dict client id to trans id", self.clientid_to_transactionid)
+        print("optimized query:", optimized_query)
+        print("rows data:", rows_data)
         for row_data, single_query in zip(rows_data, optimized_query):
-            print(single_query.query_tree.node_type)
-            # Create a Rows object with a single row of data
-            single_row = Rows([row_data])
+            if single_query.query_tree.node_type == "COMMIT":
+                self.query_processor.concurrent_manager.two_phase_lock.end(self.clientid_to_transactionid[client_id])
+            else:
+                print("single query:", single_query)
+                # print("single query:", single_query.query_tree.node_type)
+                # Create a Rows object with a single row of data
+                single_row = Rows([row_data])
 
-            # Create an Action object based on the first character of the row string
-            row_string = single_row.data[0]
-            action_type = "read" if row_string[0] == 'R' else "write"
-            action = Action([action_type])
-            self.query_processor.concurrent_manager.two_phase_lock.logObject(single_row, self.clientid_to_transactionid[client_id])
-            response = self.query_processor.concurrent_manager.two_phase_lock.validate(single_row, self.clientid_to_transactionid[client_id], action)
-            print("response nya", response)
-            print("dari query", single_query)
+                # Create an Action object based on the first character of the row string
+                row_string = single_row.data[0]
+                action_type = "read" if row_string[0] == 'R' else "write"
+                action = Action([action_type])
+                self.query_processor.concurrent_manager.two_phase_lock.logObject(single_row, self.clientid_to_transactionid[client_id])
+                response = self.query_processor.concurrent_manager.two_phase_lock.validate(single_row, self.clientid_to_transactionid[client_id], action)
+                print("response nya", response)
+                print("dari query", single_query)
 
-            if response.response_action == "ALLOW":
+            if response.response_action == "ALLOW": 
+                print("transaction id yg allow:", self.clientid_to_transactionid[client_id], "dan client id nya", client_id)
+                print("ketika querynya:", single_query)
                 # run directly
                 start_time = time.time()
                 send_to_client = self.query_processor.execute_query(single_query, client_id, self.clientid_to_transactionid[client_id])
                 execution_time = time.time() - start_time
                 send_to_client += (f"\nExecution Time: {execution_time:.3f} ms\n")
                 self.send_with_header(client_socket, send_to_client)
-                self.query_processor.concurrent_manager.two_phase_lock.end(self.clientid_to_transactionid[client_id])
+                # self.query_processor.concurrent_manager.two_phase_lock.end(self.clientid_to_transactionid[client_id])
             elif response.response_action == "WAIT":
+                print("transaction id yg wait:", self.clientid_to_transactionid[client_id], "dan client id nya", client_id)
+                print("dia wait transaction id", response.related_t_id, "yg dijalankan oleh client", self.transactionid_to_clientid[response.related_t_id])
+                print("ketika querynya:", single_query)
                 # letting other transaction run while continuously check for response change
                 while response.response_action != "ALLOW":
+                    self.query_processor.concurrent_manager.two_phase_lock.logObject(single_row, self.clientid_to_transactionid[client_id])
                     response = self.query_processor.concurrent_manager.two_phase_lock.validate(single_row, self.clientid_to_transactionid[client_id], action)
+                    # print(response.response_action)
                 start_time = time.time()
                 send_to_client = self.query_processor.execute_query(single_query, client_id, self.clientid_to_transactionid[client_id])
                 execution_time = time.time() - start_time
                 send_to_client += (f"\nExecution Time: {execution_time:.3f} ms\n")
                 self.send_with_header(client_socket, send_to_client)
-                self.query_processor.concurrent_manager.two_phase_lock.end(self.clientid_to_transactionid[client_id])
+                # self.query_processor.concurrent_manager.two_phase_lock.end(self.clientid_to_transactionid[client_id])
             elif response.response_action == "WOUND":
+                print("transaction id yg wounded:", self.clientid_to_transactionid[client_id], "dan client id nya", client_id)
+                print("ketika querynya:", single_query)
                 # abort all changes on related transaction id
                 self.query_processor.failure_recovery.recover(RecoverCriteria(response.related_t_id))
                 # run current query
@@ -112,7 +127,7 @@ class Server:
                 execution_time = time.time() - start_time
                 send_to_client += (f"\nExecution Time: {execution_time:.3f} ms\n")
                 self.send_with_header(client_socket, send_to_client)
-                self.query_processor.concurrent_manager.two_phase_lock.end(self.clientid_to_transactionid[client_id])
+                # self.query_processor.concurrent_manager.two_phase_lock.end(self.clientid_to_transactionid[client_id])
                 # start over related transaction
                 self.run_all(self.clientid_to_queries[self.transactionid_to_clientid[response.related_t_id]], self.transactionid_to_clientid[response.related_t_id], self. clientid_to_clientsocket[self.transactionid_to_clientid[response.related_t_id]])
 
@@ -143,7 +158,7 @@ class Server:
                             queries.append(query_input)
                             if query_input.upper() == "COMMIT":
                                 queries.pop(0)
-                                queries.pop()
+                                # queries.pop()
                                 break
 
                     # main function to run queries

@@ -70,7 +70,7 @@ class QueryProcessor:
         query_tree = optimized_query.query_tree
         if query_tree.node_type == "SELECT":
             send_to_client += self.format_results_as_table(self.query_tree_to_results(query_tree))
-            print("isi send to client\n", send_to_client)
+            # print("isi send to client\n", send_to_client)
         elif query_tree.node_type == "UPDATE":
             old_rows, new_rows, table_name = self.query_tree_to_update_operations(query_tree)
             send_to_client = send_to_client + "UPDATED " + str(len(new_rows)) + " ROWS"
@@ -124,6 +124,9 @@ class QueryProcessor:
             if query_tree.node_type == "UPDATE":
                 table_name = query_tree.val[0]
                 operations.append(f"W{transaction_id}({table_name})")
+
+            if query_tree.node_type == "COMMIT":
+                operations.append("C")
 
         # Create and return Rows object
         return Rows(operations)
