@@ -39,7 +39,6 @@ attends_data = [
     [3, 103],
 ]
 
-
 serializer = TableManager()
 index_manager = IndexManager()
 serializer.writeTable('student', student_data, student_schema)

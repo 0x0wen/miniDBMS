@@ -209,43 +209,26 @@ class StorageManager:
         serializer = TableManager()
         index_manager = IndexManager()
 
-        use_index = False # Indexing Flag
-        indexed_column = None # Store column that has index
-
         cond_filtered_data : Rows= ""
         
         data = serializer.readTable(data_deletion.table)
         
-        #Cek dulu, ada gk condisi yang pake column yang gk ada index
-        for cond in data_deletion.conditions:
-            index = index_manager.readIndex(data_deletion.table, cond.column)
-            data.setIndex(cond.column)
-            if(not index):
-                data.setIndex(None)
-                break
+        pk = serializer.getPrimaryKey(data_deletion.table)
 
         data_retrieval = DataRetrieval([data_deletion.table],[],data_deletion.conditions)
         cond_filtered_data = self.readBlock(data_retrieval)
 
         # Filtereed table based on condition
         schema = serializer.readSchema(data_deletion.table)
-        
-        #NOTE - Delete this
-        # print("TEST READ: ")
-        # print(cond_filtered_data)
-        # print("BLABLABLA")
 
         
         # Create new data that doesn't contain filtered table
         newData = data.getRowsNotMatching(cond_filtered_data)
-
-        #NOTE - Add this functionality if buffer wanna be used
-        # FailureRecovery._instance.buffer.deleteData(newData)
-
-        #NOTE - Use this to delete from physical data
+        
         serializer.writeTable(data_deletion.table, newData, schema)
-        if(use_index):
-            index_manager.writeIndex(data_deletion.table, indexed_column)
+        if(pk.__len__() > 0):
+            for idx in pk:
+                index_manager.writeIndex(data_deletion.table, idx)
         
         # get the amount of dat that is deleted
         return cond_filtered_data.__len__()
