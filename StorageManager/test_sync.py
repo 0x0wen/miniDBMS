@@ -66,6 +66,57 @@ class TestSynchronizeMultipleTables(unittest.TestCase):
             Row({'studentid': 5, 'name': 'Elia', 'gpa': 3.1}),
         ]
 
+        self.dict_list_1 = []
+        for row in self.physical_data_1:
+            row_dict = {self.schema_1[i][0]: row[i] for i in range(len(self.schema_1))}
+            self.dict_list_1.append(row_dict)
+            
+        self.dict_list_2 = []
+        for row in self.physical_data_2:
+            row_dict = {self.schema_2[i][0]: row[i] for i in range(len(self.schema_2))}
+            self.dict_list_2.append(row_dict)
+            
+        # Transaction info for log
+        self.failure_recovery.logManager.write_log_entry(
+                1,
+                "UPDATE",
+                self.table_1_name,
+                [self.dict_list_1[0]], 
+                [self.buffer_data_1[0].data]
+            )
+        
+        self.failure_recovery.logManager.write_log_entry(
+                2,
+                "UPDATE",
+                self.table_1_name,
+                [self.dict_list_1[2]], 
+                [self.buffer_data_1[2].data]
+            )
+        
+        self.failure_recovery.logManager.write_log_entry(
+                3,
+                "UPDATE",
+                self.table_1_name,
+                [self.dict_list_1[4]], 
+                [self.buffer_data_1[3].data]
+            )
+        
+        self.failure_recovery.logManager.write_log_entry(
+                4,
+                "UPDATE",
+                self.table_2_name,
+                [self.dict_list_2[1]],
+                [self.buffer_data_2[1].data]
+            )
+        
+        self.failure_recovery.logManager.write_log_entry(
+                5,
+                "UPDATE",
+                self.table_2_name,
+                [self.dict_list_2[2]],
+                [self.buffer_data_2[2].data]
+            )
+        
         # Write initial data to physical storage
         self.serializer.writeTable(self.table_1_name, self.physical_data_1, self.schema_1)
         self.serializer.writeTable(self.table_2_name, self.physical_data_2, self.schema_2)
@@ -123,8 +174,6 @@ class TestSynchronizeMultipleTables(unittest.TestCase):
         expected_buffer_data = [] # Buffer should be empty after synchronization
         
         # Check if updated data matches the expected data
-        print(updated_data_1)
-        print(expected_data_1)
         self.assertEqual(updated_data_1, expected_data_1)
         self.assertEqual(updated_data_2_rounded, expected_data_2)
         self.assertEqual(expected_buffer_data, self.failure_recovery.buffer.getTables())
