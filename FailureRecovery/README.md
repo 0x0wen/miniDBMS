@@ -37,13 +37,7 @@
 </table>
 
 ## 🔑 Key Features
-The Failure Recovery Manager is used to ensure data consistency and durability in the event of failures. It interacts with various components of the database system, such as the Query Processor, Concurrency Control Manager, and the Storage Manager. The Query Processor interacts with the Failure Recovery to ensure that changes made by queries are logged and can be recovered in case of a failure. The Concurrency Control Manager interacts with the Failure Recovery to handle transaction conflicts and ensure data consistency. Whilst, the Storage Manager interacts with the Failure Recovery class to ensure that changes are logged and can be recovered in case of a failure. There are seven classes in Failure Recovery Manager such as follows.
-
-## 🧑‍⚖️ Workload Distribution
-To ensure efficient development and collaboration, we have strategically distributed the workload among team members, as detailed [here](./docs/workload-distribution.md).
-
-## 🏭 Class Diagram of Failure Recovery
-The class diagram of the Failure Recovery provides a comprehensive overview of its structure, showcasing the key components, their relationships, and interactions that drive the query processing workflow [here](./docs/ClassDiagram.md).
+The Failure Recovery Manager is used to ensure data consistency and durability in the event of failures. It interacts with various components of the database system, such as the Query Processor, Concurrency Control Manager, and the Storage Manager. The Query Processor interacts with the Failure Recovery to ensure that changes made by queries are logged and can be recovered in case of a failure. The Concurrency Control Manager interacts with the Failure Recovery to handle transaction conflicts and ensure data consistency. Whilst, the Storage Manager interacts with the Failure Recovery class to ensure that changes are logged and can be recovered in case of a failure.
 
 ## 🗼 Program Structure
 ```bash
