@@ -10,6 +10,7 @@ from QueryOptimizer.whereOptimize import optimizeWhere
 from QueryOptimizer.sortLimitOptimize import optimizeSortLimit
 from QueryOptimizer.rule8Optimize import rule8
 from QueryOptimizer.rule8Optimize import reverseQueryTree
+from QueryOptimizer.rule8Optimize import reverseQueryTree
 
 class OptimizationEngine:
     def __init__(self):
@@ -21,9 +22,62 @@ class OptimizationEngine:
         """
         Parses the given SQL query string into a ParsedQuery object.
         """
-        # Tokenize and construct a basic QueryTree for demonstration purposes
-        tokens = re.findall(r'[^\s,]+|,', query)
+        tokens = []
+        current_token = ''
+        in_quote = False
+        quote_char = None
+        
+        # Iterate through each character
+        for char in query:
+            # Handle quotes (both single and double)
+            if char in ["'", '"'] and not in_quote:
+                in_quote = True
+                quote_char = char
+                current_token = char
+                continue
+            elif char == quote_char and in_quote:
+                in_quote = False
+                current_token += char
+                tokens.append(current_token)
+                current_token = ''
+                continue
+            
+            # If we're inside quotes, keep building the token
+            if in_quote:
+                current_token += char
+                continue
+                
+            # Handle spaces when not in quotes
+            if char.isspace():
+                if current_token:
+                    tokens.append(current_token)
+                    current_token = ''
+                continue
+            
+            if char in ['>','<']:
+                if current_token:
+                    tokens.append(current_token)
+                    current_token = ''
+                if tokens and tokens[-1] in ['>','<']:
+                    tokens[-1] += char
+                    continue
+                
+            # Handle special characters
+            if char in ['=',',']:
+                if current_token:
+                    tokens.append(current_token)
+                    current_token = ''
+                tokens.append(char)
+                continue
+                
+            # Build token
+            current_token += char
+        
+        # Add any remaining token
+        if current_token:
+            tokens.append(current_token)
 
+        print("Tokens:", tokens)
         # Validate the first token of the query
         if (not self.validateFirstToken(tokens)):
             raise CustomException("Invalid first token", code=400)
@@ -59,7 +113,7 @@ class OptimizationEngine:
                 # Check for tables in Value1 or Value2 nodes
                 if current_node.node_type in ["TJOIN"]:
                     conditions.append(current_node.val)
-                    current_node.val = None
+                    # current_node.val = None
                 
                 # Recursively traverse children
                 if hasattr(current_node, 'children'):
@@ -107,16 +161,17 @@ class OptimizationEngine:
             return result
 
         def optimize_recursive(current_tree, remaining_tables, remaining_conditions):
-            has_join_child = any(child.node_type == "TJOIN" or child.node_type == "JOIN" for child in current_tree.children)
+            has_join_child = any(child.node_type in ["JOIN", "TJOIN"] for child in current_tree.children)
             referenced_tables = list(set(all_tables) - set(remaining_tables))
             isReversed = bool(referenced_tables)
+            print('hey', current_tree)
             if (has_join_child):
                 print("Optimizing children...")
                 print( current_tree)
                 current_tree.children = [
-                    optimize_recursive(child, remaining_tables,remaining_conditions) if child.node_type == "TJOIN" else child
+                    optimize_recursive(child, remaining_tables,remaining_conditions) if child.node_type in ["JOIN", "TJOIN"] else child
                     for child in current_tree.children
-                ]
+            ]
             if(current_tree.node_type == "TJOIN"):
                 referenced_tables = list(set(all_tables) - set(remaining_tables))
                 isReversed = referenced_tables != []
@@ -257,6 +312,8 @@ class OptimizationEngine:
                 raise SyntaxError("Syntax Error: Missing table name")
             
             root.val.append(tokens.pop(0))
+            table = []
+            table.append(root.val[0])
             table = []
             table.append(root.val[0])
                
@@ -645,22 +702,13 @@ class OptimizationEngine:
         return root
 
     def __applyHeuristicRules(self, query: ParsedQuery):
-        """
-        Applies heuristic-based optimizations to the query.
-        """
-        # Example of optimizations like selection pushdown, join reordering, etc.
         if query.query_tree and query.query_tree.node_type == "SELECT":
-            # Apply optimizations to the query tree here
             pass
 
     def __traverseAndEstimateCost(self, node: QueryTree) -> int:
-        """
-        Traverses the QueryTree recursively to calculate cost.
-        """
         if not node:
             return 0
 
-        # Example cost logic based on node type
         base_cost = {
             "SELECT": 50,
             "FROM": 100,
@@ -669,5 +717,4 @@ class OptimizationEngine:
             "LIMIT": 10,
         }.get(node.node_type, 0)
 
-        # Sum the cost of this node and its children
         return base_cost + sum(self.__traverseAndEstimateCost(child) for child in node.children)

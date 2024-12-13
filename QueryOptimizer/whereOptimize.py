@@ -20,7 +20,7 @@ def getWhereNode(tree: QueryTree):  # type: ignore
 
 def buildNewTree(tree: QueryTree, whereNode: list):
     newTree = QueryTree(tree.node_type, tree.val, tree.parent)
-    if newTree.node_type == "WHERE" and not "." in newTree.val[2]:
+    if newTree.node_type == "WHERE" and not "." in newTree.val[2] and tree.children:
         return buildNewTree(tree.children[0], whereNode)
 
     for child in tree.children:
@@ -51,7 +51,6 @@ def optimizeWhere(query: ParsedQuery) -> ParsedQuery:
     tree = query.query_tree
 
     whereNode = getWhereNode(tree)
-
     newTree = buildNewTree(tree, whereNode)
 
     return ParsedQuery(query.query, newTree)

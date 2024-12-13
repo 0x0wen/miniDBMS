@@ -34,9 +34,6 @@ def reverseQueryTree(tree):
         newTree.children[1] = tree
         return parent
     
-    
-    
-    
     return tree
 
 def rule8(queryTree):
@@ -56,15 +53,17 @@ def rule8(queryTree):
         cek1 = False
         cek2 = False
         if len(tree.children) > 0 and (tree.children[0].node_type == 'JOIN' or tree.children[0].node_type == 'TJOIN'):
-            for i in tree.children[0].val:
-                valSelect.append(i)
+            if tree.children[0].val != None:
+                for i in tree.children[0].val:
+                    valSelect.append(i)
         
             tree = tree.children[0]
             cek1 = True
 
         if len(tree.children) > 1 and (tree.children[1].node_type == 'JOIN' or tree.children[1].node_type == 'TJOIN'):
-            for i in tree.children[1].val:
-                valSelect.append(i)
+            if tree.children[1].val != None:
+                for i in tree.children[1].val:
+                    valSelect.append(i)
             
             tree = tree.children[1]
             cek2 = True
@@ -86,6 +85,13 @@ def rule8(queryTree):
     while(True):
         cek1 = False
         cek2 = False
+        
+        if tree.children[0].node_type not in ["JOIN", "TJOIN", "Value1","Value2"]:
+            break
+        
+        if tree.children[1].node_type not in ["JOIN", "TJOIN", "Value1","Value2"]:
+            break
+
         
         if len(tree.children) > 0 and (tree.children[0].node_type != 'JOIN' and tree.children[0].node_type != 'TJOIN'):
             temp = QueryTree(node_type="SELECT", val=[item for item in uniqueList if tree.children[0].val[0]+'.' in item])
@@ -113,5 +119,3 @@ def rule8(queryTree):
             break
     
     return queryTree
-
-  
