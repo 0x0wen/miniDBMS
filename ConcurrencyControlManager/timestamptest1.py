@@ -22,7 +22,7 @@ class TestTimestampBasedProtocol(TestCase):
 
         timestamp_protocol.logObject(db_object_2, 2)
         self.assertIn("A", timestamp_protocol.locks)
-        self.assertEqual(timestamp_protocol.locks["A"], 1)  # R2 waits if conflict exists
+        self.assertEqual(timestamp_protocol.locks["A"], 1)  
 
         timestamp_protocol.logObject(db_object_3, 1)
         self.assertIn("B", timestamp_protocol.locks)
@@ -141,33 +141,27 @@ class TestTimestampBasedProtocol(TestCase):
     def test_deadlock_prevention(self):
         timestamp_protocol = TimestampBasedProtocol()
 
-        # Simulate a deadlock situation with transactions trying to acquire locks on the same data items
         db_object_1 = Rows(["R1(A)"])
         db_object_2 = Rows(["W2(A)"])
         db_object_3 = Rows(["W1(B)"])
         db_object_4 = Rows(["R2(B)"])
 
-        # Transaction 1 reads A (should lock it)
         timestamp_protocol.logObject(db_object_1, 1)
         self.assertEqual(timestamp_protocol.locks["A"], 1)
 
-        # Transaction 2 tries to write A but is blocked because Transaction 1 has locked it
         timestamp_protocol.logObject(db_object_2, 2)
         res = timestamp_protocol.validate(db_object_2, 2, Action(["write"]))
         self.assertEqual(res.response_action, "WOUND")
         
-        # Transaction 1 writes B (should lock it)
         timestamp_protocol.logObject(db_object_3, 1)
         self.assertEqual(timestamp_protocol.locks["B"], 1)
 
-        # Transaction 2 tries to read B but is blocked because Transaction 1 has written it
         timestamp_protocol.logObject(db_object_4, 2)
         res = timestamp_protocol.validate(db_object_4, 2, Action(["read"]))
         self.assertEqual(res.response_action, "WOUND")
 
-        # Now, we simulate deadlock prevention logic. Both transactions are waiting, so we handle accordingly
-        timestamp_protocol.deadlockPrevention(1)  # Attempt to add transaction 1 to the queue
-        timestamp_protocol.deadlockPrevention(2)  # Attempt to add transaction 2 to the queue
+        timestamp_protocol.deadlockPrevention(1)  
+        timestamp_protocol.deadlockPrevention(2)  
 
         self.assertTrue(1 in timestamp_protocol.transactionQueue)
         self.assertTrue(2 in timestamp_protocol.transactionQueue)
