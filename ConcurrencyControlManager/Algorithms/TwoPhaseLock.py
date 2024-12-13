@@ -125,11 +125,13 @@ class TwoPhaseLock(AbstractAlgorithm):
         Example:
         ["W", 1, "A"] or ["R", 2, "B"] or ["C", 1, ""]
         """
+        print("parseRows : ", db_object)
         if isinstance(db_object, Rows):
-            match = re.match(r"([A-Z])(\d+)\((.*?)\)", db_object.data[0])
+            match = re.match(r"([A-Z])(\d+)(?:\((.*?)\))?", db_object.data[0])
             if match:
+                print("return parse",match.groups())
                 letter, number, value = match.groups()
-                return [letter, int(number), value]
+                return [letter, int(number), value if value is not None else ""]
             else:
                 raise ValueError(f"Row format is invalid: {db_object}")
         else:
