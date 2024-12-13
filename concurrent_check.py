@@ -4,7 +4,7 @@ import threading
 
 
 class ConcurrentClient:
-    def __init__(self, host="localhost", port=1235, input_user=None, id_user=None):
+    def __init__(self, host="localhost", port=1234, input_user=None, id_user=None):
         if input_user is None:
             self.input_user = [""]
         else:

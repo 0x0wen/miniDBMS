@@ -126,7 +126,7 @@ class QueryProcessor:
                 operations.append(f"W{transaction_id}({table_name})")
 
             if query_tree.node_type == "COMMIT":
-                operations.append("C")
+                operations.append(f"C{transaction_id}")
 
         # Create and return Rows object
         return Rows(operations)
