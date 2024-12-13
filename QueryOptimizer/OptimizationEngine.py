@@ -2,20 +2,85 @@ from QueryOptimizer.ParsedQuery import ParsedQuery
 from QueryOptimizer.QueryTree import QueryTree
 import re
 from QueryOptimizer.constants import LEGAL_COMMANDS_AFTER_WHERE,LEGAL_COMPARATORS, LEGAL_COMMANDS_AFTER_UPDATE, LEGAL_COMMANDS_AFTER_SET
-from QueryOptimizer.helpers import isAlphanumericWithQuotes
+from QueryOptimizer.helpers import isAlphanumericWithQuotesAndUnderscoreAndDots
 from QueryOptimizer.CustomException import CustomException
+from StorageManager.StorageManager import StorageManager
+from StorageManager.objects.Statistics import Statistics
+from QueryOptimizer.whereOptimize import optimizeWhere
+from QueryOptimizer.sortLimitOptimize import optimizeSortLimit
+from QueryOptimizer.rule8Optimize import rule8
+from QueryOptimizer.rule8Optimize import reverseQueryTree
+from QueryOptimizer.rule8Optimize import reverseQueryTree
+
 class OptimizationEngine:
     def __init__(self):
         self.statistics = {}  # Example: Holds table statistics for cost estimation
         self.one_node_constraint = [] # If there is one-token-only constraint used, add it here
+        self.storage_manager = StorageManager()
 
-    def parseQuery(self, query: str) -> ParsedQuery:
+    def parseQuery(self, query: str, statistics) -> ParsedQuery:
         """
         Parses the given SQL query string into a ParsedQuery object.
         """
-        # Tokenize and construct a basic QueryTree for demonstration purposes
-        tokens = re.findall(r'[^\s,]+|,', query)
-        print('tokens:',tokens)
+        tokens = []
+        current_token = ''
+        in_quote = False
+        quote_char = None
+        
+        # Iterate through each character
+        for char in query:
+            # Handle quotes (both single and double)
+            if char in ["'", '"'] and not in_quote:
+                in_quote = True
+                quote_char = char
+                current_token = char
+                continue
+            elif char == quote_char and in_quote:
+                in_quote = False
+                current_token += char
+                tokens.append(current_token)
+                current_token = ''
+                continue
+            
+            # If we're inside quotes, keep building the token
+            if in_quote:
+                current_token += char
+                continue
+                
+            # Handle spaces when not in quotes
+            if char.isspace():
+                if current_token in ['>','<']:
+                    tokens.append(current_token)
+                    current_token = ''
+                if current_token:
+                    tokens.append(current_token)
+                    current_token = ''
+                continue
+            
+            if char in ['>','<']:
+                if current_token:
+                    current_token = char
+                
+            # Handle special characters
+            if char in ['=',',']:
+                if current_token in ['>','<']:
+                    current_token += char
+                    tokens.append(current_token)
+                    current_token = ''
+                elif current_token:
+                    tokens.append(current_token)
+                    current_token = ''
+                    tokens.append(char)
+                else:
+                    tokens.append(char)
+                continue
+                
+            # Build token
+            current_token += char
+        
+        # Add any remaining token
+        if current_token:
+            tokens.append(current_token)
 
         # Validate the first token of the query
         if (not self.validateFirstToken(tokens)):
@@ -23,25 +88,139 @@ class OptimizationEngine:
         
         # Reset the one-node constraint list
         self.one_node_constraint = []
-        
+
         # Create a QueryTree from the tokens
-        root = self.__createQueryTree(tokens)
+        root = self.__createQueryTree(tokens, statistics)
 
         # Return a ParsedQuery object
         return ParsedQuery(query=query, query_tree=root)
+    
 
-    def optimizeQuery(self, query: ParsedQuery) -> ParsedQuery:
-        """
-        Optimizes the parsed query and returns the optimized query.
-        """
-        # Apply heuristic optimizations (pushdowns, reorderings, etc.)
-        self.__applyHeuristicRules(query)
+    
+    def optimizeQuery(self, query: ParsedQuery, statistics) -> ParsedQuery:
+        def extract_tables_from_tree(node):
+            tables = set()
+            def traverse(current_node):
+                # Check for tables in Value1 or Value2 nodes
+                if current_node.node_type in ["Value1", "Value2"]:
+                    tables.add(current_node.val[0])
 
-        # Calculate and assign the cost to the query
-        cost = self.__getCost(query)
-        query.estimated_cost = cost  # Example of adding optimization-specific attributes
+                # Recursively traverse children
+                if hasattr(current_node, 'children'):
+                    for child in current_node.children:
+                        traverse(child)
+            traverse(node)
+            return tables
+        def extract_conditions_from_tree( node):
+            conditions = []
+            def traverse(current_node):
+                # Check for tables in Value1 or Value2 nodes
+                if current_node.node_type in ["TJOIN"]:
+                    conditions.append(current_node.val)
+                    # current_node.val = None
+                
+                # Recursively traverse children
+                if hasattr(current_node, 'children'):
+                    for child in current_node.children:
+                        traverse(child)
+            
+            traverse(node)
+            return conditions
+        def find_joined_tables(conditions, target_table):
+            joined_tables = set()
+            for condition in conditions:
+                first_table = condition[0].split('.')[0]
+                second_table = condition[2].split('.')[0]
+                if first_table == target_table:
+                    other_table = condition[2].split('.')[0]
+                    joined_tables.add(other_table)
+                elif second_table == target_table:
+                    other_table = condition[0].split('.')[0]
+                    joined_tables.add(other_table)
+            return joined_tables
 
-        return query
+        def replace_join_children(node, table1, table2):
+            node.children = [
+                QueryTree("Value1", [table1]),
+                QueryTree("Value2", [table2])
+            ]
+
+            return node
+        
+        def get_matching_conditions(conditions, table1, table2):
+            result = []
+            remaining_conditions = []
+            for condition in conditions:
+                # print("Condition", condition)
+                table_names = {part.split('.')[0] for part in condition if '.' in part}
+                # print("Table names", table_names)
+                # print("Table1", table1)
+                # print("Table2", table2)
+                if table1 in table_names and table2 in table_names:
+                    result.extend(condition)  
+                else:
+                    remaining_conditions.append(condition)  
+            conditions.clear()
+            conditions.extend(remaining_conditions)
+            return result
+
+        def optimize_recursive(current_tree, remaining_tables, remaining_conditions):
+            has_join_child = any(child.node_type in ["JOIN", "TJOIN"] for child in current_tree.children)
+            referenced_tables = list(set(all_tables) - set(remaining_tables))
+            isReversed = bool(referenced_tables)
+            # print('hey', current_tree)
+            if (has_join_child):
+                # print("Optimizing children...")
+                # print( current_tree)
+                current_tree.children = [
+                    optimize_recursive(child, remaining_tables,remaining_conditions) if child.node_type in ["JOIN", "TJOIN"] else child
+                    for child in current_tree.children
+            ]
+            if(current_tree.node_type == "TJOIN"):
+                referenced_tables = list(set(all_tables) - set(remaining_tables))
+                isReversed = referenced_tables != []
+                # print("Optimizing join order...", current_tree)
+                # print("list", list(set(all_tables) - set(remaining_tables)))
+                # print("isreverse", isReversed)
+                if(isReversed):
+                    # print("Reversed")
+                    joined_tables = set()
+                    for table in referenced_tables:
+                        joined_tables.update(find_joined_tables(remaining_conditions, table))
+                    joined_tables = joined_tables & set(remaining_tables)
+                    # print("Joined tables:", joined_tables)
+                    smallest_table = joined_tables.pop()
+                    smallest_joined_table = find_joined_tables(remaining_conditions, smallest_table)& set(referenced_tables)
+                    smallest_joined_table = smallest_joined_table.pop()
+                    # print("Smallest table:", smallest_table) 
+                    # print("Smallest joined table:", smallest_joined_table) 
+                    for child in current_tree.children:
+                        if child.node_type == "Value1":
+                            child.val = smallest_table        
+                    current_tree.val = get_matching_conditions(remaining_conditions, smallest_table, smallest_joined_table)
+                    remaining_tables.remove(smallest_table)
+                else:
+                    smallest_table = min(remaining_tables, key=lambda t: statistics.get(t, Statistics(0, 0, 0, 0, {})).n_r)
+                    # print("Smallest table:", smallest_table)
+                    joined_tables = find_joined_tables(remaining_conditions, smallest_table) & set(remaining_tables)
+                    # print("Joined tables:", joined_tables)
+                    if not joined_tables:
+                        return current_tree
+                    smallest_joined_table = min(joined_tables, key=lambda t: statistics.get(t, Statistics(0, 0, 0, 0, {})).n_r)
+                    # print("Smallest joined table:", smallest_joined_table)
+                    replace_join_children(current_tree, smallest_table, smallest_joined_table)
+                    current_tree.val = get_matching_conditions(remaining_conditions, smallest_table, smallest_joined_table)
+                    remaining_tables.remove(smallest_table)
+                    remaining_tables.remove(smallest_joined_table)
+            
+            return current_tree
+        query_tree = query.query_tree
+        all_tables = extract_tables_from_tree(query_tree)
+        remaining_conditions = extract_conditions_from_tree(query_tree)
+        optimized_tree = optimize_recursive(query_tree, list(all_tables),remaining_conditions)
+        # print("Optimized tree:", optimized_tree)
+        # return optimizeWhere(rule8(ParsedQuery(query.query, optimized_tree)))
+        return (ParsedQuery(query.query, optimized_tree))
     
     def validateParsedQuery(self, query_tree: QueryTree) -> bool:
         """
@@ -90,7 +269,7 @@ class OptimizationEngine:
 
     # Auxiliary Helper Methods
 
-    def __createQueryTree(self, tokens: list) -> QueryTree:
+    def __createQueryTree(self, tokens: list, statistics) -> QueryTree:
         """
         Helper method to create a complete QueryTree from tokens.
         Handles the full SQL query structure with proper parent-child relationships.
@@ -125,7 +304,7 @@ class OptimizationEngine:
                     raise SyntaxError("Syntax Error: Missing attribute name")
             
             if tokens and (tokens[0].upper()) == "FROM":
-                child = self.__createQueryTree(tokens)
+                child = self.__createQueryTree(tokens,statistics)
                 if child is not None: 
                     root.children.append(child)
             else:
@@ -138,6 +317,10 @@ class OptimizationEngine:
                 raise SyntaxError("Syntax Error: Missing table name")
             
             root.val.append(tokens.pop(0))
+            table = []
+            table.append(root.val[0])
+            table = []
+            table.append(root.val[0])
                
             # Check if any join operation is present
             if (tokens and tokens[0].upper() in [",", "JOIN", "NATURAL"]):
@@ -167,12 +350,15 @@ class OptimizationEngine:
                         
                         if parent.node_type == "FROM":
                             childOne = QueryTree(node_type="Value1", val=[parent.val[0]])
+                            table.append(parent.val[0])
                         else:
                             childOne = QueryTree(node_type="Value1", val=[parent.children[1].val[0]])
+                            table.append(parent.children[1].val[0])
                             
                         # Change root if TJOIN is parent
                         if parent.node_type == "TJOIN":
                             childTwo = QueryTree(node_type="Value2", val=[tokens.pop(0)])
+                            table.append(childTwo.val[0])
                             child.children.append(parent)
                             child.children.append(childTwo)
                             
@@ -184,6 +370,7 @@ class OptimizationEngine:
                             
                         else:
                             childTwo = QueryTree(node_type="Value2", val=[tokens.pop(0)])
+                            table.append(childTwo.val[0])
                             child.children.append(childOne)
                             child.children.append(childTwo)
                             
@@ -202,10 +389,13 @@ class OptimizationEngine:
                         
                         if parent.node_type == "FROM":
                             childOne = QueryTree(node_type="Value1", val=[parent.val[0]])
+                            table.append(parent.val[0])
                         else:
                             childOne = QueryTree(node_type="Value1", val=[parent.children[1].val[0]])
+                            table.append(parent.children[1].val[0])
                             
                         childTwo = QueryTree(node_type="Value2", val=[tokens.pop(0)])
+                        table.append(childTwo.val[0])
                         
                         if tokens and tokens[0].upper() != "ON":
                             raise SyntaxError("Syntax Error: Missing ON")
@@ -258,6 +448,14 @@ class OptimizationEngine:
                         tokens.pop(0)
                         tokens.pop(0)
                         child.node_type = "TJOIN"
+                       
+                        seen = set()
+                        uniqueTable = []
+
+                        for item in table:
+                            if item not in seen:
+                                uniqueTable.append(item)
+                                seen.add(item)
                         
                         if not tokens or (tokens[0].upper() in [",", "NATURAL", "JOIN", "WHERE", "LIMIT", "ORDER"]):
                             raise SyntaxError("Syntax Error: Missing table name")
@@ -271,6 +469,22 @@ class OptimizationEngine:
                         child.children.append(childOne)
                         child.children.append(childTwo)
                         
+                        table_columns = set(statistics[childTwo.val[0]].V_a_r.keys())
+
+                        common_columns_all = []
+                        table = list(set(table))
+                        
+                        for table_name in table:          
+                            current_table_columns = set(statistics[table_name].V_a_r.keys())
+                            common_columns = table_columns.intersection(current_table_columns)
+                            
+                            for column in common_columns:
+                                common_columns_all.append(f"{childTwo.val[0]}.{column}")
+                                common_columns_all.append("=")
+                                common_columns_all.append(f"{table_name}.{column}")
+                                    
+                        common_columns_all = list((common_columns_all))
+                        child.val = common_columns_all
                         
                         if parent.children != []:
                             parent.children.pop()
@@ -282,25 +496,25 @@ class OptimizationEngine:
                         break
                     
                     grand = parent
-                                  
+                            
             if not tokens:
+                # tree = reverseQueryTree(root)
                 return root
             else:
                 if tokens[0].upper() not in ["WHERE", "LIMIT", "ORDER"]:
                     raise SyntaxError("Syntax Error: Invalid syntax")
-                child = self.__createQueryTree(tokens)
+                child = self.__createQueryTree(tokens,statistics)
                 if child is not None:  # Only append if the child is not None
-                    root.children.append(child)  
-
+                    # root = reverseQueryTree(root)
+                    root.children.append(child)
+                    
         elif token == "AND":
             root = QueryTree(node_type="WHERE", val=[])
             condition = []
             if(not tokens):
                 raise CustomException("Incomplete syntax for WHERE clause", code=400)
             
-            if(not isAlphanumericWithQuotes(tokens[0].strip("'")) or not isAlphanumericWithQuotes(tokens[2].strip("'"))):
-                print("error atas")
-                print(tokens[0].strip("'"))
+            if(not isAlphanumericWithQuotesAndUnderscoreAndDots(tokens[0].strip("'")) or not isAlphanumericWithQuotesAndUnderscoreAndDots(tokens[2].strip("'"))):
                 raise CustomException("Invalid syntax for WHERE clause", code=400)
             
             if(not tokens[1] in LEGAL_COMPARATORS):
@@ -318,7 +532,7 @@ class OptimizationEngine:
             if(tokens and tokens[0].upper() not in LEGAL_COMMANDS_AFTER_WHERE):
                 print("anu nya ", tokens[0])
                 raise CustomException("Invalid command after WHERE clause", code=400)
-            child = self.__createQueryTree(tokens)
+            child = self.__createQueryTree(tokens,statistics)
             if child is not None:  # Only append if the child is not None
                 root.children.append(child)  
             
@@ -331,9 +545,7 @@ class OptimizationEngine:
             if(not tokens):
                 raise CustomException("Incomplete syntax for WHERE clause", code=400)
             
-            if(not isAlphanumericWithQuotes(tokens[0].strip("'")) or not isAlphanumericWithQuotes(tokens[2].strip("'"))):
-                print("error bawah")
-                print(tokens[0].strip("'"))
+            if(not isAlphanumericWithQuotesAndUnderscoreAndDots(tokens[0].strip("'")) or not isAlphanumericWithQuotesAndUnderscoreAndDots(tokens[2].strip("'"))):
                 raise CustomException("Invalid syntax for WHERE clause", code=400)
             
             if(not tokens[1] in LEGAL_COMPARATORS):
@@ -351,7 +563,7 @@ class OptimizationEngine:
             if(tokens and tokens[0].upper() not in LEGAL_COMMANDS_AFTER_WHERE):
                 print("anu nya", tokens[0])
                 raise CustomException("Invalid command after WHERE clause", code=400)
-            child = self.__createQueryTree(tokens)
+            child = self.__createQueryTree(tokens,statistics)
             if child is not None:  # Only append if the child is not None
                 root.children.append(child)  
 
@@ -369,7 +581,9 @@ class OptimizationEngine:
             while tokens and tokens[0].upper() not in ["LIMIT"]:
                 col = tokens.pop(0)
                 root.val.append(col)
-                if tokens[0] == ",":
+                if not tokens:
+                    break
+                elif tokens[0] == ",":
                     tokens.pop(0)
                     if tokens and tokens[0].upper() in ["LIMIT", ","]:
                         raise CustomException("Invalid syntax for ORDER BY clause", code=400)
@@ -383,7 +597,7 @@ class OptimizationEngine:
                 raise CustomException("Invalid command after ORDER BY clause", code=400)
                 
             if tokens:
-                child = self.__createQueryTree(tokens)
+                child = self.__createQueryTree(tokens,statistics)
                 if child is not None:
                     root.children.append(child)
 
@@ -407,7 +621,7 @@ class OptimizationEngine:
         elif token == "SET":
             root = QueryTree(node_type="SET", val=[])
 
-            if(not isAlphanumericWithQuotes(tokens[0].strip("'")) or not isAlphanumericWithQuotes(tokens[2].strip("'"))):
+            if(not isAlphanumericWithQuotesAndUnderscoreAndDots(tokens[0].strip("'")) or not isAlphanumericWithQuotesAndUnderscoreAndDots(tokens[2].strip("'"))):
                 raise CustomException("Invalid syntax for SET clause", code=400)
             
             if(not tokens[1] in LEGAL_COMPARATORS):
@@ -426,7 +640,7 @@ class OptimizationEngine:
             
             if(tokens[0].upper() not in LEGAL_COMMANDS_AFTER_SET):
                 raise CustomException("Invalid command after SET clause", code=400)
-            child = self.__createQueryTree(tokens)
+            child = self.__createQueryTree(tokens,statistics)
             if child is not None:  # Only append if the child is not None
                 root.children.append(child)  
 
@@ -441,7 +655,7 @@ class OptimizationEngine:
             if(tokens[0].upper() not in LEGAL_COMMANDS_AFTER_UPDATE):
                 raise CustomException("Invalid command after UPDATE clause", code=400)    
             
-            child = self.__createQueryTree(tokens)
+            child = self.__createQueryTree(tokens,statistics)
             if child is not None:  # Only append if the child is not None
                 root.children.append(child)  
 
@@ -487,7 +701,7 @@ class OptimizationEngine:
             if tokens and tokens[0].upper() != "WHERE":
                 raise CustomException("Invalid command after DELETE clause", code=400)
             
-            child = self.__createQueryTree(tokens)
+            child = self.__createQueryTree(tokens,statistics)
             if child is not None:
                 root.children.append(child)
 
@@ -497,22 +711,13 @@ class OptimizationEngine:
         return root
 
     def __applyHeuristicRules(self, query: ParsedQuery):
-        """
-        Applies heuristic-based optimizations to the query.
-        """
-        # Example of optimizations like selection pushdown, join reordering, etc.
         if query.query_tree and query.query_tree.node_type == "SELECT":
-            # Apply optimizations to the query tree here
             pass
 
     def __traverseAndEstimateCost(self, node: QueryTree) -> int:
-        """
-        Traverses the QueryTree recursively to calculate cost.
-        """
         if not node:
             return 0
 
-        # Example cost logic based on node type
         base_cost = {
             "SELECT": 50,
             "FROM": 100,
@@ -521,5 +726,4 @@ class OptimizationEngine:
             "LIMIT": 10,
         }.get(node.node_type, 0)
 
-        # Sum the cost of this node and its children
         return base_cost + sum(self.__traverseAndEstimateCost(child) for child in node.children)

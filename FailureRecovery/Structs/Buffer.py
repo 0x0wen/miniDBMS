@@ -54,7 +54,7 @@ class Buffer:
                 
                 return matching_rows
             
-        return None
+        return []
   
     def writeData(self, rows: Rows, dataRetrieval: DataRetrieval, primaryKey: List[str] = []) -> bool:
         """
