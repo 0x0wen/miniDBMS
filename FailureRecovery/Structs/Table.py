@@ -30,7 +30,7 @@ class Table:
                 matching_rows.append(row)
         
         if len(matching_rows) == 0:
-            return None
+            return []
         else:
             return matching_rows   
 
