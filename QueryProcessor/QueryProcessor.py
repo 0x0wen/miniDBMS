@@ -260,33 +260,40 @@ class QueryProcessor:
     def query_tree_to_results(self, qt: QueryTree):
         if qt.node_type == "SELECT":
             list_of_data_retrievals, tables = self.query_tree_to_data_retrievals(qt)
-            print("list of data retrievals", list_of_data_retrievals)
-            # print("table", tables)
             join_operations = self.get_join_operations(qt)
             results = {}
+            limit_value = None
+            
+            # Get results for each table
             for data_retrieval in list_of_data_retrievals:
                 results[data_retrieval.table[0]] = self.storage_manager.readBlock(data_retrieval)
-            # for table in tables:
-            #     print("hasil akhirnya", results[table])
-            # print("join conditionnya nya", join_operations.join_condition)
-            # for j in join_operations.join_condition.condition:
-            #     print(j)
+
+            # Check for LIMIT under FROM node
+            if qt.children[0].node_type == "FROM":
+                for child in qt.children[0].children:
+                    if child.node_type == "LIMIT":
+                        limit_value = int(child.val[0])
+                        break
+
+            # Apply joins if needed
             if (qt.children[0].node_type != "FROM"):
                 after_join = self.apply_join_operation(join_operations, results)
             else:
                 after_join = results[qt.children[0].val[0]]
-            print("after join: ", after_join)
 
+            # Apply select
             if qt.val[0] == "*":
                 all_column = list(after_join[0].keys())
                 after_select = self.apply_select(after_join, all_column)
             else:
                 after_select = self.apply_select(after_join, qt.val)
-            # print("isi qt.val itu", qt.val)
 
-        print("after select: ", after_select)
-        return after_select
-    
+            # Apply LIMIT if it was found
+            if limit_value is not None:
+                after_select = after_select[:limit_value]
+
+            return after_select
+
     def apply_join_operation(self, jo: JoinOperation, results):
         # Handle case ketika jo.tables memiliki JoinOperation
         if isinstance(jo.tables[0], JoinOperation):
@@ -391,7 +398,7 @@ class QueryProcessor:
             for d1 in results[jo.tables[0]]:
                 for d2 in results[jo.tables[1]]:
                     # Cari atribut yang sama di kedua dictionary
-                    common_keys = set(d1.keys()).intersection(set(d2.keys()))
+                    common_keys = set(d1.keys()). intersection(set(d2.keys()))
                     if common_keys and all(d1[key] == d2[key] for key in common_keys):
                         merged_dict = {
                             f"{jo.tables[0]}.{k}": v for k, v in d1.items() if k not in common_keys
