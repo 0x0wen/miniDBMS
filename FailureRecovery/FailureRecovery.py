@@ -66,6 +66,8 @@ class FailureRecovery:
             for log in reversed(filtered_logs):
                 self.buffer.updateData(log.table, log.data_after, log.data_before)
 
+            self.logManager.delete_logs(criteria)
+
         except Exception as e:
             raise Exception(f"Recovery failed: {e}")
         

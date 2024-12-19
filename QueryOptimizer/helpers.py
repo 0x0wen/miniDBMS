@@ -8,11 +8,5 @@ def isAlphanumeric(string):
     """
     return bool(re.fullmatch(r"[a-zA-Z0-9]+|[0-9]+\.[0-9]+", string))
 
-def isAlphanumericWithQuotes(string):
-    """
-    Checks if a string is alphanumeric, a floating-point number, or contains quotes.
-    
-    :param string: The string to check.
-    :return: True if the string matches the pattern, False otherwise.
-    """
-    return bool(re.fullmatch(r"[a-zA-Z0-9'_]+(?:_[a-zA-Z0-9'_]+)*|[0-9]+\.[0-9]+", string))
+def isAlphanumericWithQuotesAndUnderscoreAndDots(string):
+    return bool(re.fullmatch(r'[a-zA-Z0-9\'\"._\s]+', string))

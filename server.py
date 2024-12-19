@@ -1,3 +1,6 @@
+import traceback
+from logging import raiseExceptions
+
 from Interface.Rows import Rows
 from Interface.Action import Action
 from FailureRecovery.Structs.RecoverCriteria import RecoverCriteria
@@ -5,9 +8,11 @@ from QueryProcessor.QueryProcessor import QueryProcessor
 import socket
 import time
 import threading
+from collections import deque
+
 
 class Server:
-    def __init__(self, host="localhost", port=1234):
+    def __init__(self, host="localhost", port=1235):
         self.host = host
         self.port = port
         self.server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -18,8 +23,10 @@ class Server:
         self.clients = {}  # Store client ID and (address, socket)
         self.transactionid_to_clientid = {}
         self.clientid_to_transactionid = {}
-        self.clientid_to_queries = {} # dictionary to store optimized query and its transaction id
+        self.clientid_to_queries = {}  # dictionary to store optimized query and its transaction id
         self.clientid_to_clientsocket = {}
+        self.last_transaction_id = 0
+        self.transaction_map_of_deque = {}
 
     def send_with_header(self, client_socket, message):
         """Send a message with a header indicating its length."""
@@ -39,14 +46,17 @@ class Server:
         else:
             print(f"Client ID {client_id} not found.")
 
-    def generate_rows(self, query, client_id): # dipanggil setelah semua query dimasukkan
+    def generate_rows(self, query, client_id):  # dipanggil setelah semua query dimasukkan
         # BEGIN OPTIMIZING
         optimized_query = []
+        statistics = self.query_processor.storage_manager.getStats()
+        print("statistics:", statistics)
         for q in query:
             query_without_aliases, alias_map = self.query_processor.remove_aliases(q)
             optimized_query.append(
-                self.query_processor.optimization_engine.optimizeQuery(self.query_processor.optimization_engine.parseQuery(q)))
-                # self.optimization_engine.optimizeQuery(self.optimization_engine.parseQuery(query_without_aliases)))
+                self.query_processor.optimization_engine.optimizeQuery(
+                    self.query_processor.optimization_engine.parseQuery(q, statistics), statistics))
+            # self.optimization_engine.optimizeQuery(self.optimization_engine.parseQuery(query_without_aliases)))
         # END OPTIMIZING
         print("optimized querynya adalah")
         for q in optimized_query:
@@ -55,90 +65,150 @@ class Server:
         # BEGIN CONCURRENCY CONTROL
         # Get transaction ID
         transaction_id = self.query_processor.concurrent_manager.beginTransaction()
-        print(f"Transaction ID: {transaction_id}")
         self.transactionid_to_clientid[transaction_id] = client_id
         self.clientid_to_transactionid[client_id] = transaction_id
-
+        print("Map client to trans: ", self.clientid_to_transactionid)
+        self.last_transaction_id = transaction_id
         # Generate Rows object from optimized query
-        print("atas")
         rows = self.query_processor.generate_rows_from_query_tree(optimized_query, transaction_id)
-        print("bawah")
         print(rows.data)
         return rows.data, optimized_query
-    
+
     def run_all(self, queries, client_id, client_socket):
-        print("queries", queries) 
+        # print("queries", queries)
         rows_data, optimized_query = self.generate_rows(queries, client_id)
-        print("isi dict trans id to client id", self.transactionid_to_clientid)
-        print("isi dict client id to trans id", self.clientid_to_transactionid)
-        print("optimized query:", optimized_query)
-        print("rows data:", rows_data)
+        # print("isi dict trans id to client id", self.transactionid_to_clientid)
+        # print("isi dict client id to trans id", self.clientid_to_transactionid)
+        # print("optimized query:", optimized_query)
+        # print("rows data:", rows_data)
+        end = False
         for row_data, single_query in zip(rows_data, optimized_query):
-            if single_query.query_tree.node_type == "COMMIT":
-                self.query_processor.concurrent_manager.abstract_algorithm.end(self.clientid_to_transactionid[client_id])
-            else:
-                print("single query:", single_query)
-                # print("single query:", single_query.query_tree.node_type)
-                # Create a Rows object with a single row of data
-                single_row = Rows([row_data])
+            print(self.transaction_map_of_deque)
+            # print("anu 1", single_query)
+            # print("anu 2", queries[len(queries) - 1])
+            if single_query.query_tree.node_type == "COMMIT" or len(queries) == 1:
+                end = True
+                print("masuk end")
+            # else:
+            # print("single query:", single_query)
+            # print("single query:", single_query.query_tree.node_type)
+            # Create a Rows object with a single row of data
+            single_row = Rows([row_data])
 
-                # Create an Action object based on the first character of the row string
-                row_string = single_row.data[0]
-                action_type = "read" if row_string[0] == 'R' else "write"
-                action = Action([action_type])
-                self.query_processor.concurrent_manager.abstract_algorithm.logObject(single_row, self.clientid_to_transactionid[client_id])
-                response = self.query_processor.concurrent_manager.abstract_algorithm.validate(single_row, self.clientid_to_transactionid[client_id], action)
-                print("response nya", response)
-                print("dari query", single_query)
+            # Create an Action object based on the first character of the row string
+            row_string = single_row.data[0]
+            action_type = "read" if row_string[0] == 'R' else "write"
+            action = Action([action_type])
+            print("Client id map:", self.clientid_to_transactionid)
+            this_transaction_id = self.clientid_to_transactionid[client_id] if client_id in self.clientid_to_transactionid else raiseExceptions("Client ID not found")
+            print("this_transaction_id:", this_transaction_id)
+            self.query_processor.concurrent_manager.logObject(single_row, this_transaction_id)
+            response = self.query_processor.concurrent_manager.validateObject(single_row,
+                                                                              this_transaction_id,
+                                                                              action)
+            print("response nya", response, " saat query:", single_query)
+            # print("dari query", single_query)
 
-            if response.response_action == "ALLOW": 
-                print("transaction id yg allow:", self.clientid_to_transactionid[client_id], "dan client id nya", client_id)
-                print("ketika querynya:", single_query)
+            # Cek apakah transaksi ini sudah harus menunggu atau langsung dijalankan
+            is_run = False
+            for id_trans in self.transaction_map_of_deque:
+                if id_trans == response.related_t_id:
+                    print("transaction id ada di queue:", this_transaction_id)
+                    if response.response_action == "ALLOW":
+                        self.transaction_map_of_deque[id_trans].append(single_query)
+                        while self.transaction_map_of_deque[id_trans]:
+                            single_query = self.transaction_map_of_deque[id_trans].popleft()
+                            self.query_processor.concurrent_manager.logObject(single_row,
+                                                                              this_transaction_id)
+                            response = self.query_processor.concurrent_manager.validateObject(single_row, this_transaction_id , action)
+                            print("Transaksi ini responsenya", response)
+                            start_time = time.time()
+                            send_to_client = self.query_processor.execute_query(single_query, client_id,
+                                                                                this_transaction_id)
+                            execution_time = time.time() - start_time
+                            send_to_client += (f"\nExecution Time: {execution_time:.3f} ms\n")
+                            self.send_with_header(client_socket, send_to_client)
+
+                        is_run = True
+                    elif response.response_action == "WAIT":
+                        # Kalau wait maka masukkan ke deque
+                        self.transaction_map_of_deque[id_trans].append(single_query)
+                        is_run = True
+                    elif response.response_action == "WOUND":
+                        # Kalau wound maka abort semua transaksi yang berkaitan
+                        self.transaction_map_of_deque[id_trans].clear()
+            if is_run:
+                continue
+
+            if response.response_action == "ALLOW":
+                print("transaction id yg allowed:", this_transaction_id,
+                      "related id di response:", response.related_t_id, "current id di response:",
+                      response.current_t_id)
+                # print("ketika querynya:", single_query)
                 # run directly
                 start_time = time.time()
-                send_to_client = self.query_processor.execute_query(single_query, client_id, self.clientid_to_transactionid[client_id])
+                send_to_client = self.query_processor.execute_query(single_query, client_id,
+                                                                    this_transaction_id)
                 execution_time = time.time() - start_time
                 send_to_client += (f"\nExecution Time: {execution_time:.3f} ms\n")
                 self.send_with_header(client_socket, send_to_client)
-                # self.query_processor.concurrent_manager.abstract_algorithm.end(self.clientid_to_transactionid[client_id])
+                # self.query_processor.concurrent_manager.end(this_transaction_id)
             elif response.response_action == "WAIT":
-                print("transaction id yg wait:", self.clientid_to_transactionid[client_id], "dan client id nya", client_id)
-                print("dia wait transaction id", response.related_t_id, "yg dijalankan oleh client", self.transactionid_to_clientid[response.related_t_id])
-                print("ketika querynya:", single_query)
-                # letting other transaction run while continuously check for response change
-                while response.response_action != "ALLOW":
-                    self.query_processor.concurrent_manager.abstract_algorithm.logObject(single_row, self.clientid_to_transactionid[client_id])
-                    response = self.query_processor.concurrent_manager.abstract_algorithm.validate(single_row, self.clientid_to_transactionid[client_id], action)
-                    # print(response.response_action)
-                start_time = time.time()
-                send_to_client = self.query_processor.execute_query(single_query, client_id, self.clientid_to_transactionid[client_id])
-                execution_time = time.time() - start_time
-                send_to_client += (f"\nExecution Time: {execution_time:.3f} ms\n")
-                self.send_with_header(client_socket, send_to_client)
-                # self.query_processor.concurrent_manager.abstract_algorithm.end(self.clientid_to_transactionid[client_id])
+                # Kalau wait maka transaksi ini harus menunggu transaksi lain
+                # Masukkan query transaksi ini ke dalam deque
+                self.transaction_map_of_deque[response.current_t_id] = deque()
+                self.transaction_map_of_deque[response.current_t_id].append(single_query)
+
+                # Melanjutkan ke transaksi lain
+
+                # print("transaction id yg wait:", self.clientid_to_transactionid[client_id], "related id di response:", response.related_t_id, "current id di response:", response.current_t_id)
+                # print("dia wait transaction id", response.related_t_id, "yg dijalankan oleh client", self.transactionid_to_clientid[response.related_t_id])
+                # print("ketika querynya:", single_query)
+                # # letting other transaction run while continuously check for response change
+                # while response.response_action != "ALLOW":
+                #     print("waiting")
+                #     self.query_processor.concurrent_manager.logObject(single_row, self.clientid_to_transactionid[client_id])
+                #     response = self.query_processor.concurrent_manager.validateObject(single_row, self.clientid_to_transactionid[client_id], action)
+                #     # print(response.response_action)
+                # print("transaction", self.clientid_to_transactionid[client_id],"dah jalan")
+                # start_time = time.time()
+                # send_to_client = self.query_processor.execute_query(single_query, client_id, self.clientid_to_transactionid[client_id])
+                # execution_time = time.time() - start_time
+                # send_to_client += (f"\nExecution Time: {execution_time:.3f} ms\n")
+                # self.send_with_header(client_socket, send_to_client)
+                # self.query_processor.concurrent_manager.end(self.clientid_to_transactionid[client_id])
             elif response.response_action == "WOUND":
-                print("transaction id yg wounded:", self.clientid_to_transactionid[client_id], "dan client id nya", client_id)
-                print("ketika querynya:", single_query)
+                print("transaction id yg wounded:", this_transaction_id,
+                      "related id di response:", response.related_t_id, "current id di response:",
+                      response.current_t_id)
+                # print("ketika querynya:", single_query)
                 # abort all changes on related transaction id
-                self.query_processor.failure_recovery.recover(RecoverCriteria(response.related_t_id))
+                self.query_processor.failure_recovery.recover(RecoverCriteria(transaction_id=response.current_t_id))
+                self.query_processor.concurrent_manager.endTransaction(response.current_t_id)
                 # run current query
                 start_time = time.time()
-                send_to_client = self.query_processor.execute_query(single_query, client_id, self.clientid_to_transactionid[client_id])
+                send_to_client = self.query_processor.execute_query(single_query, client_id,
+                                                                    this_transaction_id)
                 execution_time = time.time() - start_time
                 send_to_client += (f"\nExecution Time: {execution_time:.3f} ms\n")
                 self.send_with_header(client_socket, send_to_client)
-                # self.query_processor.concurrent_manager.abstract_algorithm.end(self.clientid_to_transactionid[client_id])
+                # self.query_processor.concurrent_manager.end(self.clientid_to_transactionid[client_id])
                 # start over related transaction
-                self.run_all(self.clientid_to_queries[self.transactionid_to_clientid[response.related_t_id]], self.transactionid_to_clientid[response.related_t_id], self. clientid_to_clientsocket[self.transactionid_to_clientid[response.related_t_id]])
+                self.run_all(self.clientid_to_queries[self.transactionid_to_clientid[response.current_t_id]],
+                             self.transactionid_to_clientid[response.related_t_id],
+                             self.clientid_to_clientsocket[self.transactionid_to_clientid[response.related_t_id]])
 
+        if end:
+            print("query", this_transaction_id, "dah commit dan end")
+            self.query_processor.concurrent_manager.endTransaction(this_transaction_id)
 
         # after transaction done run this
         if self.query_processor.failure_recovery.logManager.is_wal_full():
             self.query_processor.storage_manager.synchronize_storage()
             self.timer_event.set()  # restart timer 300 detik
         # remove client id and transaction id map
-        self.clientid_to_transactionid = {}
-        self.transactionid_to_clientid = {}
+        self.clientid_to_transactionid.pop(client_id)
+        self.transactionid_to_clientid.pop(this_transaction_id)
 
     def handle_client(self, client_socket, client_id):
         try:
@@ -166,7 +236,7 @@ class Server:
 
                 except Exception as e:
                     # handle query errors without disconnecting the client
-                    error_message = f"Error processing query: {e}\n"
+                    error_message = f"Error processing query: {traceback.format_exc()}\n"
                     self.send_with_header(client_socket, error_message)
         except Exception as e:
             print(f"Error handling client {client_id}: {e}")
@@ -216,6 +286,7 @@ class Server:
         self.timer_event.set()
         self.server_socket.close()
         print("Server has been stopped.")
+
 
 if __name__ == "__main__":
     server = Server()

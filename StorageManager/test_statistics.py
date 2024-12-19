@@ -81,6 +81,7 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(stats_test1.n_r, 3)  # 3 tuples
         self.assertEqual(stats_test1.b_r, 1)  # Semua data muat dalam 1 blok
         self.assertEqual(stats_test1.l_r, 58)  # Ukuran tuple sesuai skema
+        self.assertEqual(stats_test1.f_r, 12) # Faktor blocking
         self.assertEqual(stats_test1.V_a_r["col1"], 3)  # 3 nilai unik
 
         # Cek statistik "test2"
@@ -89,6 +90,7 @@ class TestStatistics(unittest.TestCase):
         self.assertEqual(stats_test2.n_r, 3)  # 3 tuples
         self.assertEqual(stats_test2.b_r, 1)  # Semua data muat dalam 1 blok
         self.assertEqual(stats_test2.l_r, 54)  # Ukuran tuple sesuai skema
+        self.assertEqual(stats_test2.f_r, 13) # Faktor blocking
         self.assertEqual(stats_test2.V_a_r["colA"], 3)  # 3 nilai unik
 
 if __name__ == "__main__":
