@@ -31,6 +31,13 @@ class TableCreator:
             ('coursedesc', 'varchar', 50),
         ]
 
+        self.attend_schema = [
+            ('studentid', 'int', 4),
+            ('courseid', 'int', 4),
+        ]
+
+
+
         self.course_name = [
     "Mathematics", "Physics", "Chemistry", "Biology", "English Literature",
     "History", "Computer Science", "Philosophy", "Economics", "Art",
@@ -128,24 +135,42 @@ class TableCreator:
         random.choice(self.course_description)
     ]
     for i in range(1, self.amount_of_data + 1)
-]
+        ]
+
+    def generate_attends_data(self):
+        data = []
+
+        for s in self.student_data:
+            course = random.choice(self.course_data)
+            temp = [s[0], course[0]]
+            data.append(temp)
+
+        return data
     
     def resetTable(self):
         self.student_table = "student"
         self.course_table = "course"
+        self.attend_table = "attends"
+
         self.serializer.writeTable(self.student_table,self.student_data ,self.student_schema)
         self.serializer.writeTable(self.course_table,self.course_data ,self.course_schema)
+
+        self.attends_data = self.generate_attends_data()
+        self.serializer.writeTable(self.attend_table, self.attends_data, self.attend_schema)
+
+
         self.indexManager.writeIndex(self.course_table,'courseid')
         self.indexManager.writeIndex(self.student_table,'studentid')
+        self.indexManager.writeIndex(self.attend_table,'studentid')
 
     def displayTable(self, table : str):
         data_with_schema = self.serializer.readTable(table)
         for row in data_with_schema:
             print(row)
     
-if __name__ == 'main':
-    table_creator = TableCreator(100)
+if __name__ == '__main__':
+    table_creator = TableCreator(50)
     table_creator.resetTable()
-    table_creator.displayTable('course')
+    table_creator.displayTable('attends')
 
     
